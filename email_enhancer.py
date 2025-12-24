@@ -85,21 +85,21 @@ class EmailEnhancer:
         if HAS_GEMINI:
             api_key = gemini_api_key or os.getenv('GEMINI_API_KEY')
             if api_key:
-                # Clear proxy environment variables that might interfere
-                original_proxies = {}
-                for proxy_var in ['HTTPS_PROXY', 'HTTP_PROXY', 'https_proxy', 'http_proxy']:
-                    if proxy_var in os.environ:
-                        original_proxies[proxy_var] = os.environ.pop(proxy_var)
-                
                 try:
-                    # Initialize with only api_key parameter
-                    self.gemini_client = genai.Client(api_key=api_key)
+                    # Use http_options to disable proxy usage explicitly
+                    from google.genai import types
+                    http_options = types.HttpOptions(
+                        client_args={'trust_env': False}  # Don't use proxy env vars
+                    )
+                    self.gemini_client = genai.Client(api_key=api_key, http_options=http_options)
                     logger.info("✅ Gemini AI initialized for email extraction")
-                except (TypeError, Exception) as e:
-                    logger.warning(f"⚠️  Gemini initialization failed: {str(e)}")
-                finally:
-                    # Restore proxy environment variables
-                    os.environ.update(original_proxies)
+                except Exception as e:
+                    # Fallback: try without http_options
+                    try:
+                        self.gemini_client = genai.Client(api_key=api_key)
+                        logger.info("✅ Gemini AI initialized for email extraction (fallback)")
+                    except Exception as e2:
+                        logger.warning(f"⚠️  Gemini initialization failed: {str(e2)}")
         else:
             logger.warning("⚠️  Gemini not available")
     
