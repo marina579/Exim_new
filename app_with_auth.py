@@ -2099,6 +2099,35 @@ def reset_stuck_zoho_contacts():
         return redirect(url_for('view_contacts'))
 
 
+@app.route('/migrate_database', methods=['GET'])
+@login_required
+def migrate_database_route():
+    """
+    Web route to run database migration.
+    This imports and runs migrate_contacts() from migrate_database.py
+    """
+    # Check if user is admin
+    if not session.get('is_admin'):
+        flash('Access denied. Admin privileges required.', 'error')
+        return redirect(url_for('index'))
+    
+    try:
+        import migrate_database
+        result = migrate_database.migrate_contacts()
+        
+        flash('✅ Database migration completed successfully! Check the contacts page.', 'success')
+        logger.info("✅ Database migration completed via web route")
+        return redirect(url_for('view_contacts'))
+    except ImportError:
+        flash('❌ Migration script (migrate_database.py) not found. Please upload it to Railway first.', 'error')
+        logger.error("Migration script not found")
+        return redirect(url_for('view_contacts'))
+    except Exception as e:
+        flash(f'❌ Migration error: {str(e)}', 'error')
+        logger.error(f"Migration error: {str(e)}", exc_info=True)
+        return redirect(url_for('view_contacts'))
+
+
 if __name__ == '__main__':
     print("\n" + "="*70)
     print("🚢 MARINECO AI EXIM CONTACT FINDER - SECURE VERSION")
