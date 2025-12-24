@@ -86,8 +86,19 @@ class EmailEnhancer:
             api_key = gemini_api_key or os.getenv('GEMINI_API_KEY')
             if api_key:
                 try:
+                    # Initialize with only api_key parameter (no proxies)
                     self.gemini_client = genai.Client(api_key=api_key)
                     logger.info("✅ Gemini AI initialized for email extraction")
+                except TypeError as e:
+                    if 'proxies' in str(e):
+                        logger.warning(f"⚠️  Gemini Client proxies error (version issue): {str(e)}")
+                        # Try alternative initialization if proxies error
+                        try:
+                            self.gemini_client = genai.Client(api_key=api_key)
+                        except Exception as e2:
+                            logger.warning(f"⚠️  Gemini initialization failed: {str(e2)}")
+                    else:
+                        logger.warning(f"⚠️  Gemini initialization failed: {str(e)}")
                 except Exception as e:
                     logger.warning(f"⚠️  Gemini initialization failed: {str(e)}")
         else:
