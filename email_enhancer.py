@@ -86,20 +86,31 @@ class EmailEnhancer:
             api_key = gemini_api_key or os.getenv('GEMINI_API_KEY')
             if api_key:
                 try:
-                    # Use http_options to disable proxy usage explicitly
+                    # Explicitly disable proxy by setting it to None in client_args
+                    # This prevents httpx from reading proxy env vars
                     from google.genai import types
                     http_options = types.HttpOptions(
-                        client_args={'trust_env': False}  # Don't use proxy env vars
+                        client_args={
+                            'trust_env': False,  # Don't read proxy from env vars
+                            'proxy': None  # Explicitly set proxy to None
+                        }
                     )
                     self.gemini_client = genai.Client(api_key=api_key, http_options=http_options)
                     logger.info("✅ Gemini AI initialized for email extraction")
                 except Exception as e:
-                    # Fallback: try without http_options
+                    # Fallback: Try with just trust_env=False
                     try:
-                        self.gemini_client = genai.Client(api_key=api_key)
-                        logger.info("✅ Gemini AI initialized for email extraction (fallback)")
+                        from google.genai import types
+                        http_options = types.HttpOptions(client_args={'trust_env': False})
+                        self.gemini_client = genai.Client(api_key=api_key, http_options=http_options)
+                        logger.info("✅ Gemini AI initialized for email extraction (fallback 1)")
                     except Exception as e2:
-                        logger.warning(f"⚠️  Gemini initialization failed: {str(e2)}")
+                        # Final fallback: try simple initialization
+                        try:
+                            self.gemini_client = genai.Client(api_key=api_key)
+                            logger.info("✅ Gemini AI initialized for email extraction (fallback 2)")
+                        except Exception as e3:
+                            logger.warning(f"⚠️  Gemini initialization failed: {str(e3)}")
         else:
             logger.warning("⚠️  Gemini not available")
     

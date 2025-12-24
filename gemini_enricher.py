@@ -39,18 +39,26 @@ class GeminiEnricher:
         if not self.api_key:
             raise ValueError("Gemini API key required. Get one from: https://aistudio.google.com/apikey")
         
-        # Initialize client with http_options to disable proxy env vars
+        # Initialize client with http_options to explicitly disable proxy
         try:
             http_options = types.HttpOptions(
-                client_args={'trust_env': False}  # Don't use proxy env vars
+                client_args={
+                    'trust_env': False,  # Don't read proxy from env vars
+                    'proxy': None  # Explicitly set proxy to None
+                }
             )
             self.client = genai.Client(api_key=self.api_key, http_options=http_options)
         except Exception as e:
-            # Fallback: try without http_options
+            # Fallback 1: Try with just trust_env=False
             try:
-                self.client = genai.Client(api_key=self.api_key)
+                http_options = types.HttpOptions(client_args={'trust_env': False})
+                self.client = genai.Client(api_key=self.api_key, http_options=http_options)
             except Exception as e2:
-                raise ValueError(f"Failed to initialize Gemini client: {str(e2)}")
+                # Fallback 2: Try simple initialization
+                try:
+                    self.client = genai.Client(api_key=self.api_key)
+                except Exception as e3:
+                    raise ValueError(f"Failed to initialize Gemini client: {str(e3)}")
         
         logger.info("✅ Gemini enricher initialized")
     
