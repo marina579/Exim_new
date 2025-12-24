@@ -220,7 +220,7 @@
                     <i class="fas fa-comments me-1"></i>Chatbot
                 </a>
                 <a href="{{ url_for('view_contacts') }}">
-                    <i class="fas fa-address-book me-1"></i>Contacts
+                    <i class="fas fa-database me-1"></i>Database
                 </a>
                 {% if session.get('is_admin') %}
                 <a href="{{ url_for('admin_users') }}">
@@ -376,6 +376,20 @@
                     body: JSON.stringify({ company_name: companyName })
                 });
                 
+                // Check if response is OK
+                if (!response.ok) {
+                    const text = await response.text();
+                    try {
+                        const errorData = JSON.parse(text);
+                        hideTyping();
+                        addMessage(`<p class="mb-0 text-danger">❌ ${errorData.message || errorData.error || 'Unknown error'}</p>`);
+                    } catch (e) {
+                        hideTyping();
+                        addMessage(`<p class="mb-0 text-danger">❌ Server error (${response.status}): ${text.substring(0, 100)}</p>`);
+                    }
+                    return;
+                }
+                
                 const data = await response.json();
                 hideTyping();
                 
@@ -385,7 +399,7 @@
                 } else if (data.status === 'no_results') {
                     addMessage(`<p class="mb-0">❌ Sorry, I couldn't find any contacts for "${companyName}". Please verify the company name and try again.</p>`);
                 } else {
-                    addMessage(`<p class="mb-0 text-danger">❌ ${data.message || 'Unknown error'}</p>`);
+                    addMessage(`<p class="mb-0 text-danger">❌ ${data.message || data.error || 'Unknown error'}</p>`);
                 }
             } catch (error) {
                 hideTyping();

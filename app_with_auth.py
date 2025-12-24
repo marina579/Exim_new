@@ -832,14 +832,20 @@ def search_company():
 @login_required
 def process_company():
     """Process a single company with AI enrichment."""
-    data = request.get_json()
-    company_name = data.get('company_name', '').strip()
-    company_address = data.get('company_address', '').strip()
-    
-    if not company_name:
-        return jsonify({'error': 'Company name is required'}), 400
+    import logging
+    logger = logging.getLogger(__name__)
     
     try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'status': 'error', 'message': 'Invalid JSON data'}), 400
+            
+        company_name = data.get('company_name', '').strip()
+        company_address = data.get('company_address', '').strip()
+        
+        if not company_name:
+            return jsonify({'status': 'error', 'message': 'Company name is required'}), 400
+        
         # Initialize enricher
         serpapi_key = os.getenv('SERPAPI_API_KEY')
         openai_key = os.getenv('OPENAI_API_KEY')
@@ -893,8 +899,8 @@ def process_company():
             })
     
     except Exception as e:
-        logger.error(f"Error processing company: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Error processing company: {str(e)}", exc_info=True)
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 
 @app.route('/upload_step1', methods=['POST'])

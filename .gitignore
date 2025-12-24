@@ -77,3 +77,6 @@ Thumbs.db
 *.key
 secrets/
 .secrets/
+
+# Ignore markdown documentation files
+*.md
