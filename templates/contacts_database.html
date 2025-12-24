@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contacts Database - Marineco EXIM</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #e8eef5 100%);
+            min-height: 100vh;
+            padding: 2rem 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .main-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 1rem;
+        }
+        
+        .header-card {
+            background: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+        
+        .stats-row {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .stat-card {
+            flex: 1;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            text-align: center;
+        }
+        
+        .stat-card h3 {
+            font-size: 2rem;
+            margin: 0;
+            font-weight: bold;
+        }
+        
+        .stat-card p {
+            margin: 0.5rem 0 0 0;
+            opacity: 0.9;
+        }
+        
+        .contacts-table {
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+        
+        .table {
+            margin: 0;
+        }
+        
+        .table thead {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .table thead th {
+            border: none;
+            padding: 1rem;
+            font-weight: 600;
+        }
+        
+        .table tbody td {
+            padding: 1rem;
+            vertical-align: middle;
+        }
+        
+        .table tbody tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .badge {
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+        
+        .pagination-wrapper {
+            background: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin-top: 2rem;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+        
+        .pagination .page-link {
+            color: #667eea;
+            border: 2px solid #e9ecef;
+            margin: 0 0.2rem;
+            border-radius: 8px;
+        }
+        
+        .pagination .page-link:hover {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+        
+        .pagination .page-item.active .page-link {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-color: #667eea;
+        }
+        
+        .contact-info {
+            font-size: 0.9rem;
+        }
+        
+        .contact-info i {
+            width: 20px;
+            color: #667eea;
+        }
+        
+        .nav-links a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+            margin: 0 0.5rem;
+        }
+        
+        .nav-links a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <!-- Header -->
+        <div class="header-card">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <a href="{{ url_for('index') }}" class="btn btn-outline-primary btn-sm mb-2">
+                        <i class="fas fa-arrow-left me-1"></i>Back to Home
+                    </a>
+                    <h2 class="mb-0">
+                        <i class="fas fa-database" style="color: #3498db;"></i>
+                        Contacts Database
+                    </h2>
+                    <p class="text-muted mb-0 mt-2">
+                        View all cached contacts from Marineco AI Contact Finder
+                    </p>
+                </div>
+                <div class="text-end">
+                    {% if username %}
+                    <div style="background: #f8f9fa; padding: 0.75rem 1.5rem; border-radius: 50px;">
+                        <i class="fas fa-user-circle me-2" style="color: #3498db;"></i>
+                        <strong>{{ username }}</strong>
+                        <span class="mx-2">|</span>
+                        <a href="{{ url_for('logout') }}" style="color: #e74c3c; text-decoration: none; font-weight: 600;">
+                            <i class="fas fa-sign-out-alt me-1"></i>Logout
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Navigation -->
+            <div class="nav-links text-center mt-3">
+                <a href="{{ url_for('index') }}">
+                    <i class="fas fa-home me-1"></i>Home
+                </a>
+                <a href="{{ url_for('step2') }}">
+                    <i class="fas fa-upload me-1"></i>Bulk Upload
+                </a>
+                <a href="{{ url_for('chatbot') }}">
+                    <i class="fas fa-comments me-1"></i>Chatbot
+                </a>
+                <a href="{{ url_for('view_contacts') }}" style="text-decoration: underline;">
+                    <i class="fas fa-address-book me-1"></i>Contacts
+                </a>
+                {% if session.get('is_admin') %}
+                <a href="{{ url_for('admin_users') }}">
+                    <i class="fas fa-users-cog me-1"></i>Admin Panel
+                </a>
+                {% endif %}
+            </div>
+            
+            <!-- Stats -->
+            <div class="stats-row">
+                <div class="stat-card">
+                    <h3>{{ stats.total_companies }}</h3>
+                    <p><i class="fas fa-building me-2"></i>Total Companies</p>
+                </div>
+                <div class="stat-card">
+                    <h3>{{ stats.total_contacts }}</h3>
+                    <p><i class="fas fa-address-book me-2"></i>Total Contacts</p>
+                </div>
+                <div class="stat-card">
+                    <h3>{{ stats.companies_with_contacts }}</h3>
+                    <p><i class="fas fa-check-circle me-2"></i>With Contacts</p>
+                </div>
+                <div class="stat-card">
+                    <h3>{{ stats.db_type }}</h3>
+                    <p><i class="fas fa-server me-2"></i>Database Type</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Search Box -->
+        <div class="header-card mb-4">
+            <form action="{{ url_for('view_contacts') }}" method="GET" class="row g-3">
+                <div class="col-md-10">
+                    <div class="input-group">
+                        <span class="input-group-text" style="background: linear-gradient(135deg, #3498db 0%, #2980b9 100%); color: white; border: none;">
+                            <i class="fas fa-search"></i>
+                        </span>
+                        <input type="text" 
+                               class="form-control form-control-lg" 
+                               name="search" 
+                               placeholder="Search by company name, contact name, phone, or email..." 
+                               value="{{ search_query or '' }}"
+                               style="border: 2px solid #3498db;">
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100 btn-lg" style="background: linear-gradient(135deg, #3498db 0%, #2980b9 100%); border: none; font-weight: 600;">
+                        <i class="fas fa-search me-2"></i>Search
+                    </button>
+                </div>
+                {% if search_query %}
+                <div class="col-12">
+                    <div class="alert alert-info mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Showing results for: <strong>"{{ search_query }}"</strong>
+                        <a href="{{ url_for('view_contacts') }}" class="btn btn-sm btn-outline-primary ms-3">
+                            <i class="fas fa-times me-1"></i>Clear Search
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
+            </form>
+        </div>
+        
+        <!-- Contacts Table -->
+        <div class="contacts-table">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th><i class="fas fa-building me-2"></i>Company</th>
+                            <th><i class="fas fa-user me-2"></i>Contact Name</th>
+                            <th><i class="fas fa-phone me-2"></i>Phone</th>
+                            <th><i class="fas fa-envelope me-2"></i>Email</th>
+                            <th><i class="fab fa-whatsapp me-2"></i>WhatsApp</th>
+                            <th><i class="fas fa-tag me-2"></i>Method</th>
+                            <th><i class="fas fa-clock me-2"></i>Added</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if contacts %}
+                            {% for contact in contacts %}
+                            <tr>
+                                <td>
+                                    <strong>{{ contact.company_name }}</strong>
+                                    {% if contact.company_address %}
+                                    <br><small class="text-muted">{{ contact.company_address[:80] }}...</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if contact.contact_name %}
+                                        {{ contact.contact_name }}
+                                    {% else %}
+                                        <span class="text-muted">N/A</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if contact.phone %}
+                                        <span class="contact-info">
+                                            <i class="fas fa-phone"></i> {{ contact.phone }}
+                                        </span>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if contact.email %}
+                                        <span class="contact-info">
+                                            <i class="fas fa-envelope"></i> {{ contact.email }}
+                                        </span>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if contact.whatsapp %}
+                                        <a href="https://wa.me/{{ contact.whatsapp.replace('+', '').replace('-', '') }}" 
+                                           target="_blank" class="text-success text-decoration-none">
+                                            <i class="fab fa-whatsapp"></i> {{ contact.whatsapp }}
+                                        </a>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-primary">
+                                        {{ contact.method.replace('_', ' ').title() }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <small class="text-muted">
+                                        {{ contact.created_at[:16] }}
+                                    </small>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="7" class="text-center py-5">
+                                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                                    <p class="text-muted mb-0">No contacts in database yet.</p>
+                                    <p class="text-muted">Start by uploading a file or using the chatbot!</p>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Pagination -->
+        {% if total_pages > 1 %}
+        <div class="pagination-wrapper">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <p class="mb-0 text-muted">
+                        Showing <strong>{{ (page - 1) * per_page + 1 }}</strong> to 
+                        <strong>{{ min(page * per_page, total) }}</strong> of 
+                        <strong>{{ total }}</strong> contacts
+                    </p>
+                </div>
+                <nav>
+                    <ul class="pagination mb-0">
+                        {% if has_prev %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('view_contacts', page=1, per_page=per_page, search=search_query) }}">
+                                <i class="fas fa-angle-double-left"></i>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('view_contacts', page=page-1, per_page=per_page, search=search_query) }}">
+                                <i class="fas fa-angle-left"></i>
+                            </a>
+                        </li>
+                        {% endif %}
+                        
+                        {% for p in range(max(1, page-2), min(total_pages+1, page+3)) %}
+                        <li class="page-item {% if p == page %}active{% endif %}">
+                            <a class="page-link" href="{{ url_for('view_contacts', page=p, per_page=per_page, search=search_query) }}">
+                                {{ p }}
+                            </a>
+                        </li>
+                        {% endfor %}
+                        
+                        {% if has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('view_contacts', page=page+1, per_page=per_page, search=search_query) }}">
+                                <i class="fas fa-angle-right"></i>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('view_contacts', page=total_pages, per_page=per_page, search=search_query) }}">
+                                <i class="fas fa-angle-double-right"></i>
+                            </a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
+

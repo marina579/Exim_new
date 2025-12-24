@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Processing - EXIM Contact Enricher</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            min-height: 100vh;
+            padding: 2rem 0;
+        }
+        .container {
+            max-width: 900px;
+        }
+        .nav-header {
+            background: white;
+            border-radius: 15px;
+            padding: 1rem 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+        .nav-header a {
+            color: #3498db;
+            text-decoration: none;
+            font-weight: 600;
+            margin: 0 0.5rem;
+            transition: all 0.3s ease;
+        }
+        .nav-header a:hover {
+            color: #2980b9;
+            text-decoration: underline;
+        }
+        .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .card-header {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: white;
+            border-radius: 15px 15px 0 0 !important;
+            padding: 1.5rem;
+        }
+        .progress {
+            height: 30px;
+            border-radius: 15px;
+            background: #e9ecef;
+        }
+        .progress-bar {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            transition: width 0.3s ease;
+        }
+        .status-box {
+            background: #f8f9fa;
+            border-left: 4px solid #3498db;
+            padding: 1rem;
+            border-radius: 5px;
+            margin: 1rem 0;
+        }
+        .spinner-border {
+            width: 3rem;
+            height: 3rem;
+        }
+        .success-icon {
+            font-size: 4rem;
+            color: #28a745;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Navigation Header -->
+        <div class="nav-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="text-center flex-grow-1">
+                    <a href="{{ url_for('index') }}">
+                        <i class="fas fa-home me-1"></i>Home
+                    </a>
+                    <a href="{{ url_for('step2') }}">
+                        <i class="fas fa-upload me-1"></i>Bulk Upload
+                    </a>
+                    <a href="{{ url_for('chatbot') }}">
+                        <i class="fas fa-comments me-1"></i>Chatbot
+                    </a>
+                    <a href="{{ url_for('view_contacts') }}">
+                        <i class="fas fa-address-book me-1"></i>Contacts
+                    </a>
+                    {% if session.get('is_admin') %}
+                    <a href="{{ url_for('admin_users') }}">
+                        <i class="fas fa-users-cog me-1"></i>Admin Panel
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header text-center">
+                <h1 class="mb-0"><i class="fas fa-cog fa-spin me-2"></i>Processing File</h1>
+            </div>
+            <div class="card-body p-4">
+                <div id="processingView">
+                    <div class="text-center mb-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                    
+                    <!-- File Upload Info -->
+                    <div class="alert alert-success mb-3" id="uploadInfo">
+                        <i class="fas fa-check-circle me-2"></i>
+                        <strong>File Uploaded Successfully!</strong>
+                        <div class="mt-2 small">
+                            <div>File: <span id="fileName">Loading...</span></div>
+                            <div>Size: <span id="fileSize">-</span></div>
+                            <div>Uploaded at: <span id="uploadTime">-</span></div>
+                        </div>
+                    </div>
+                    
+                    <h4 class="text-center mb-4" id="statusText">Initializing processing...</h4>
+                    
+                    <div class="progress mb-3">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                             role="progressbar" 
+                             id="progressBar"
+                             style="width: 0%"
+                             aria-valuenow="0" 
+                             aria-valuemin="0" 
+                             aria-valuemax="100">
+                            <span id="progressText">0%</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Time Information -->
+                    <div class="status-box mb-3">
+                        <div class="row text-center">
+                            <div class="col-6">
+                                <div class="mb-2">
+                                    <strong>Elapsed Time</strong>
+                                    <div class="h5 text-primary" id="elapsedTime">0s</div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="mb-2">
+                                    <strong>Processing Time</strong>
+                                    <div class="h5 text-success" id="processingTime">0s</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Current Status -->
+                    <div class="status-box">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <strong>Current Seller:</strong>
+                            <span id="currentSeller" class="text-muted">-</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <strong>Progress:</strong>
+                            <span id="progressCount">0 / 0</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Processed Data Summary -->
+                    <div class="status-box mt-3" id="processedDataBox" style="display: none;">
+                        <h6 class="mb-3"><i class="fas fa-database me-2"></i>Processed Data Summary</h6>
+                        <div class="row text-center">
+                            <div class="col-4">
+                                <div class="mb-2">
+                                    <div class="h4 text-primary" id="processedCount">0</div>
+                                    <small class="text-muted">Processed</small>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="mb-2">
+                                    <div class="h4 text-success" id="withEmail">0</div>
+                                    <small class="text-muted">With Email</small>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="mb-2">
+                                    <div class="h4 text-info" id="withPhone">0</div>
+                                    <small class="text-muted">With Phone</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-3" id="recentProcessed" style="max-height: 150px; overflow-y: auto;">
+                            <small><strong>Recently Processed:</strong></small>
+                            <ul class="list-unstyled mt-2 mb-0" id="recentList"></ul>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info mt-3">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <small>This may take a few minutes. Please keep this page open.</small>
+                    </div>
+                </div>
+                
+                <div id="completedView" style="display: none;">
+                    <div class="text-center">
+                        <div class="success-icon mb-3">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <h3 class="mb-3">Processing Complete!</h3>
+                        
+                        <!-- Completion Summary -->
+                        <div class="status-box mb-4 text-start">
+                            <h6 class="mb-3"><i class="fas fa-info-circle me-2"></i>Processing Summary</h6>
+                            <div class="row">
+                                <div class="col-6 mb-2">
+                                    <strong>Total Processed:</strong> <span id="finalProcessed">0</span>
+                                </div>
+                                <div class="col-6 mb-2">
+                                    <strong>Total Time:</strong> <span id="finalTime">0s</span>
+                                </div>
+                                <div class="col-6 mb-2">
+                                    <strong>With Email:</strong> <span id="finalEmail">0</span>
+                                </div>
+                                <div class="col-6 mb-2">
+                                    <strong>With Phone:</strong> <span id="finalPhone">0</span>
+                                </div>
+                                <div class="col-12 mb-2">
+                                    <strong>Completed at:</strong> <span id="completedTime">-</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <a href="#" id="downloadLink" class="btn btn-success btn-lg">
+                                <i class="fas fa-download me-2"></i>Download Full Export (Excel)
+                            </a>
+                            
+                            <!-- Zoho CRM Format Downloads -->
+                            <div class="alert alert-info mb-0 mt-2">
+                                <h6 class="mb-2"><i class="fas fa-cloud me-2"></i>Zoho CRM Format</h6>
+                                <p class="small mb-3">Simplified format ready for import into Zoho CRM with Lead Name, Company, Email, and Phone fields.</p>
+                                <div class="d-grid gap-2 d-md-flex justify-content-md-center">
+                                    <a href="#" id="downloadZohoExcel" class="btn btn-primary">
+                                        <i class="fas fa-file-excel me-2"></i>Download Zoho (Excel)
+                                    </a>
+                                    <a href="#" id="downloadZohoCSV" class="btn btn-outline-primary">
+                                        <i class="fas fa-file-csv me-2"></i>Download Zoho (CSV)
+                                    </a>
+                                </div>
+                            </div>
+                            
+                            <a href="/" class="btn btn-outline-secondary mt-2">
+                                <i class="fas fa-upload me-2"></i>Process Another File
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="errorView" style="display: none;">
+                    <div class="alert alert-danger">
+                        <h5><i class="fas fa-exclamation-triangle me-2"></i>Error</h5>
+                        <p id="errorMessage"></p>
+                        <a href="/" class="btn btn-primary">Go Back</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Get file ID from template
+        const fileId = '{{ file_id }}';
+        
+        // Validate file ID
+        if (!fileId || fileId === '' || fileId.includes('{')) {
+            console.error('Invalid file ID:', fileId);
+            showError('No file ID provided. Please upload a file first.');
+        }
+        
+        let pollInterval;
+        
+        // Log for debugging
+        console.log('File ID:', fileId);
+        
+        function formatFileSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        }
+        
+        function updateProgress() {
+            const mainStatus = document.getElementById('mainStatus');
+            const apiStatus = document.getElementById('apiStatus');
+            
+            if (mainStatus) mainStatus.textContent = 'Fetching progress...';
+            if (apiStatus) apiStatus.textContent = 'Requesting...';
+            
+            console.log('Fetching progress for:', fileId);
+            fetch(`/api/progress/${fileId}`)
+                .then(response => {
+                    console.log('Response status:', response.status);
+                    if (apiStatus) apiStatus.textContent = `Status: ${response.status}`;
+                    
+                    if (!response.ok) {
+                        if (mainStatus) mainStatus.textContent = `Error: HTTP ${response.status}`;
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Progress data:', data);
+                    
+                    if (mainStatus) {
+                        if (data.status === 'uploaded') {
+                            mainStatus.textContent = 'File uploaded, processing will start soon...';
+                        } else if (data.status === 'processing') {
+                            mainStatus.textContent = `Processing: ${data.current || 0}/${data.total || 0} sellers`;
+                        } else if (data.status === 'completed') {
+                            mainStatus.textContent = 'Processing completed!';
+                        } else {
+                            mainStatus.textContent = 'Connected, waiting for data...';
+                        }
+                    }
+                    
+                    if (data.error) {
+                        console.error('Error in progress data:', data.error);
+                        if (mainStatus) mainStatus.textContent = `Error: ${data.error}`;
+                        showError(data.error);
+                        return;
+                    }
+                    
+                    if (!data) {
+                        console.error('No data received');
+                        if (mainStatus) mainStatus.textContent = 'No data received from server';
+                        return;
+                    }
+                    
+                    // Update file upload info
+                    const fileNameEl = document.getElementById('fileName');
+                    const fileSizeEl = document.getElementById('fileSize');
+                    const uploadTimeEl = document.getElementById('uploadTime');
+                    
+                    if (data.filename && fileNameEl) {
+                        fileNameEl.textContent = data.filename;
+                    }
+                    if (data.file_size && fileSizeEl) {
+                        fileSizeEl.textContent = formatFileSize(data.file_size);
+                    }
+                    if (data.upload_time && uploadTimeEl) {
+                        uploadTimeEl.textContent = data.upload_time;
+                    }
+                    
+                    // Update progress bar
+                    const percentage = data.percentage || 0;
+                    const progressBar = document.getElementById('progressBar');
+                    const progressText = document.getElementById('progressText');
+                    const progressCount = document.getElementById('progressCount');
+                    const currentSeller = document.getElementById('currentSeller');
+                    const statusText = document.getElementById('statusText');
+                    const elapsedTime = document.getElementById('elapsedTime');
+                    const processingTime = document.getElementById('processingTime');
+                    
+                    if (progressBar) {
+                        progressBar.style.width = percentage + '%';
+                        progressBar.setAttribute('aria-valuenow', percentage);
+                    }
+                    if (progressText) progressText.textContent = percentage + '%';
+                    if (progressCount) progressCount.textContent = `${data.current || 0} / ${data.total_unique || data.total || 0}`;
+                    if (currentSeller) currentSeller.textContent = data.current_seller || 'Waiting...';
+                    if (elapsedTime) elapsedTime.textContent = data.elapsed_time || '0s';
+                    if (processingTime) processingTime.textContent = data.processing_time || '0s';
+                    
+                    if (statusText) {
+                        if (data.status === 'uploaded') {
+                            statusText.textContent = 'File uploaded, starting processing...';
+                        } else if (data.status === 'parsing') {
+                            statusText.textContent = 'Parsing Excel file...';
+                        } else if (data.status === 'enriching') {
+                            statusText.textContent = data.message || 'Enriching contacts...';
+                        } else if (data.status === 'complete' || data.status === 'completed') {
+                            statusText.textContent = 'Processing complete!';
+                        } else {
+                            statusText.textContent = data.message || 'Loading...';
+                        }
+                    }
+                    
+                    // Update processed data summary
+                    if (data.processed_sellers && data.processed_sellers.length > 0) {
+                        const processedBox = document.getElementById('processedDataBox');
+                        processedBox.style.display = 'block';
+                        
+                        const processedCount = data.processed_sellers.length;
+                        const withEmail = data.processed_sellers.filter(s => s.has_email).length;
+                        const withPhone = data.processed_sellers.filter(s => s.has_phone).length;
+                        
+                        document.getElementById('processedCount').textContent = processedCount;
+                        document.getElementById('withEmail').textContent = withEmail;
+                        document.getElementById('withPhone').textContent = withPhone;
+                        
+                        // Show recent processed (last 5)
+                        const recentList = document.getElementById('recentList');
+                        const recent = data.processed_sellers.slice(-5).reverse();
+                        recentList.innerHTML = recent.map(seller => {
+                            const icons = [];
+                            if (seller.has_email) icons.push('<i class="fas fa-envelope text-success"></i>');
+                            if (seller.has_phone) icons.push('<i class="fas fa-phone text-info"></i>');
+                            if (seller.error) icons.push('<i class="fas fa-exclamation-triangle text-warning"></i>');
+                            return `<li class="small"><span class="text-muted">${seller.name}</span> ${icons.join(' ')}</li>`;
+                        }).join('');
+                    }
+                    
+                    // Check if completed
+                    if (data.status === 'complete' || data.status === 'completed') {
+                        clearInterval(pollInterval);
+                        showCompleted(data);
+                    } else if (data.status === 'error') {
+                        clearInterval(pollInterval);
+                        showError(data.error || data.message || 'An error occurred during processing');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching progress:', error);
+                    // Show error message to user
+                    const statusText = document.getElementById('statusText');
+                    if (statusText) {
+                        statusText.textContent = 'Error loading progress. Please refresh the page.';
+                        statusText.className = 'text-center mb-4 text-danger';
+                    }
+                });
+        }
+        
+        function showCompleted(data) {
+            document.getElementById('processingView').style.display = 'none';
+            document.getElementById('completedView').style.display = 'block';
+            
+            // Use output_file or output_filename
+            const outputFile = data.output_file || data.output_filename;
+            if (outputFile) {
+                document.getElementById('downloadLink').href = `/download/${outputFile}`;
+                
+                // Set Zoho download links
+                document.getElementById('downloadZohoExcel').href = `/download_zoho/${fileId}/excel`;
+                document.getElementById('downloadZohoCSV').href = `/download_zoho/${fileId}/csv`;
+            }
+            
+            // Update final summary using stats if available
+            if (data.stats) {
+                document.getElementById('finalProcessed').textContent = data.total_unique || data.total_original || 0;
+                document.getElementById('finalEmail').textContent = data.stats.email || 0;
+                document.getElementById('finalPhone').textContent = data.stats.phone || 0;
+            } else if (data.processed_sellers) {
+                const total = data.processed_sellers.length;
+                const withEmail = data.processed_sellers.filter(s => s.has_email).length;
+                const withPhone = data.processed_sellers.filter(s => s.has_phone).length;
+                
+                document.getElementById('finalProcessed').textContent = total;
+                document.getElementById('finalEmail').textContent = withEmail;
+                document.getElementById('finalPhone').textContent = withPhone;
+            }
+            
+            document.getElementById('finalTime').textContent = data.total_time || data.elapsed_time || '0s';
+            document.getElementById('completedTime').textContent = data.completed_time || new Date().toLocaleTimeString();
+        }
+        
+        function showError(errorMessage) {
+            document.getElementById('processingView').style.display = 'none';
+            document.getElementById('errorView').style.display = 'block';
+            document.getElementById('errorMessage').textContent = errorMessage;
+        }
+        
+        // Show debug info
+        const debugInfo = document.getElementById('debugInfo');
+        const debugFileId = document.getElementById('debugFileId');
+        if (debugInfo && debugFileId) {
+            debugFileId.textContent = fileId || 'NOT SET';
+            debugInfo.style.display = 'block';
+        }
+        
+        // Start polling if file ID is valid
+        if (fileId && !fileId.includes('{')) {
+            console.log('✅ Starting progress polling for:', fileId);
+            setTimeout(() => updateProgress(), 500);
+            pollInterval = setInterval(updateProgress, 1000); // Poll every second
+        }
+    </script>
+</body>
+</html>
+

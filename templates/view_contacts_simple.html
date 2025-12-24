@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View Contacts - EXIM Contact Enricher</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { background: linear-gradient(135deg, #3498db 0%, #2980b9 100%); min-height: 100vh; padding: 2rem 0; }
+        .card { border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+        .zoho-section { background: #f8f9fa; border-radius: 10px; padding: 1.5rem; margin: 1.5rem 0; border: 2px solid #3498db; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h1 class="mb-0"><i class="fas fa-address-book me-2"></i>Contacts</h1>
+            </div>
+            <div class="card-body">
+                <!-- Statistics -->
+                <div class="row mb-4">
+                    <div class="col-md-4">
+                        <div class="text-center">
+                            <h3 class="text-primary">{{ stats.total_contacts }}</h3>
+                            <small class="text-muted">Total Contacts</small>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="text-center">
+                            <h3 class="text-success">{{ stats.total_companies }}</h3>
+                            <small class="text-muted">Companies</small>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="text-center">
+                            <h3 class="text-info">{{ stats.companies_with_contacts }}</h3>
+                            <small class="text-muted">With Contacts</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Date Filter Section -->
+                <div class="mb-4">
+                    <form method="GET" class="row g-3 align-items-end">
+                        <div class="col-md-3">
+                            <label class="form-label"><i class="fas fa-calendar me-1"></i>Filter by Date</label>
+                            <select name="date_filter" class="form-select" id="dateFilterSelect">
+                                <option value="all" {% if request.args.get('date_filter', 'all') == 'all' %}selected{% endif %}>All Time</option>
+                                <option value="today" {% if request.args.get('date_filter') == 'today' %}selected{% endif %}>Today</option>
+                                <option value="yesterday" {% if request.args.get('date_filter') == 'yesterday' %}selected{% endif %}>Yesterday</option>
+                                <option value="week" {% if request.args.get('date_filter') == 'week' %}selected{% endif %}>This Week</option>
+                                <option value="month" {% if request.args.get('date_filter') == 'month' %}selected{% endif %}>This Month</option>
+                                <option value="custom" {% if request.args.get('date_filter') == 'custom' %}selected{% endif %}>Custom Range</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3" id="startDateDiv" style="display: {% if request.args.get('date_filter') == 'custom' %}block{% else %}none{% endif %};">
+                            <label class="form-label">Start Date</label>
+                            <input type="date" name="start_date" class="form-control" value="{{ request.args.get('start_date', '') }}">
+                        </div>
+                        <div class="col-md-3" id="endDateDiv" style="display: {% if request.args.get('date_filter') == 'custom' %}block{% else %}none{% endif %};">
+                            <label class="form-label">End Date</label>
+                            <input type="date" name="end_date" class="form-control" value="{{ request.args.get('end_date', '') }}">
+                        </div>
+                        <div class="col-md-3">
+                            <button type="submit" class="btn btn-primary me-2">
+                                <i class="fas fa-filter me-1"></i>Apply
+                            </button>
+                            {% if request.args.get('date_filter') and request.args.get('date_filter') != 'all' %}
+                                <a href="{{ url_for('view_contacts') }}" class="btn btn-secondary">
+                                    <i class="fas fa-redo me-1"></i>Reset
+                                </a>
+                            {% endif %}
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Zoho Export Section -->
+                <div class="zoho-section">
+                    <h4 class="mb-3"><i class="fas fa-cloud me-2"></i>Zoho CRM Integration</h4>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <h6>Export to Zoho Format</h6>
+                            <p class="small text-muted">Download all database contacts in Zoho CRM format (4 columns: Lead Name, Company, Email, Phone)</p>
+                            <form action="{{ url_for('export_database_zoho') }}" method="GET" class="d-inline">
+                                <button type="submit" class="btn btn-primary me-2">
+                                    <i class="fas fa-file-excel me-1"></i>Export as Excel
+                                </button>
+                            </form>
+                            {% if session.zoho_excel_file %}
+                            <a href="{{ url_for('download_database_export', format='excel') }}" class="btn btn-outline-primary">
+                                <i class="fas fa-download me-1"></i>Download Last Export
+                            </a>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <h6>Push to Zoho CRM</h6>
+                            <p class="small text-muted">
+                                {% if zoho_configured %}
+                                    ✅ Zoho CRM connected - Push contacts directly
+                                {% else %}
+                                    ⚠️ Zoho CRM not configured
+                                {% endif %}
+                            </p>
+                            {% if zoho_configured %}
+                            <form action="{{ url_for('push_to_zoho') }}" method="POST" onsubmit="return confirm('Push all {{ stats.total_contacts }} contacts to Zoho CRM?');" class="mb-2">
+                                <input type="hidden" name="push_all" value="true">
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" name="check_duplicates" value="true" id="checkDuplicates" checked>
+                                    <label class="form-check-label" for="checkDuplicates">
+                                        Skip existing contacts in Zoho (recommended)
+                                    </label>
+                                </div>
+                                <button type="submit" class="btn btn-success">
+                                    <i class="fas fa-cloud-upload-alt me-1"></i>Push All to Zoho
+                                </button>
+                            </form>
+                            <form action="{{ url_for('reset_stuck_zoho_contacts') }}" method="POST" onsubmit="return confirm('Reset all contacts stuck in "pushing" status?');">
+                                <button type="submit" class="btn btn-warning btn-sm">
+                                    <i class="fas fa-redo me-1"></i>Reset Stuck Contacts
+                                </button>
+                            </form>
+                            {% else %}
+                            <a href="{{ url_for('zoho_config') }}" class="btn btn-warning">
+                                <i class="fas fa-cog me-1"></i>Configure Zoho
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Search -->
+                <div class="mb-3">
+                    <form action="{{ url_for('view_contacts') }}" method="GET" class="d-flex">
+                        <input type="text" name="search" class="form-control me-2" placeholder="Search company, name, email, phone..." value="{{ search_query }}">
+                        <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i></button>
+                    </form>
+                </div>
+
+                <!-- Contacts Table -->
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Company</th>
+                                <th>Contact Name</th>
+                                <th>Email</th>
+                                <th>Phone</th>
+                                <th>WhatsApp</th>
+                                {% if zoho_configured %}
+                                <th style="width: 150px;">Zoho CRM</th>
+                                {% endif %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for contact in contacts %}
+                            <tr id="contact-row-{{ contact.id }}">
+                                <td><strong>{{ contact.company_name }}</strong></td>
+                                <td>{{ contact.contact_name or contact.first_name ~ ' ' ~ contact.last_name }}</td>
+                                <td>{{ contact.email }}</td>
+                                <td>{{ contact.phone }}</td>
+                                <td>{{ contact.whatsapp }}</td>
+                                {% if zoho_configured %}
+                                <td>
+                                    {% set zoho_status = contact.get('zoho_status', 'not_pushed') %}
+                                    {% if zoho_status == 'pushed' %}
+                                        <button type="button" class="btn btn-sm btn-success" disabled>
+                                            <i class="fas fa-check-circle me-1"></i>Synced
+                                        </button>
+                                    {% elif zoho_status == 'skipped' %}
+                                        <button type="button" class="btn btn-sm btn-warning" disabled>
+                                            <i class="fas fa-info-circle me-1"></i>Already in Zoho
+                                        </button>
+                                    {% elif zoho_status == 'pushing' %}
+                                        <button type="button" class="btn btn-sm btn-secondary" disabled>
+                                            <span class="spinner-border spinner-border-sm me-1"></span>Pushing...
+                                        </button>
+                                    {% elif zoho_status == 'failed' %}
+                                        <button type="button" class="btn btn-sm btn-danger" 
+                                                data-contact-id="{{ contact.id }}"
+                                                onclick="pushToZoho({{ contact.id }})"
+                                                title="{{ contact.get('zoho_error', 'Click to retry') }}">
+                                            <i class="fas fa-exclamation-circle me-1"></i>Retry
+                                        </button>
+                                    {% else %}
+                                        <button type="button" class="btn btn-sm btn-primary" 
+                                                data-contact-id="{{ contact.id }}"
+                                                onclick="pushToZoho({{ contact.id }})">
+                                            <i class="fas fa-cloud-upload-alt me-1"></i>Push
+                                        </button>
+                                    {% endif %}
+                                </td>
+                                {% endif %}
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="{% if zoho_configured %}6{% else %}5{% endif %}" class="text-center text-muted">No contacts found</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                {% if total_pages > 1 %}
+                <nav>
+                    <ul class="pagination justify-content-center">
+                        {% if has_prev %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page - 1 }}{% if search_query %}&search={{ search_query }}{% endif %}">Previous</a>
+                        </li>
+                        {% endif %}
+                        
+                        <li class="page-item active">
+                            <span class="page-link">Page {{ page }} of {{ total_pages }}</span>
+                        </li>
+                        
+                        {% if has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page + 1 }}{% if search_query %}&search={{ search_query }}{% endif %}">Next</a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+
+                <div class="text-center mt-4">
+                    <a href="{{ url_for('index') }}" class="btn btn-primary">
+                        <i class="fas fa-home me-2"></i>Back to Home
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // Toggle custom date fields
+        document.getElementById('dateFilterSelect').addEventListener('change', function() {
+            const startDateDiv = document.getElementById('startDateDiv');
+            const endDateDiv = document.getElementById('endDateDiv');
+            if (this.value === 'custom') {
+                startDateDiv.style.display = 'block';
+                endDateDiv.style.display = 'block';
+            } else {
+                startDateDiv.style.display = 'none';
+                endDateDiv.style.display = 'none';
+            }
+        });
+        
+        // Push single contact to Zoho CRM via AJAX
+        async function pushToZoho(contactId) {
+            console.log('pushToZoho called with ID:', contactId);
+            
+            const btn = document.querySelector(`button[data-contact-id="${contactId}"]`);
+            if (!btn) {
+                console.error('Button not found for contact:', contactId);
+                alert('Error: Button not found');
+                return;
+            }
+            
+            // Save original button content
+            const originalHTML = btn.innerHTML;
+            
+            // Show loading state
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Pushing...';
+            btn.disabled = true;
+            btn.classList.add('btn-secondary');
+            btn.classList.remove('btn-primary', 'btn-success', 'btn-danger', 'btn-warning');
+            
+            try {
+                console.log('Fetching /push_to_zoho/' + contactId);
+                
+                const response = await fetch(`/push_to_zoho/${contactId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        check_duplicates: true
+                    })
+                });
+                
+                console.log('Response:', response.status);
+                const data = await response.json();
+                console.log('Data:', data);
+                
+                if (response.ok && data.success) {
+                    // Success!
+                    btn.classList.remove('btn-secondary', 'btn-primary', 'btn-danger');
+                    btn.classList.add('btn-success');
+                    btn.innerHTML = '<i class="fas fa-check-circle me-1"></i>Synced';
+                    btn.disabled = true;
+                    // Reload page after a short delay to show updated status
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                } else {
+                    // Check status from response
+                    const status = data.status || '';
+                    
+                    if (status === 'skipped' || (data.message && (data.message.includes('already exists') || data.message.includes('Skipped')))) {
+                        // Already exists in Zoho
+                        btn.classList.remove('btn-secondary', 'btn-primary', 'btn-danger');
+                        btn.classList.add('btn-warning');
+                        btn.innerHTML = '<i class="fas fa-info-circle me-1"></i>Already in Zoho';
+                        btn.disabled = true;
+                        // Reload page after a short delay to show updated status
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 1000);
+                    } else {
+                        // Error - show retry button
+                        btn.innerHTML = '<i class="fas fa-exclamation-circle me-1"></i>Retry';
+                        btn.classList.remove('btn-secondary', 'btn-primary', 'btn-success');
+                        btn.classList.add('btn-danger');
+                        btn.disabled = false;
+                        alert('Error: ' + (data.message || 'Unknown error'));
+                    }
+                }
+            } catch (error) {
+                console.error('Fetch error:', error);
+                // Restore button
+                btn.innerHTML = originalHTML;
+                btn.classList.remove('btn-secondary');
+                btn.classList.add('btn-danger');
+                btn.disabled = false;
+                alert('Network error: ' + error.message);
+            }
+        }
+        
+        // Simple toast notification
+        function showToast(title, message, type) {
+            const toast = document.createElement('div');
+            toast.className = `alert alert-${type === 'success' ? 'success' : 'danger'} position-fixed top-0 end-0 m-3`;
+            toast.style.zIndex = '9999';
+            toast.innerHTML = `
+                <strong>${title}</strong><br>
+                ${message}
+            `;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.remove();
+            }, 5000);
+        }
+    </script>
+</body>
+</html>
+

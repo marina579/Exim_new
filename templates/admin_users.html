@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Management - Marineco EXIM</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 2rem 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .main-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 1rem;
+        }
+        
+        .header-card {
+            background: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+        
+        .content-card {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+        
+        .nav-links a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+            margin: 0 0.5rem;
+        }
+        
+        .nav-links a:hover {
+            text-decoration: underline;
+        }
+        
+        .btn-gradient {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            color: white;
+            font-weight: 600;
+        }
+        
+        .btn-gradient:hover {
+            opacity: 0.9;
+            color: white;
+        }
+        
+        .table thead {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .badge-admin {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+        
+        .badge-user {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <!-- Header -->
+        <div class="header-card">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <a href="{{ url_for('index') }}" class="btn btn-outline-primary btn-sm mb-2">
+                        <i class="fas fa-arrow-left me-1"></i>Back to Home
+                    </a>
+                    <h2 class="mb-0">
+                        <i class="fas fa-users-cog" style="color: #3498db;"></i>
+                        Admin Panel - Marineco AI EXIM Contact Finder
+                    </h2>
+                    <p class="text-muted mb-0 mt-2">
+                        Manage user accounts and change your password
+                    </p>
+                </div>
+                <div class="text-end">
+                    {% if username %}
+                    <div style="background: #f8f9fa; padding: 0.75rem 1.5rem; border-radius: 50px;">
+                        <i class="fas fa-user-circle me-2" style="color: #667eea;"></i>
+                        <strong>{{ username }}</strong>
+                        <span class="mx-2">|</span>
+                        <a href="{{ url_for('logout') }}" style="color: #e74c3c; text-decoration: none; font-weight: 600;">
+                            <i class="fas fa-sign-out-alt me-1"></i>Logout
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Navigation -->
+            <div class="nav-links text-center mt-3">
+                <a href="{{ url_for('index') }}">
+                    <i class="fas fa-home me-1"></i>Home
+                </a>
+                <a href="{{ url_for('step2') }}">
+                    <i class="fas fa-upload me-1"></i>Bulk Upload
+                </a>
+                <a href="{{ url_for('chatbot') }}">
+                    <i class="fas fa-comments me-1"></i>Chatbot
+                </a>
+                <a href="{{ url_for('view_contacts') }}">
+                    <i class="fas fa-address-book me-1"></i>Contacts
+                </a>
+                <a href="{{ url_for('admin_users') }}" style="text-decoration: underline;">
+                    <i class="fas fa-users-cog me-1"></i>Admin Panel
+                </a>
+            </div>
+        </div>
+        
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        <!-- Change My Password -->
+        <div class="content-card mb-4">
+            <h4 class="mb-3">
+                <i class="fas fa-key me-2" style="color: #3498db;"></i>
+                Change My Password
+            </h4>
+            <form action="{{ url_for('change_password') }}" method="POST" id="changeMyPasswordForm">
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Current Password *</label>
+                        <input type="password" class="form-control" name="old_password" required>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">New Password * (min 6 characters)</label>
+                        <input type="password" class="form-control" name="new_password" id="newPassAdmin" required minlength="6">
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Confirm New Password *</label>
+                        <input type="password" class="form-control" name="confirm_password" id="confirmPassAdmin" required minlength="6">
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-gradient">
+                    <i class="fas fa-save me-2"></i>Change My Password
+                </button>
+            </form>
+        </div>
+        
+        <!-- Create User Form -->
+        <div class="content-card mb-4">
+            <h4 class="mb-3">
+                <i class="fas fa-user-plus me-2" style="color: #667eea;"></i>
+                Create New User
+            </h4>
+            <form action="{{ url_for('admin_create_user') }}" method="POST" id="createUserForm">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Username *</label>
+                        <input type="text" class="form-control" name="username" required>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Password * (min 6 characters)</label>
+                        <input type="password" class="form-control" name="password" required minlength="6">
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Full Name</label>
+                        <input type="text" class="form-control" name="full_name">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-control" name="email">
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="is_admin" id="isAdmin">
+                        <label class="form-check-label" for="isAdmin">
+                            <strong>Grant Admin Privileges</strong>
+                            <small class="text-muted d-block">Admins can create users and manage accounts</small>
+                        </label>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-gradient">
+                    <i class="fas fa-user-plus me-2"></i>Create User
+                </button>
+            </form>
+        </div>
+        
+        <!-- Users Table -->
+        <div class="content-card">
+            <h4 class="mb-3">
+                <i class="fas fa-users me-2" style="color: #667eea;"></i>
+                All Users ({{ users|length }})
+            </h4>
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Username</th>
+                            <th>Full Name</th>
+                            <th>Email</th>
+                            <th>Role</th>
+                            <th>Status</th>
+                            <th>Last Login</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in users %}
+                        <tr>
+                            <td>
+                                <strong>{{ user.username }}</strong>
+                            </td>
+                            <td>{{ user.full_name or '-' }}</td>
+                            <td>{{ user.email or '-' }}</td>
+                            <td>
+                                {% if user.is_admin %}
+                                <span class="badge badge-admin">
+                                    <i class="fas fa-crown me-1"></i>Admin
+                                </span>
+                                {% else %}
+                                <span class="badge badge-user">
+                                    <i class="fas fa-user me-1"></i>User
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if user.is_active %}
+                                <span class="badge bg-success">Active</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Inactive</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <small class="text-muted">
+                                    {{ user.last_login[:16] if user.last_login else 'Never' }}
+                                </small>
+                            </td>
+                            <td>
+                                <button class="btn btn-sm btn-warning" onclick="showResetPasswordModal({{ user.id }}, '{{ user.username }}')">
+                                    <i class="fas fa-key"></i> Reset Password
+                                </button>
+                                <button class="btn btn-sm {% if user.is_active %}btn-danger{% else %}btn-success{% endif %}" 
+                                        onclick="toggleUser({{ user.id }}, '{{ user.username }}', {{ user.is_active|lower }})">
+                                    <i class="fas fa-{% if user.is_active %}ban{% else %}check{% endif %}"></i>
+                                    {% if user.is_active %}Deactivate{% else %}Activate{% endif %}
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reset Password Modal -->
+    <div class="modal fade" id="resetPasswordModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Reset Password</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="resetPasswordForm">
+                    <div class="modal-body">
+                        <p>Reset password for user: <strong id="resetUsername"></strong></p>
+                        <input type="hidden" id="resetUserId">
+                        <div class="mb-3">
+                            <label class="form-label">New Password (min 6 characters)</label>
+                            <input type="password" class="form-control" id="newPassword" required minlength="6">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-gradient">Reset Password</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function showResetPasswordModal(userId, username) {
+            document.getElementById('resetUserId').value = userId;
+            document.getElementById('resetUsername').textContent = username;
+            document.getElementById('newPassword').value = '';
+            new bootstrap.Modal(document.getElementById('resetPasswordModal')).show();
+        }
+
+        document.getElementById('resetPasswordForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const userId = document.getElementById('resetUserId').value;
+            const newPassword = document.getElementById('newPassword').value;
+
+            if (newPassword.length < 6) {
+                alert('Password must be at least 6 characters');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('new_password', newPassword);
+
+            fetch(`/admin/users/${userId}/reset-password`, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+                if (data.success) {
+                    bootstrap.Modal.getInstance(document.getElementById('resetPasswordModal')).hide();
+                }
+            })
+            .catch(error => {
+                alert('Error: ' + error);
+            });
+        });
+
+        function toggleUser(userId, username, isActive) {
+            const action = isActive ? 'deactivate' : 'activate';
+            if (confirm(`Are you sure you want to ${action} user "${username}"?`)) {
+                fetch(`/admin/users/${userId}/toggle`, {
+                    method: 'POST'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    alert(data.message);
+                    if (data.success) {
+                        location.reload();
+                    }
+                })
+                .catch(error => {
+                    alert('Error: ' + error);
+                });
+            }
+        }
+
+        // Validate password change form
+        document.getElementById('changeMyPasswordForm').addEventListener('submit', function(e) {
+            const newPass = document.getElementById('newPassAdmin').value;
+            const confirmPass = document.getElementById('confirmPassAdmin').value;
+            
+            if (newPass !== confirmPass) {
+                e.preventDefault();
+                alert('New passwords do not match!');
+                return false;
+            }
+            
+            if (newPass.length < 6) {
+                e.preventDefault();
+                alert('Password must be at least 6 characters!');
+                return false;
+            }
+        });
+    </script>
+</body>
+</html>
+

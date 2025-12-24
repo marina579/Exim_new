@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Automated Upload - EXIM Contact Enricher</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 30px;
+        }
+        .upload-container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .upload-area {
+            border: 3px dashed #3498db;
+            border-radius: 15px;
+            padding: 60px 20px;
+            text-align: center;
+            background: #f8f9fa;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        .upload-area:hover {
+            border-color: #2980b9;
+            background: #e9ecef;
+        }
+        .upload-area.dragover {
+            border-color: #28a745;
+            background: #d4edda;
+        }
+        .feature-card {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 10px 0;
+            border-left: 4px solid #3498db;
+        }
+        .btn-custom {
+            border-radius: 25px;
+            padding: 12px 30px;
+            font-weight: 600;
+        }
+        .page-header {
+            color: white;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .info-icon {
+            color: #3498db;
+            font-size: 4rem;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="page-header">
+        <h1><i class="fas fa-rocket me-2"></i>Automated Contact Enrichment</h1>
+        <p class="mb-0">Upload once, relax, and download when ready!</p>
+    </div>
+
+    <div class="upload-container">
+        <!-- Navigation -->
+        <div class="text-center mb-4">
+            <a href="{{ url_for('dashboard') }}" class="btn btn-sm btn-outline-primary me-2">
+                <i class="fas fa-chart-line me-1"></i>Dashboard
+            </a>
+            <a href="{{ url_for('processing_history') }}" class="btn btn-sm btn-outline-info me-2">
+                <i class="fas fa-history me-1"></i>History
+            </a>
+            <a href="{{ url_for('view_contacts') }}" class="btn btn-sm btn-outline-success">
+                <i class="fas fa-address-book me-1"></i>Contacts
+            </a>
+        </div>
+
+        <hr>
+
+        <!-- Upload Section -->
+        <div class="text-center mb-4">
+            <i class="fas fa-cloud-upload-alt info-icon"></i>
+            <h3>Upload Your File</h3>
+            <p class="text-muted">Drop your Excel file here or click to browse</p>
+        </div>
+
+        <form id="uploadForm" enctype="multipart/form-data">
+            <div class="upload-area" id="dropArea">
+                <i class="fas fa-file-excel fa-3x text-success mb-3"></i>
+                <h5>Drag & Drop Excel File Here</h5>
+                <p class="text-muted">or</p>
+                <input type="file" id="fileInput" name="file" accept=".xlsx,.xls" class="d-none" required>
+                <button type="button" class="btn btn-primary btn-custom" onclick="document.getElementById('fileInput').click()">
+                    <i class="fas fa-folder-open me-2"></i>Browse Files
+                </button>
+                <div id="fileInfo" class="mt-3"></div>
+            </div>
+
+            <div class="text-center mt-4">
+                <button type="submit" id="uploadBtn" class="btn btn-success btn-custom btn-lg" disabled>
+                    <i class="fas fa-rocket me-2"></i>Start Automated Processing
+                </button>
+            </div>
+        </form>
+
+        <!-- Progress Section (hidden by default) -->
+        <div id="progressSection" class="mt-4" style="display: none;">
+            <div class="alert alert-info">
+                <h5><i class="fas fa-info-circle me-2"></i>Processing in Background</h5>
+                <p class="mb-0">You can close this page or navigate away. Check the <a href="{{ url_for('processing_history') }}">History</a> page for updates!</p>
+            </div>
+            <div class="progress" style="height: 30px;">
+                <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                     role="progressbar" style="width: 0%">
+                    <span id="progressText">Starting...</span>
+                </div>
+            </div>
+            <div id="statusText" class="text-center mt-3"></div>
+        </div>
+
+        <!-- Features Section -->
+        <div class="mt-5">
+            <h5><i class="fas fa-magic me-2"></i>What Happens Automatically:</h5>
+            
+            <div class="feature-card">
+                <h6><i class="fas fa-check-circle text-success me-2"></i>Step 1: Clean & Deduplicate</h6>
+                <p class="mb-0 small text-muted">Removes duplicate companies and cleans data</p>
+            </div>
+            
+            <div class="feature-card">
+                <h6><i class="fas fa-database text-info me-2"></i>Step 2: Check Database</h6>
+                <p class="mb-0 small text-muted">Skips already-processed companies (saves API calls!)</p>
+            </div>
+            
+            <div class="feature-card">
+                <h6><i class="fas fa-layer-group text-warning me-2"></i>Step 3: Chunked Processing</h6>
+                <p class="mb-0 small text-muted">Processes 50 companies at a time (handles large files!)</p>
+            </div>
+            
+            <div class="feature-card">
+                <h6><i class="fas fa-search text-primary me-2"></i>Step 4: Enrich Contacts</h6>
+                <p class="mb-0 small text-muted">Finds phone, email, WhatsApp, contact names</p>
+            </div>
+            
+            <div class="feature-card">
+                <h6><i class="fas fa-save text-success me-2"></i>Step 5: Save to Database</h6>
+                <p class="mb-0 small text-muted">All contacts saved for future use</p>
+            </div>
+            
+            <div class="feature-card">
+                <h6><i class="fas fa-download text-danger me-2"></i>Step 6: Generate Export</h6>
+                <p class="mb-0 small text-muted">Download enriched file when complete</p>
+            </div>
+        </div>
+
+        <div class="alert alert-success mt-4">
+            <h6><i class="fas fa-lightbulb me-2"></i>Pro Tip:</h6>
+            <p class="mb-0">Large files (1000+ companies) will be processed in chunks. You can close the browser and check the <strong>History</strong> page later to download results!</p>
+        </div>
+    </div>
+
+    <script>
+        const dropArea = document.getElementById('dropArea');
+        const fileInput = document.getElementById('fileInput');
+        const fileInfo = document.getElementById('fileInfo');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const uploadForm = document.getElementById('uploadForm');
+        const progressSection = document.getElementById('progressSection');
+
+        // Drag and drop handlers
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropArea.addEventListener(eventName, () => dropArea.classList.add('dragover'), false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, () => dropArea.classList.remove('dragover'), false);
+        });
+
+        dropArea.addEventListener('drop', handleDrop, false);
+        fileInput.addEventListener('change', handleFileSelect, false);
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            if (files.length > 0) {
+                fileInput.files = files;
+                handleFileSelect();
+            }
+        }
+
+        function handleFileSelect() {
+            const file = fileInput.files[0];
+            if (file) {
+                const size = (file.size / 1024 / 1024).toFixed(2);
+                fileInfo.innerHTML = `
+                    <div class="alert alert-success">
+                        <i class="fas fa-check-circle me-2"></i>
+                        <strong>${file.name}</strong> (${size} MB)
+                    </div>
+                `;
+                uploadBtn.disabled = false;
+            }
+        }
+
+        // Handle form submission
+        uploadForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            
+            uploadBtn.disabled = true;
+            progressSection.style.display = 'block';
+            
+            try {
+                const response = await fetch('/upload_automated', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    const jobId = result.job_id;
+                    document.getElementById('statusText').innerHTML = `
+                        <div class="alert alert-success">
+                            <h5><i class="fas fa-check-circle me-2"></i>Upload Successful!</h5>
+                            <p>Job ID: ${jobId}</p>
+                            <p>Processing in background...</p>
+                            <a href="/processing_history" class="btn btn-primary">
+                                <i class="fas fa-history me-1"></i>View in History
+                            </a>
+                            <a href="/dashboard" class="btn btn-info ms-2">
+                                <i class="fas fa-chart-line me-1"></i>Go to Dashboard
+                            </a>
+                        </div>
+                    `;
+                    
+                    // Start polling for progress
+                    pollProgress(jobId);
+                    
+                    // Add kill button
+                    document.getElementById('statusText').innerHTML += `
+                        <button class="btn btn-danger mt-3" onclick="killCurrentJob(${jobId})">
+                            <i class="fas fa-stop-circle me-1"></i>Stop Processing
+                        </button>
+                    `;
+                } else {
+                    document.getElementById('statusText').innerHTML = `
+                        <div class="alert alert-danger">
+                            <i class="fas fa-times-circle me-2"></i>${result.error}
+                        </div>
+                    `;
+                    uploadBtn.disabled = false;
+                }
+            } catch (error) {
+                document.getElementById('statusText').innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-times-circle me-2"></i>Upload failed: ${error.message}
+                    </div>
+                `;
+                uploadBtn.disabled = false;
+            }
+        });
+
+        // Kill current job
+        async function killCurrentJob(jobId) {
+            if (!confirm('Are you sure you want to stop this job? This will cancel the processing.')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/kill_job/${jobId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    document.getElementById('progressBar').classList.remove('progress-bar-animated');
+                    document.getElementById('progressBar').classList.add('bg-warning');
+                    document.getElementById('progressText').textContent = 'Stopped by user';
+                    document.getElementById('statusText').innerHTML = `
+                        <div class="alert alert-warning">
+                            <h5><i class="fas fa-stop-circle me-2"></i>Job Stopped</h5>
+                            <p>Processing was cancelled by user.</p>
+                            <a href="/upload_automated" class="btn btn-primary">
+                                <i class="fas fa-upload me-1"></i>Upload New File
+                            </a>
+                        </div>
+                    `;
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                alert('Error stopping job: ' + error.message);
+            }
+        }
+
+        // Poll for progress updates
+        function pollProgress(jobId) {
+            const interval = setInterval(async () => {
+                try {
+                    const response = await fetch(`/api/job_progress/${jobId}`);
+                    const job = await response.json();
+                    
+                    if (job.status === 'completed') {
+                        clearInterval(interval);
+                        document.getElementById('progressBar').style.width = '100%';
+                        document.getElementById('progressText').textContent = 'Completed!';
+                        document.getElementById('statusText').innerHTML = `
+                            <div class="alert alert-success">
+                                <h5><i class="fas fa-check-circle me-2"></i>Processing Complete!</h5>
+                                <p>Found ${job.contacts_found} contacts (${job.duplicates_removed} duplicates removed)</p>
+                                <a href="/download_job/${jobId}" class="btn btn-success">
+                                    <i class="fas fa-download me-1"></i>Download Results
+                                </a>
+                                <a href="/upload_automated" class="btn btn-primary ms-2">
+                                    <i class="fas fa-upload me-1"></i>Upload Another File
+                                </a>
+                            </div>
+                        `;
+                    } else if (job.status === 'failed') {
+                        clearInterval(interval);
+                        document.getElementById('progressBar').classList.add('bg-danger');
+                        document.getElementById('progressText').textContent = 'Failed';
+                        document.getElementById('statusText').innerHTML = `
+                            <div class="alert alert-danger">
+                                <h5><i class="fas fa-times-circle me-2"></i>Processing Failed</h5>
+                                <p>${job.error_message}</p>
+                            </div>
+                        `;
+                    } else if (job.status === 'cancelled') {
+                        clearInterval(interval);
+                        document.getElementById('progressBar').classList.remove('progress-bar-animated');
+                        document.getElementById('progressBar').classList.add('bg-warning');
+                        document.getElementById('progressText').textContent = 'Cancelled';
+                        document.getElementById('statusText').innerHTML = `
+                            <div class="alert alert-warning">
+                                <h5><i class="fas fa-stop-circle me-2"></i>Job Cancelled</h5>
+                                <p>${job.error_message || 'Processing was stopped by user'}</p>
+                                <a href="/upload_automated" class="btn btn-primary">
+                                    <i class="fas fa-upload me-1"></i>Upload New File
+                                </a>
+                            </div>
+                        `;
+                    } else if (job.status === 'processing') {
+                        // Update progress bar (estimate based on contacts processed)
+                        const progress = job.total_rows ? Math.min(95, (job.contacts_found / job.total_rows) * 100) : 10;
+                        document.getElementById('progressBar').style.width = progress + '%';
+                        document.getElementById('progressText').textContent = `Processing... ${job.contacts_found || 0} contacts found`;
+                    }
+                } catch (error) {
+                    console.error('Error polling progress:', error);
+                }
+            }, 3000); // Poll every 3 seconds
+        }
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
+

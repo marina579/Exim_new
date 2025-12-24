@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marineco AI EXIM Contact Finder - {% if step == 1 %}Step 1: Clean{% else %}Step 2: Enrich{% endif %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #e8eef5 100%);
+            min-height: 100vh;
+            padding: 2rem 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #2c3e50;
+        }
+        
+        .container {
+            max-width: 1000px;
+        }
+        
+        .card {
+            background: #ffffff;
+            border: 1px solid #d1dce5;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(44, 62, 80, 0.08);
+            overflow: hidden;
+        }
+        
+        .card-header {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            padding: 2rem;
+            border-bottom: 3px solid #3498db;
+        }
+        
+        .card-header h1 {
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            margin: 0;
+        }
+        
+        .card-body {
+            background: #ffffff;
+            color: #2c3e50;
+            padding: 2rem;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: white;
+            border-radius: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+        }
+        
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #2980b9 0%, #3498db 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4);
+        }
+        
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+        
+        .step-indicator {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 2rem;
+            gap: 1rem;
+        }
+        
+        .step {
+            flex: 1;
+            text-align: center;
+            padding: 1.5rem;
+            background: #ffffff;
+            border: 2px solid #d1dce5;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            color: #7f8c8d;
+        }
+        
+        .step.active {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            border: 2px solid #2980b9;
+            color: white;
+            transform: scale(1.02);
+            box-shadow: 0 6px 20px rgba(52, 152, 219, 0.3);
+        }
+        
+        .step-number {
+            background: #ecf0f1;
+            color: #2c3e50;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+            border: 2px solid #d1dce5;
+        }
+        
+        .step.active .step-number {
+            background: #ffffff;
+            color: #3498db;
+            border-color: #ffffff;
+        }
+        
+        .step strong {
+            display: block;
+            font-size: 1.1rem;
+            margin-bottom: 0.3rem;
+            font-weight: 600;
+        }
+        
+        .form-control {
+            border: 2px solid #d1dce5;
+            border-radius: 8px;
+            padding: 12px 20px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+        
+        .form-control:focus {
+            border-color: #3498db;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+            outline: none;
+        }
+        
+        .alert {
+            border: none;
+            border-radius: 10px;
+            padding: 1.5rem;
+            font-weight: 500;
+            border-left: 4px solid;
+        }
+        
+        .alert-info {
+            background: #e8f4f8;
+            color: #2c3e50;
+            border-left-color: #3498db;
+        }
+        
+        .alert-warning {
+            background: #fff8e1;
+            color: #2c3e50;
+            border-left-color: #f39c12;
+        }
+        
+        .alert-danger {
+            background: #ffebee;
+            color: #2c3e50;
+            border-left-color: #e74c3c;
+        }
+        
+        .feature-list {
+            list-style: none;
+            padding: 0;
+            margin-top: 1rem;
+        }
+        
+        .feature-list li {
+            padding: 1rem;
+            margin: 0.5rem 0;
+            background: #f8f9fa;
+            border-left: 4px solid #3498db;
+            border-radius: 6px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        
+        .feature-list li:hover {
+            background: #e8f4f8;
+            transform: translateX(5px);
+            box-shadow: 0 2px 10px rgba(52, 152, 219, 0.1);
+        }
+        
+        .feature-list i {
+            color: #3498db;
+            margin-right: 12px;
+            font-size: 1.1rem;
+        }
+        
+        h5 {
+            font-weight: 700;
+            color: #2c3e50;
+            margin-top: 2rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 3px solid #3498db;
+        }
+        
+        .footer-text {
+            background: #ffffff;
+            border: 2px solid #d1dce5;
+            padding: 1rem 2rem;
+            border-radius: 50px;
+            display: inline-block;
+            color: #7f8c8d;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+        
+        /* File input custom styling */
+        input[type="file"] {
+            cursor: pointer;
+        }
+        
+        input[type="file"]::-webkit-file-upload-button {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-right: 15px;
+            transition: all 0.3s ease;
+        }
+        
+        input[type="file"]::-webkit-file-upload-button:hover {
+            background: linear-gradient(135deg, #2980b9 0%, #3498db 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+        }
+        
+        .alert-link {
+            color: #2980b9;
+            font-weight: 600;
+            text-decoration: underline;
+        }
+        
+        .alert-link:hover {
+            color: #3498db;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header with Navigation -->
+        {% if username %}
+        <div class="mb-4">
+            <div class="d-flex justify-content-between align-items-center" style="background: rgba(255,255,255,0.95); padding: 1rem 1.5rem; border-radius: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                <div class="d-flex gap-3 align-items-center">
+                    <a href="{{ url_for('index', tab='auto') }}" class="btn btn-sm {% if tab == 'auto' %}btn-primary{% else %}btn-outline-primary{% endif %}" style="border-radius: 50px;">
+                        <i class="fas fa-home me-1"></i>Home
+                    </a>
+                    <a href="{{ url_for('dashboard') }}" class="btn btn-sm btn-outline-success" style="border-radius: 50px;">
+                        <i class="fas fa-chart-line me-1"></i>Dashboard
+                    </a>
+                    <a href="{{ url_for('chatbot') }}" class="btn btn-sm btn-outline-primary" style="border-radius: 50px;">
+                        <i class="fas fa-comments me-1"></i>Chatbot
+                    </a>
+                    <a href="{{ url_for('view_contacts') }}" class="btn btn-sm btn-outline-primary" style="border-radius: 50px;">
+                        <i class="fas fa-address-book me-1"></i>Contacts
+                    </a>
+                    <a href="{{ url_for('processing_history') }}" class="btn btn-sm btn-outline-info" style="border-radius: 50px;">
+                        <i class="fas fa-history me-1"></i>History
+                    </a>
+                    {% if session.get('is_admin') %}
+                    <a href="{{ url_for('admin_users') }}" class="btn btn-sm btn-outline-danger" style="border-radius: 50px;">
+                        <i class="fas fa-users-cog me-1"></i>Admin Panel
+                    </a>
+                    {% endif %}
+                </div>
+                <div>
+                    <i class="fas fa-user-circle me-2" style="color: #3498db;"></i>
+                    <strong style="color: #2c3e50;">{{ username }}</strong>
+                    <span class="mx-2" style="color: #d1dce5;">|</span>
+                    <a href="{{ url_for('logout') }}" style="color: #e74c3c; text-decoration: none; font-weight: 600;">
+                        <i class="fas fa-sign-out-alt me-1"></i>Logout
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- App Title -->
+        <div class="text-center mb-4" style="background: linear-gradient(135deg, #3498db 0%, #2c3e50 100%); padding: 2.5rem 2rem; border-radius: 15px; box-shadow: 0 10px 30px rgba(52, 152, 219, 0.3); position: relative; overflow: hidden;">
+            <!-- Decorative elements -->
+            <div style="position: absolute; top: -50px; right: -50px; width: 150px; height: 150px; background: rgba(255,255,255,0.1); border-radius: 50%;"></div>
+            <div style="position: absolute; bottom: -30px; left: -30px; width: 100px; height: 100px; background: rgba(255,255,255,0.05); border-radius: 50%;"></div>
+            
+            <div style="position: relative; z-index: 1;">
+                <h1 style="color: white; font-size: 2.8rem; font-weight: 700; margin-bottom: 0.5rem; text-shadow: 0 2px 10px rgba(0,0,0,0.2); letter-spacing: -0.5px;">
+                    <i class="fas fa-ship" style="color: white; margin-right: 0.5rem; animation: float 3s ease-in-out infinite;"></i>
+                    Marineco AI EXIM Contact Finder
+                </h1>
+                <p style="color: rgba(255,255,255,0.95); font-size: 1.2rem; font-weight: 500; margin: 0; text-shadow: 0 1px 5px rgba(0,0,0,0.1);">
+                    <i class="fas fa-robot me-2"></i>AI-Powered Contact Enrichment System
+                    <span style="display: inline-block; margin-left: 1rem; padding: 0.3rem 1rem; background: rgba(255,255,255,0.2); border-radius: 20px; font-size: 0.9rem;">
+                        <i class="fas fa-check-circle me-1"></i>Triple AI Engine Active
+                    </span>
+                </p>
+            </div>
+        </div>
+        
+        <style>
+            @keyframes float {
+                0%, 100% { transform: translateY(0px); }
+                50% { transform: translateY(-10px); }
+            }
+        </style>
+        
+        <!-- Tab Navigation -->
+        <div class="mb-4">
+            <ul class="nav nav-pills nav-justified" style="background: rgba(255,255,255,0.95); padding: 10px; border-radius: 50px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                <li class="nav-item">
+                    <a class="nav-link {% if tab == 'auto' %}active{% endif %}" href="{{ url_for('index', tab='auto') }}" 
+                       style="border-radius: 30px; font-weight: 600; {% if tab == 'auto' %}background: linear-gradient(135deg, #3498db 0%, #2980b9 100%); color: white;{% else %}color: #2c3e50;{% endif %}">
+                        <i class="fas fa-rocket me-2"></i>Auto Upload
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if tab == 'manual' %}active{% endif %}" href="{{ url_for('index', tab='manual', step=1) }}" 
+                       style="border-radius: 30px; font-weight: 600; {% if tab == 'manual' %}background: linear-gradient(135deg, #3498db 0%, #2980b9 100%); color: white;{% else %}color: #2c3e50;{% endif %}">
+                        <i class="fas fa-cogs me-2"></i>Manual Process
+                    </a>
+                </li>
+            </ul>
+        </div>
+        
+        <!-- Step Indicator (only for manual tab) -->
+        {% if tab == 'manual' %}
+        <div class="step-indicator">
+            <div class="step {% if step == 1 %}active{% endif %}">
+                <div class="step-number">1</div>
+                <strong>Clean & Deduplicate</strong>
+                <p class="mb-0 small">Standardize company data</p>
+            </div>
+            <div class="step {% if step == 2 %}active{% endif %}">
+                <div class="step-number">2</div>
+                <strong>Enrich Contacts</strong>
+                <p class="mb-0 small">Find phone, email, WhatsApp</p>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="card">
+            <div class="card-header text-center">
+                <h1 class="mb-0">
+                    <i class="fas fa-{% if tab == 'auto' %}rocket{% elif step == 1 %}broom{% else %}star{% endif %} me-2"></i>
+                    {% if tab == 'auto' %}
+                        Automated Upload
+                    {% elif step == 1 %}
+                        Step 1: Clean & Deduplicate
+                    {% else %}
+                        Step 2: Enrich Contacts
+                    {% endif %}
+                </h1>
+            </div>
+            <div class="card-body p-4">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ 'danger' if category == 'error' else 'info' }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                {% if tab == 'auto' %}
+                    <!-- AUTO UPLOAD TAB -->
+                    <div class="text-center mb-4">
+                        <i class="fas fa-cloud-upload-alt" style="font-size: 4rem; color: #3498db;"></i>
+                        <h3 class="mt-3">Fully Automated Processing</h3>
+                        <p class="text-muted">Just upload and we'll handle everything in the background</p>
+                    </div>
+
+                    <!-- Upload Form -->
+                    <form id="autoUploadForm" enctype="multipart/form-data">
+                        <div class="upload-area mb-4" id="dropArea" 
+                             style="border: 3px dashed #3498db; border-radius: 15px; padding: 60px 20px; text-align: center; background: #f8f9fa; cursor: pointer; transition: all 0.3s;">
+                            <i class="fas fa-file-excel fa-3x text-success mb-3"></i>
+                            <h5>Drag & Drop Excel File Here</h5>
+                            <p class="text-muted">or</p>
+                            <input type="file" id="autoFileInput" name="file" accept=".xlsx,.xls" class="d-none" required>
+                            <button type="button" class="btn btn-primary" style="border-radius: 25px; padding: 10px 30px;" 
+                                    onclick="document.getElementById('autoFileInput').click()">
+                                <i class="fas fa-folder-open me-2"></i>Browse Files
+                            </button>
+                            <div id="autoFileInfo" class="mt-3"></div>
+                        </div>
+
+                        <div class="text-center">
+                            <button type="submit" id="autoUploadBtn" class="btn btn-success btn-lg" 
+                                    style="border-radius: 25px; padding: 12px 40px; font-weight: 600;" disabled>
+                                <i class="fas fa-rocket me-2"></i>Start Automated Processing
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- Progress Section -->
+                    <div id="autoProgressSection" class="mt-4" style="display: none;">
+                        <div class="alert alert-info">
+                            <h5><i class="fas fa-info-circle me-2"></i>Processing in Background</h5>
+                            <p class="mb-0">You can close this page or navigate away. Check the <a href="{{ url_for('processing_history') }}">History</a> page for updates!</p>
+                        </div>
+                        <div class="progress" style="height: 30px;">
+                            <div id="autoProgressBar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                                 role="progressbar" style="width: 0%">
+                                <span id="autoProgressText">Starting...</span>
+                            </div>
+                        </div>
+                        <div id="autoStatusText" class="text-center mt-3"></div>
+                    </div>
+
+                    <!-- Features -->
+                    <div class="mt-5">
+                        <h5><i class="fas fa-magic me-2"></i>What Happens Automatically:</h5>
+                        <div class="row mt-4">
+                            <div class="col-md-4 mb-3">
+                                <div class="text-center p-3" style="background: #f8f9fa; border-radius: 10px;">
+                                    <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
+                                    <h6>Clean & Deduplicate</h6>
+                                    <small class="text-muted">Removes duplicates automatically</small>
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <div class="text-center p-3" style="background: #f8f9fa; border-radius: 10px;">
+                                    <i class="fas fa-database fa-2x text-info mb-2"></i>
+                                    <h6>Check Database</h6>
+                                    <small class="text-muted">Skips processed companies</small>
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <div class="text-center p-3" style="background: #f8f9fa; border-radius: 10px;">
+                                    <i class="fas fa-search fa-2x text-primary mb-2"></i>
+                                    <h6>Enrich Contacts</h6>
+                                    <small class="text-muted">Finds all contact info</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <div class="text-center p-3" style="background: #f8f9fa; border-radius: 10px;">
+                                    <i class="fas fa-layer-group fa-2x text-warning mb-2"></i>
+                                    <h6>Chunked Processing</h6>
+                                    <small class="text-muted">50 companies at a time</small>
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <div class="text-center p-3" style="background: #f8f9fa; border-radius: 10px;">
+                                    <i class="fas fa-save fa-2x text-success mb-2"></i>
+                                    <h6>Save to Database</h6>
+                                    <small class="text-muted">All contacts saved</small>
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <div class="text-center p-3" style="background: #f8f9fa; border-radius: 10px;">
+                                    <i class="fas fa-download fa-2x text-danger mb-2"></i>
+                                    <h6>Download Ready</h6>
+                                    <small class="text-muted">Get file when done</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                {% elif step == 1 %}
+                    <!-- Step 1: Clean & Deduplicate -->
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Upload your raw EXIM trade data file.</strong> Any format is supported - the system will automatically detect company names and addresses.
+                    </div>
+
+                    <form action="{{ url_for('upload_step1') }}" method="post" enctype="multipart/form-data" id="uploadForm">
+                        <div class="mb-4">
+                            <label for="file" class="form-label fs-5"><i class="fas fa-file-excel me-2"></i>Select Excel File</label>
+                            <input type="file" class="form-control form-control-lg" id="file" name="file" accept=".xlsx,.xls,.xlsm,.xlsb" required>
+                            <div class="form-text">Supported: .xlsx, .xls, .xlsm, .xlsb (Max: 50MB)</div>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg" id="submitBtn">
+                                <i class="fas fa-magic me-2"></i>Clean & Deduplicate
+                            </button>
+                        </div>
+                    </form>
+
+                    <div class="mt-4">
+                        <h5 class="mb-4"><i class="fas fa-check-circle text-success me-2"></i>What This Step Does:</h5>
+                        <div class="row">
+                            <div class="col-md-3 mb-3">
+                                <div class="text-center p-3" style="background: #f8f9fa; border-radius: 10px;">
+                                    <i class="fas fa-search-plus fa-2x text-primary mb-2"></i>
+                                    <h6>Auto-Detect Columns</h6>
+                                    <small class="text-muted">Finds company name and address</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="text-center p-3" style="background: #f8f9fa; border-radius: 10px;">
+                                    <i class="fas fa-clone fa-2x text-danger mb-2"></i>
+                                    <h6>Remove Duplicates</h6>
+                                    <small class="text-muted">Eliminates duplicate companies</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="text-center p-3" style="background: #f8f9fa; border-radius: 10px;">
+                                    <i class="fas fa-align-left fa-2x text-info mb-2"></i>
+                                    <h6>Standardize Format</h6>
+                                    <small class="text-muted">Cleans and formats data</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="text-center p-3" style="background: #f8f9fa; border-radius: 10px;">
+                                    <i class="fas fa-flag fa-2x text-success mb-2"></i>
+                                    <h6>Filter Indian Companies</h6>
+                                    <small class="text-muted">Only Indian businesses</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-warning mt-4">
+                        <i class="fas fa-arrow-right me-2"></i>
+                        <strong>Next:</strong> After downloading the cleaned file, proceed to <a href="{{ url_for('step2') }}" class="alert-link">Step 2</a> to enrich with contacts.
+                    </div>
+
+                {% else %}
+                    <!-- Step 2: Enrich Contacts -->
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Upload the cleaned file from Step 1.</strong> The system will find phone numbers, emails, and WhatsApp contacts for each company.
+                    </div>
+
+                    <form action="{{ url_for('upload_step2') }}" method="post" enctype="multipart/form-data" id="uploadForm">
+                        <div class="mb-4">
+                            <label for="file" class="form-label fs-5"><i class="fas fa-file-excel me-2"></i>Select Cleaned File</label>
+                            <input type="file" class="form-control form-control-lg" id="file" name="file" accept=".xlsx,.xls,.xlsm,.xlsb" required>
+                            <div class="form-text">Upload the cleaned file from Step 1</div>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg" id="submitBtn">
+                                <i class="fas fa-rocket me-2"></i>Enrich Contacts
+                            </button>
+                        </div>
+                    </form>
+
+                    <div class="mt-4">
+                        <h5 class="mb-4"><i class="fas fa-star text-warning me-2"></i>What This Step Does:</h5>
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <div class="text-center p-3" style="background: #f8f9fa; border-radius: 10px;">
+                                    <i class="fas fa-phone fa-2x text-success mb-2"></i>
+                                    <h6>Find Phone Numbers</h6>
+                                    <small class="text-muted">Indian mobile numbers verified</small>
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <div class="text-center p-3" style="background: #f8f9fa; border-radius: 10px;">
+                                    <i class="fas fa-envelope fa-2x text-primary mb-2"></i>
+                                    <h6>Find Email Addresses</h6>
+                                    <small class="text-muted">AI-validated business emails</small>
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <div class="text-center p-3" style="background: #f8f9fa; border-radius: 10px;">
+                                    <i class="fab fa-whatsapp fa-2x text-success mb-2"></i>
+                                    <h6>Find WhatsApp</h6>
+                                    <small class="text-muted">Direct WhatsApp contacts</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <div class="text-center p-3" style="background: #f8f9fa; border-radius: 10px;">
+                                    <i class="fas fa-user fa-2x text-info mb-2"></i>
+                                    <h6>Extract Contact Names</h6>
+                                    <small class="text-muted">Key decision makers identified</small>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <div class="text-center p-3" style="background: #f8f9fa; border-radius: 10px;">
+                                    <i class="fas fa-shield-alt fa-2x text-danger mb-2"></i>
+                                    <h6>Multi-Source Verification</h6>
+                                    <small class="text-muted">Data verified from multiple sources</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-warning mt-4">
+                        <i class="fas fa-arrow-left me-2"></i>
+                        <strong>Don't have a cleaned file?</strong> Go back to <a href="{{ url_for('index') }}" class="alert-link">Step 1</a> first.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="text-center mt-4">
+            <p class="footer-text mb-0">
+                <i class="fas fa-shield-alt me-2"></i>
+                Your data is processed securely and not stored.
+            </p>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Prevent double submission for manual upload
+        const manualForm = document.getElementById('uploadForm');
+        if (manualForm) {
+            manualForm.addEventListener('submit', function(e) {
+                const submitBtn = document.getElementById('submitBtn');
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing...';
+            });
+        }
+
+        // Auto Upload JavaScript
+        const autoFileInput = document.getElementById('autoFileInput');
+        const autoUploadBtn = document.getElementById('autoUploadBtn');
+        const autoUploadForm = document.getElementById('autoUploadForm');
+        const dropArea = document.getElementById('dropArea');
+
+        if (autoFileInput) {
+            // File input change handler
+            autoFileInput.addEventListener('change', function() {
+                const file = this.files[0];
+                if (file) {
+                    const size = (file.size / 1024 / 1024).toFixed(2);
+                    document.getElementById('autoFileInfo').innerHTML = `
+                        <div class="alert alert-success">
+                            <i class="fas fa-check-circle me-2"></i>
+                            <strong>${file.name}</strong> (${size} MB)
+                        </div>
+                    `;
+                    autoUploadBtn.disabled = false;
+                }
+            });
+
+            // Drag and drop handlers
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropArea.addEventListener(eventName, function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }, false);
+            });
+
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropArea.addEventListener(eventName, function() {
+                    this.style.borderColor = '#28a745';
+                    this.style.background = '#d4edda';
+                }, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropArea.addEventListener(eventName, function() {
+                    this.style.borderColor = '#3498db';
+                    this.style.background = '#f8f9fa';
+                }, false);
+            });
+
+            dropArea.addEventListener('drop', function(e) {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                if (files.length > 0) {
+                    autoFileInput.files = files;
+                    autoFileInput.dispatchEvent(new Event('change'));
+                }
+            }, false);
+
+            // Form submission
+            autoUploadForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                const formData = new FormData();
+                formData.append('file', autoFileInput.files[0]);
+                
+                autoUploadBtn.disabled = true;
+                document.getElementById('autoProgressSection').style.display = 'block';
+                
+                try {
+                    const response = await fetch('/upload_automated', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        const jobId = result.job_id;
+                        document.getElementById('autoStatusText').innerHTML = `
+                            <div class="alert alert-success">
+                                <h5><i class="fas fa-check-circle me-2"></i>Upload Successful!</h5>
+                                <p>Job ID: ${jobId}</p>
+                                <p>Processing in background...</p>
+                                <a href="/processing_history" class="btn btn-primary">
+                                    <i class="fas fa-history me-1"></i>View in History
+                                </a>
+                                <a href="/dashboard" class="btn btn-info ms-2">
+                                    <i class="fas fa-chart-line me-1"></i>Go to Dashboard
+                                </a>
+                            </div>
+                        `;
+                        pollProgress(jobId);
+                    } else {
+                        document.getElementById('autoStatusText').innerHTML = `
+                            <div class="alert alert-danger">
+                                <i class="fas fa-times-circle me-2"></i>${result.error}
+                            </div>
+                        `;
+                        autoUploadBtn.disabled = false;
+                    }
+                } catch (error) {
+                    document.getElementById('autoStatusText').innerHTML = `
+                        <div class="alert alert-danger">
+                            <i class="fas fa-times-circle me-2"></i>Upload failed: ${error.message}
+                        </div>
+                    `;
+                    autoUploadBtn.disabled = false;
+                }
+            });
+
+            // Poll for progress
+            function pollProgress(jobId) {
+                const interval = setInterval(async () => {
+                    try {
+                        const response = await fetch(`/api/job_progress/${jobId}`);
+                        const job = await response.json();
+                        
+                        if (job.status === 'completed') {
+                            clearInterval(interval);
+                            document.getElementById('autoProgressBar').style.width = '100%';
+                            document.getElementById('autoProgressText').textContent = 'Completed!';
+                            document.getElementById('autoStatusText').innerHTML = `
+                                <div class="alert alert-success">
+                                    <h5><i class="fas fa-check-circle me-2"></i>Processing Complete!</h5>
+                                    <p>Found ${job.contacts_found} contacts (${job.duplicates_removed} duplicates removed)</p>
+                                    <a href="/download_job/${jobId}" class="btn btn-success">
+                                        <i class="fas fa-download me-1"></i>Download Results
+                                    </a>
+                                    <a href="/?tab=auto" class="btn btn-primary ms-2">
+                                        <i class="fas fa-upload me-1"></i>Upload Another File
+                                    </a>
+                                </div>
+                            `;
+                        } else if (job.status === 'failed' || job.status === 'cancelled') {
+                            clearInterval(interval);
+                            document.getElementById('autoProgressBar').classList.add('bg-danger');
+                            document.getElementById('autoProgressText').textContent = job.status === 'cancelled' ? 'Cancelled' : 'Failed';
+                            document.getElementById('autoStatusText').innerHTML = `
+                                <div class="alert alert-${job.status === 'cancelled' ? 'warning' : 'danger'}">
+                                    <h5><i class="fas fa-${job.status === 'cancelled' ? 'stop-circle' : 'times-circle'} me-2"></i>Processing ${job.status === 'cancelled' ? 'Cancelled' : 'Failed'}</h5>
+                                    <p>${job.error_message}</p>
+                                </div>
+                            `;
+                        } else if (job.status === 'processing') {
+                            const progress = job.total_rows ? Math.min(95, (job.contacts_found / job.total_rows) * 100) : 10;
+                            document.getElementById('autoProgressBar').style.width = progress + '%';
+                            document.getElementById('autoProgressText').textContent = `Processing... ${job.contacts_found || 0} contacts found`;
+                        }
+                    } catch (error) {
+                        console.error('Error polling progress:', error);
+                    }
+                }, 3000);
+            }
+        }
+    </script>
+</body>
+</html>
+

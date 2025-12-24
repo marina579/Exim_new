@@ -1,0 +1,79 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv
+*.egg-info/
+dist/
+build/
+
+# Environment variables - NEVER commit these!
+.env
+.env.local
+.env.*.local
+.env.production
+.env.development
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+*.log
+app.log
+app_auth.log
+app_two_step.log
+deploy_test.log
+
+# Database files (keep structure, but ignore actual database)
+*.db
+*.sqlite
+*.sqlite3
+data/*.db
+data/*.sqlite
+data/*.sqlite3
+!data/.gitkeep
+
+# Uploads and outputs (temporary files)
+uploads/*
+!uploads/.gitkeep
+outputs/*
+!outputs/.gitkeep
+cleaned/*
+!cleaned/.gitkeep
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# Test files
+test_*.xlsx
+test_*.xls
+*_test.xlsx
+*_test.xls
+
+# OS files
+Thumbs.db
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Railway / Deployment
+.railway/
+
+# Secrets and keys
+*.pem
+*.key
+secrets/
+.secrets/

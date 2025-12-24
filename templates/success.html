@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Processing Complete - EXIM Contact Enricher</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            min-height: 100vh;
+            padding: 2rem 0;
+        }
+        .container {
+            max-width: 900px;
+        }
+        .nav-header {
+            background: white;
+            border-radius: 15px;
+            padding: 1rem 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+        .nav-header a {
+            color: #3498db;
+            text-decoration: none;
+            font-weight: 600;
+            margin: 0 0.5rem;
+            transition: all 0.3s ease;
+        }
+        .nav-header a:hover {
+            color: #2980b9;
+            text-decoration: underline;
+        }
+        .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .card-header {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            border-radius: 15px 15px 0 0 !important;
+            padding: 1.5rem;
+        }
+        .success-icon {
+            font-size: 4rem;
+            color: #28a745;
+            margin: 1rem 0;
+        }
+        .btn-success {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            border: none;
+            padding: 0.75rem 2rem;
+            border-radius: 25px;
+            font-weight: 600;
+        }
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.4);
+        }
+        .stats-box {
+            background: #e7f3ff;
+            border-left: 4px solid #3498db;
+            padding: 1rem;
+            border-radius: 5px;
+            margin: 1rem 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Navigation Header -->
+        <div class="nav-header">
+            <div class="text-center">
+                <a href="{{ url_for('index') }}">
+                    <i class="fas fa-home me-1"></i>Home
+                </a>
+                <a href="{{ url_for('step2') }}">
+                    <i class="fas fa-upload me-1"></i>Bulk Upload
+                </a>
+                <a href="{{ url_for('chatbot') }}">
+                    <i class="fas fa-comments me-1"></i>Chatbot
+                </a>
+                <a href="{{ url_for('view_contacts') }}">
+                    <i class="fas fa-address-book me-1"></i>Contacts
+                </a>
+                {% if session.get('is_admin') %}
+                <a href="{{ url_for('admin_users') }}">
+                    <i class="fas fa-users-cog me-1"></i>Admin Panel
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header text-center">
+                <h1 class="mb-0"><i class="fas fa-check-circle me-2"></i>Processing Complete!</h1>
+            </div>
+            <div class="card-body p-4 text-center">
+                <div class="success-icon">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                
+                <h3 class="mb-3">File Processed Successfully</h3>
+                
+                <div class="stats-box text-start">
+                    <h5><i class="fas fa-chart-bar me-2"></i>Processing Summary:</h5>
+                    <p class="mb-0"><strong>Total Indian Sellers Processed:</strong> {{ total_processed }}</p>
+                    <p class="mb-0 text-muted small">Only Indian businesses and contact information were included.</p>
+                </div>
+
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Note:</strong> The enriched file contains:
+                    <ul class="mb-0 mt-2 text-start">
+                        <li>Seller Name and Address</li>
+                        <li>Contact Name (if found)</li>
+                        <li>Contact Address (Indian only)</li>
+                        <li>Email Address</li>
+                        <li>Phone Number (Indian only)</li>
+                        <li>Source URL</li>
+                    </ul>
+                </div>
+
+                <div class="d-grid gap-2 mt-4">
+                    <a href="/download/{{ output_filename }}" class="btn btn-success btn-lg">
+                        <i class="fas fa-download me-2"></i>Download Enriched Excel File
+                    </a>
+                    <a href="/" class="btn btn-outline-secondary">
+                        <i class="fas fa-upload me-2"></i>Process Another File
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
+
