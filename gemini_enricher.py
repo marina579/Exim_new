@@ -39,15 +39,17 @@ class GeminiEnricher:
         if not self.api_key:
             raise ValueError("Gemini API key required. Get one from: https://aistudio.google.com/apikey")
         
-        # Initialize client (only pass api_key to avoid proxies error)
+        # Initialize client - clear proxy env vars that might cause issues
+        original_proxies = {}
+        for proxy_var in ['HTTPS_PROXY', 'HTTP_PROXY', 'https_proxy', 'http_proxy']:
+            if proxy_var in os.environ:
+                original_proxies[proxy_var] = os.environ.pop(proxy_var)
+        
         try:
             self.client = genai.Client(api_key=self.api_key)
-        except TypeError as e:
-            if 'proxies' in str(e):
-                # Retry without any extra parameters
-                self.client = genai.Client(api_key=self.api_key)
-            else:
-                raise
+        finally:
+            # Restore proxy environment variables
+            os.environ.update(original_proxies)
         
         logger.info("✅ Gemini enricher initialized")
     
