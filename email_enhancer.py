@@ -86,31 +86,25 @@ class EmailEnhancer:
             api_key = gemini_api_key or os.getenv('GEMINI_API_KEY')
             if api_key:
                 try:
-                    # Explicitly disable proxy by setting it to None in client_args
-                    # This prevents httpx from reading proxy env vars
-                    from google.genai import types
-                    http_options = types.HttpOptions(
-                        client_args={
-                            'trust_env': False,  # Don't read proxy from env vars
-                            'proxy': None  # Explicitly set proxy to None
-                        }
-                    )
-                    self.gemini_client = genai.Client(api_key=api_key, http_options=http_options)
-                    logger.info("✅ Gemini AI initialized for email extraction")
-                except Exception as e:
-                    # Fallback: Try with just trust_env=False
+                    # Save and temporarily remove proxy env vars to prevent httpx from using them
+                    proxy_vars = {}
+                    for var in ['HTTPS_PROXY', 'HTTP_PROXY', 'https_proxy', 'http_proxy', 'ALL_PROXY', 'all_proxy']:
+                        if var in os.environ:
+                            proxy_vars[var] = os.environ.pop(var)
+                    
                     try:
-                        from google.genai import types
-                        http_options = types.HttpOptions(client_args={'trust_env': False})
-                        self.gemini_client = genai.Client(api_key=api_key, http_options=http_options)
-                        logger.info("✅ Gemini AI initialized for email extraction (fallback 1)")
-                    except Exception as e2:
-                        # Final fallback: try simple initialization
-                        try:
-                            self.gemini_client = genai.Client(api_key=api_key)
-                            logger.info("✅ Gemini AI initialized for email extraction (fallback 2)")
-                        except Exception as e3:
-                            logger.warning(f"⚠️  Gemini initialization failed: {str(e3)}")
+                        # Initialize genai.Client without proxy interference
+                        self.gemini_client = genai.Client(api_key=api_key)
+                        logger.info("✅ Gemini AI initialized for email extraction")
+                    finally:
+                        # Restore proxy env vars
+                        os.environ.update(proxy_vars)
+                except Exception as e:
+                    # Restore proxy env vars if error occurred
+                    for var, value in proxy_vars.items():
+                        os.environ[var] = value
+                    logger.warning(f"⚠️  Gemini initialization failed: {str(e)}")
+                    self.gemini_client = None
         else:
             logger.warning("⚠️  Gemini not available")
     

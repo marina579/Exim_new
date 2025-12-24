@@ -39,26 +39,24 @@ class GeminiEnricher:
         if not self.api_key:
             raise ValueError("Gemini API key required. Get one from: https://aistudio.google.com/apikey")
         
-        # Initialize client with http_options to explicitly disable proxy
+        # Save and temporarily remove proxy env vars to prevent httpx from using them
+        proxy_vars = {}
+        for var in ['HTTPS_PROXY', 'HTTP_PROXY', 'https_proxy', 'http_proxy', 'ALL_PROXY', 'all_proxy']:
+            if var in os.environ:
+                proxy_vars[var] = os.environ.pop(var)
+        
         try:
-            http_options = types.HttpOptions(
-                client_args={
-                    'trust_env': False,  # Don't read proxy from env vars
-                    'proxy': None  # Explicitly set proxy to None
-                }
-            )
-            self.client = genai.Client(api_key=self.api_key, http_options=http_options)
+            # Initialize genai.Client without proxy interference
+            self.client = genai.Client(api_key=self.api_key)
         except Exception as e:
-            # Fallback 1: Try with just trust_env=False
-            try:
-                http_options = types.HttpOptions(client_args={'trust_env': False})
-                self.client = genai.Client(api_key=self.api_key, http_options=http_options)
-            except Exception as e2:
-                # Fallback 2: Try simple initialization
-                try:
-                    self.client = genai.Client(api_key=self.api_key)
-                except Exception as e3:
-                    raise ValueError(f"Failed to initialize Gemini client: {str(e3)}")
+            # Restore proxy env vars if error occurred
+            for var, value in proxy_vars.items():
+                os.environ[var] = value
+            raise ValueError(f"Failed to initialize Gemini client: {str(e)}")
+        
+        # Restore proxy env vars after successful initialization
+        for var, value in proxy_vars.items():
+            os.environ[var] = value
         
         logger.info("✅ Gemini enricher initialized")
     
