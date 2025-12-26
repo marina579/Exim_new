@@ -1971,25 +1971,45 @@ class ContactDatabase:
             try:
                 if self.db_type == 'postgresql':
                     cursor.execute("SELECT COUNT(*) as count FROM companies")
-                    total_companies = int(cursor.fetchone()['count'] or 0)
+                    result = cursor.fetchone()
+                    logger.info(f"🔍 Companies query result: {result}, type: {type(result)}")
+                    if result and isinstance(result, dict):
+                        total_companies = int(result.get('count', 0) or 0)
+                    elif result:
+                        total_companies = int(result[0] or 0) if len(result) > 0 else 0
+                    else:
+                        total_companies = 0
                 else:
                     cursor.execute("SELECT COUNT(*) FROM companies")
-                    total_companies = int(cursor.fetchone()[0] or 0)
+                    result = cursor.fetchone()
+                    total_companies = int(result[0] or 0) if result else 0
                 logger.info(f"📊 Total companies in database: {total_companies}")
             except Exception as e:
                 logger.error(f"❌ Error counting companies: {str(e)}", exc_info=True)
+                import traceback
+                logger.error(f"❌ Traceback: {traceback.format_exc()}")
                 total_companies = 0
             
             try:
                 if self.db_type == 'postgresql':
                     cursor.execute("SELECT COUNT(*) as count FROM contacts")
-                    total_contacts_db = int(cursor.fetchone()['count'] or 0)
+                    result = cursor.fetchone()
+                    logger.info(f"🔍 Contacts query result: {result}, type: {type(result)}")
+                    if result and isinstance(result, dict):
+                        total_contacts_db = int(result.get('count', 0) or 0)
+                    elif result:
+                        total_contacts_db = int(result[0] or 0) if len(result) > 0 else 0
+                    else:
+                        total_contacts_db = 0
                 else:
                     cursor.execute("SELECT COUNT(*) FROM contacts")
-                    total_contacts_db = int(cursor.fetchone()[0] or 0)
+                    result = cursor.fetchone()
+                    total_contacts_db = int(result[0] or 0) if result else 0
                 logger.info(f"📊 Total contacts in database: {total_contacts_db}")
             except Exception as e:
                 logger.error(f"❌ Error counting contacts: {str(e)}", exc_info=True)
+                import traceback
+                logger.error(f"❌ Traceback: {traceback.format_exc()}")
                 total_contacts_db = 0
             
             # Get contacts by date
@@ -2043,6 +2063,10 @@ class ContactDatabase:
                 avg_processing_time = round(float(job_stats[8] or 0), 2) if job_stats and len(job_stats) > 8 else 0
             
             # Ensure database counts are always returned (even if 0)
+            # Force convert to int to ensure no None values
+            database_companies_val = int(total_companies) if total_companies else 0
+            database_contacts_val = int(total_contacts_db) if total_contacts_db else 0
+            
             final_stats = {
                 'total_jobs': int(total_jobs or 0),
                 'completed_jobs': int(completed_jobs or 0),
@@ -2053,8 +2077,8 @@ class ContactDatabase:
                 'total_new_companies': int(total_new_companies or 0),
                 'total_api_calls': int(total_api_calls or 0),
                 'avg_processing_time': float(avg_processing_time or 0),
-                'database_companies': int(total_companies or 0),
-                'database_contacts': int(total_contacts_db or 0),
+                'database_companies': database_companies_val,
+                'database_contacts': database_contacts_val,
                 'contacts_by_date': [
                     {'date': str(row[0]), 'count': row[1]} 
                     for row in contacts_by_date
@@ -2062,6 +2086,7 @@ class ContactDatabase:
             }
             
             logger.info(f"📊 Final stats being returned: companies={final_stats['database_companies']}, contacts={final_stats['database_contacts']}")
+            logger.info(f"📊 Raw values: total_companies={total_companies}, total_contacts_db={total_contacts_db}")
             logger.info(f"📊 Full stats dict: {final_stats}")
             return final_stats
         except Exception as e:
