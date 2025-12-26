@@ -1907,14 +1907,36 @@ class ContactDatabase:
             if not job_stats:
                 job_stats = (0, 0, 0, 0, 0, 0, 0, 0, 0)
             
+            # Convert PostgreSQL dict result to tuple if needed
+            if self.db_type == 'postgresql' and isinstance(job_stats, dict):
+                job_stats = (
+                    job_stats.get('total_jobs', 0) or 0,
+                    job_stats.get('completed_jobs', 0) or 0,
+                    job_stats.get('failed_jobs', 0) or 0,
+                    job_stats.get('processing_jobs', 0) or 0,
+                    job_stats.get('total_contacts', 0) or 0,
+                    job_stats.get('total_duplicates', 0) or 0,
+                    job_stats.get('total_new_companies', 0) or 0,
+                    job_stats.get('total_api_calls', 0) or 0,
+                    job_stats.get('avg_processing_time', 0) or 0
+                )
+            elif not job_stats:
+                job_stats = (0, 0, 0, 0, 0, 0, 0, 0, 0)
+            
             # Get total companies and contacts in database
             try:
                 cursor.execute("SELECT COUNT(*) FROM companies")
                 total_companies_row = cursor.fetchone()
                 if total_companies_row:
-                    total_companies = total_companies_row[0] if self.db_type == 'postgresql' else total_companies_row[0]
+                    if self.db_type == 'postgresql' and isinstance(total_companies_row, dict):
+                        # PostgreSQL returns dict like {'count': 151}
+                        total_companies = total_companies_row.get('count', 0) or 0
+                    else:
+                        # SQLite returns tuple like (151,)
+                        total_companies = total_companies_row[0] if total_companies_row else 0
                 else:
                     total_companies = 0
+                logger.info(f"📊 Total companies in database: {total_companies}")
             except Exception as e:
                 logger.warning(f"Error counting companies: {str(e)}")
                 total_companies = 0
@@ -1923,9 +1945,15 @@ class ContactDatabase:
                 cursor.execute("SELECT COUNT(*) FROM contacts")
                 total_contacts_row = cursor.fetchone()
                 if total_contacts_row:
-                    total_contacts_db = total_contacts_row[0] if self.db_type == 'postgresql' else total_contacts_row[0]
+                    if self.db_type == 'postgresql' and isinstance(total_contacts_row, dict):
+                        # PostgreSQL returns dict like {'count': 567}
+                        total_contacts_db = total_contacts_row.get('count', 0) or 0
+                    else:
+                        # SQLite returns tuple like (567,)
+                        total_contacts_db = total_contacts_row[0] if total_contacts_row else 0
                 else:
                     total_contacts_db = 0
+                logger.info(f"📊 Total contacts in database: {total_contacts_db}")
             except Exception as e:
                 logger.warning(f"Error counting contacts: {str(e)}")
                 total_contacts_db = 0
@@ -1958,42 +1986,45 @@ class ContactDatabase:
                 contacts_by_date = []
             
             # Handle PostgreSQL vs SQLite result format
+            # Extract values safely
             if self.db_type == 'postgresql':
-                return {
-                    'total_jobs': job_stats[0] or 0,
-                    'completed_jobs': job_stats[1] or 0,
-                    'failed_jobs': job_stats[2] or 0,
-                    'processing_jobs': job_stats[3] or 0,
-                    'total_contacts': job_stats[4] or 0,
-                    'total_duplicates': job_stats[5] or 0,
-                    'total_new_companies': job_stats[6] or 0,
-                    'total_api_calls': job_stats[7] or 0,
-                    'avg_processing_time': round(float(job_stats[8] or 0), 2),
-                    'database_companies': total_companies or 0,
-                    'database_contacts': total_contacts_db or 0,
-                    'contacts_by_date': [
-                        {'date': str(row[0]), 'count': row[1]} 
-                        for row in contacts_by_date
-                    ]
-                }
+                total_jobs = job_stats[0] if job_stats and len(job_stats) > 0 else 0
+                completed_jobs = job_stats[1] if job_stats and len(job_stats) > 1 else 0
+                failed_jobs = job_stats[2] if job_stats and len(job_stats) > 2 else 0
+                processing_jobs = job_stats[3] if job_stats and len(job_stats) > 3 else 0
+                total_contacts = job_stats[4] if job_stats and len(job_stats) > 4 else 0
+                total_duplicates = job_stats[5] if job_stats and len(job_stats) > 5 else 0
+                total_new_companies = job_stats[6] if job_stats and len(job_stats) > 6 else 0
+                total_api_calls = job_stats[7] if job_stats and len(job_stats) > 7 else 0
+                avg_processing_time = round(float(job_stats[8] or 0), 2) if job_stats and len(job_stats) > 8 else 0
             else:
-                return {
-                    'total_jobs': job_stats[0] or 0,
-                    'completed_jobs': job_stats[1] or 0,
-                    'failed_jobs': job_stats[2] or 0,
-                    'processing_jobs': job_stats[3] or 0,
-                    'total_contacts': job_stats[4] or 0,
-                    'total_duplicates': job_stats[5] or 0,
-                    'total_new_companies': job_stats[6] or 0,
-                    'total_api_calls': job_stats[7] or 0,
-                    'avg_processing_time': round(float(job_stats[8] or 0), 2),
-                    'database_companies': total_companies or 0,
-                    'database_contacts': total_contacts_db or 0,
-                    'contacts_by_date': [
-                        {'date': str(row[0]), 'count': row[1]} 
-                        for row in contacts_by_date
-                    ]
-                }
+                total_jobs = job_stats[0] if job_stats and len(job_stats) > 0 else 0
+                completed_jobs = job_stats[1] if job_stats and len(job_stats) > 1 else 0
+                failed_jobs = job_stats[2] if job_stats and len(job_stats) > 2 else 0
+                processing_jobs = job_stats[3] if job_stats and len(job_stats) > 3 else 0
+                total_contacts = job_stats[4] if job_stats and len(job_stats) > 4 else 0
+                total_duplicates = job_stats[5] if job_stats and len(job_stats) > 5 else 0
+                total_new_companies = job_stats[6] if job_stats and len(job_stats) > 6 else 0
+                total_api_calls = job_stats[7] if job_stats and len(job_stats) > 7 else 0
+                avg_processing_time = round(float(job_stats[8] or 0), 2) if job_stats and len(job_stats) > 8 else 0
+            
+            return {
+                'total_jobs': total_jobs or 0,
+                'completed_jobs': completed_jobs or 0,
+                'failed_jobs': failed_jobs or 0,
+                'processing_jobs': processing_jobs or 0,
+                'total_contacts': total_contacts or 0,
+                'total_duplicates': total_duplicates or 0,
+                'total_new_companies': total_new_companies or 0,
+                'total_api_calls': total_api_calls or 0,
+                'avg_processing_time': avg_processing_time,
+                'database_companies': total_companies or 0,
+                'database_contacts': total_contacts_db or 0,
+                'contacts_by_date': [
+                    {'date': str(row[0]), 'count': row[1]} 
+                    for row in contacts_by_date
+                ]
+            }
         except Exception as e:
             logger.error(f"Error in get_statistics: {str(e)}", exc_info=True)
             # Return safe defaults

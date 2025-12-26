@@ -519,6 +519,9 @@ def _auto_push_contacts_to_zoho(company_id: int, company_name: str, contacts: li
         company_name: Company name
         contacts: List of contact dictionaries (original contact data)
     """
+    import logging
+    logger = logging.getLogger(__name__)
+    
     # Check if Zoho is configured
     zoho_client_id = os.getenv('ZOHO_CLIENT_ID')
     zoho_client_secret = os.getenv('ZOHO_CLIENT_SECRET')
@@ -596,17 +599,22 @@ def _auto_push_contacts_to_zoho(company_id: int, company_name: str, contacts: li
             zoho_first_name = name_parts[0] if name_parts else 'Unknown'
             zoho_last_name = ' '.join(name_parts[1:]) if len(name_parts) > 1 else '.'
             
-            contact_data = {
-                'first_name': zoho_first_name,
-                'last_name': zoho_last_name,
-                'company': company_name,
-                'email': email,
-                'phone': phone,
-                '_contact_id': contact_id,  # Store contact ID for status updates
-            }
-            zoho_contacts.append(contact_data)
+            # Only add contact if it has at least phone OR email
+            if phone or email:
+                contact_data = {
+                    'first_name': zoho_first_name,
+                    'last_name': zoho_last_name,
+                    'company': company_name,
+                    'email': email,
+                    'phone': phone,
+                    '_contact_id': contact_id,  # Store contact ID for status updates
+                }
+                zoho_contacts.append(contact_data)
+            else:
+                logger.warning(f"⚠️  Skipping contact {contact_id} for {company_name}: No phone or email")
         
         if not zoho_contacts:
+            logger.info(f"ℹ️  No contacts with phone/email to push for {company_name}")
             return
         
         logger.info(f"📤 Auto-pushing {len(zoho_contacts)} contacts to Zoho for {company_name}...")
@@ -2228,8 +2236,13 @@ def dashboard():
     
     try:
         days = request.args.get('days', 90, type=int)
+        logger.info(f"📊 Loading dashboard for last {days} days")
+        
         stats = db.get_statistics(days=days)
         recent_jobs = db.get_processing_history(limit=10)
+        
+        # Log statistics for debugging
+        logger.info(f"📊 Dashboard stats: companies={stats.get('database_companies', 0)}, contacts={stats.get('database_contacts', 0)}, jobs={stats.get('total_jobs', 0)}")
         
         return render_template('dashboard.html',
                              stats=stats,
@@ -2237,7 +2250,7 @@ def dashboard():
                              days=days,
                              username=session.get('username'))
     except Exception as e:
-        logger.error(f"Error loading dashboard: {str(e)}")
+        logger.error(f"Error loading dashboard: {str(e)}", exc_info=True)
         flash(f'Error loading dashboard: {str(e)}', 'error')
         return redirect(url_for('index'))
 
