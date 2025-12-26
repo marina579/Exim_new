@@ -14,7 +14,7 @@
         }
         
         body {
-            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            background: #f5f7fa;
             min-height: 100vh;
             padding: 30px;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -307,14 +307,14 @@
         <!-- Beautiful Title Section with Logout Top Right -->
         {% if username %}
         <div class="d-flex justify-content-between align-items-start mb-4" style="position: relative;">
-            <div class="text-center" style="flex: 1; color: white;">
-                <h1 style="font-size: 3rem; font-weight: 700; margin-bottom: 0.5rem; text-shadow: 0 2px 10px rgba(0,0,0,0.2);">
-                    <i class="fas fa-ship me-2" style="animation: float 3s ease-in-out infinite;"></i>Marineco AI Labs
+            <div class="text-center" style="flex: 1; color: #2c3e50;">
+                <h1 style="font-size: 2.8rem; font-weight: 600; margin-bottom: 0.5rem; color: #1e3a5f; letter-spacing: -0.5px;">
+                    <i class="fas fa-ship me-2" style="animation: float 3s ease-in-out infinite; color: #1e3a5f;"></i>Marineco AI Labs
                 </h1>
-                <p class="mb-2" style="font-size: 1.2rem; opacity: 0.95;">
+                <p class="mb-2" style="font-size: 1.1rem; color: #6c757d; font-weight: 400;">
                     <i class="fas fa-robot me-2"></i>AI-Powered Contact Enrichment System
                 </p>
-                <span style="display: inline-block; padding: 0.4rem 1.2rem; background: rgba(255,255,255,0.2); border-radius: 25px; font-size: 0.95rem; font-weight: 600;">
+                <span style="display: inline-block; padding: 0.4rem 1.2rem; background: #1e3a5f; color: white; border-radius: 20px; font-size: 0.9rem; font-weight: 500;">
                     <i class="fas fa-check-circle me-1"></i>Triple AI Engine Active
                 </span>
             </div>
@@ -358,21 +358,21 @@
         <!-- Tab Navigation - Auto Upload / Manual Process (Half and Half) -->
         <div class="row mb-4">
             <div class="col-md-6">
-                <a href="{{ url_for('index', tab='auto') }}" class="card text-decoration-none" style="background: {% if tab == 'auto' %}linear-gradient(135deg, #667eea 0%, #764ba2 100%){% else %}linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%){% endif %}; border-radius: 20px; padding: 40px; text-align: center; box-shadow: {% if tab == 'auto' %}0 15px 50px rgba(102, 126, 234, 0.4), 0 5px 15px rgba(0,0,0,0.2){% else %}0 10px 30px rgba(0,0,0,0.15), 0 3px 10px rgba(0,0,0,0.1){% endif %}; border: {% if tab == 'auto' %}none{% else %}2px solid rgba(102, 126, 234, 0.2){% endif %}; transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); height: 100%; transform: {% if tab == 'auto' %}translateY(-5px) scale(1.02){% else %}translateY(0) scale(1){% endif %};">
-                    <div style="font-size: 4rem; margin-bottom: 20px; color: {% if tab == 'auto' %}white{% else %}#667eea{% endif %}; text-shadow: {% if tab == 'auto' %}0 2px 10px rgba(0,0,0,0.2){% else %}none{% endif %};">
+                <a href="{{ url_for('index', tab='auto') }}" class="card text-decoration-none" style="background: #1e3a5f; border-radius: 12px; padding: 40px; text-align: center; box-shadow: {% if tab == 'auto' %}0 8px 25px rgba(30, 58, 95, 0.3), 0 3px 10px rgba(0,0,0,0.15){% else %}0 4px 15px rgba(0,0,0,0.1){% endif %}; border: none; transition: all 0.3s ease; height: 100%; transform: {% if tab == 'auto' %}translateY(-3px){% else %}translateY(0){% endif %}; opacity: {% if tab == 'auto' %}1{% else %}0.85{% endif %};">
+                    <div style="font-size: 3.5rem; margin-bottom: 20px; color: white;">
                         <i class="fas fa-rocket"></i>
                     </div>
-                    <h3 style="color: {% if tab == 'auto' %}white{% else %}#2c3e50{% endif %}; font-weight: 700; margin-bottom: 12px; font-size: 1.5rem;">Auto Upload</h3>
-                    <p style="color: {% if tab == 'auto' %}rgba(255,255,255,0.95){% else %}#6c757d{% endif %}; margin: 0; font-size: 1rem; font-weight: 500;">Fully Automated Processing</p>
+                    <h3 style="color: white; font-weight: 600; margin-bottom: 12px; font-size: 1.4rem; letter-spacing: 0.5px;">Auto Upload</h3>
+                    <p style="color: rgba(255,255,255,0.9); margin: 0; font-size: 0.95rem; font-weight: 400;">Fully Automated Processing</p>
                 </a>
             </div>
             <div class="col-md-6">
-                <a href="{{ url_for('index', tab='manual', step=1) }}" class="card text-decoration-none" style="background: {% if tab == 'manual' %}linear-gradient(135deg, #667eea 0%, #764ba2 100%){% else %}linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%){% endif %}; border-radius: 20px; padding: 40px; text-align: center; box-shadow: {% if tab == 'manual' %}0 15px 50px rgba(102, 126, 234, 0.4), 0 5px 15px rgba(0,0,0,0.2){% else %}0 10px 30px rgba(0,0,0,0.15), 0 3px 10px rgba(0,0,0,0.1){% endif %}; border: {% if tab == 'manual' %}none{% else %}2px solid rgba(102, 126, 234, 0.2){% endif %}; transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); height: 100%; transform: {% if tab == 'manual' %}translateY(-5px) scale(1.02){% else %}translateY(0) scale(1){% endif %};">
-                    <div style="font-size: 4rem; margin-bottom: 20px; color: {% if tab == 'manual' %}white{% else %}#667eea{% endif %}; text-shadow: {% if tab == 'manual' %}0 2px 10px rgba(0,0,0,0.2){% else %}none{% endif %};">
+                <a href="{{ url_for('index', tab='manual', step=1) }}" class="card text-decoration-none" style="background: #1e3a5f; border-radius: 12px; padding: 40px; text-align: center; box-shadow: {% if tab == 'manual' %}0 8px 25px rgba(30, 58, 95, 0.3), 0 3px 10px rgba(0,0,0,0.15){% else %}0 4px 15px rgba(0,0,0,0.1){% endif %}; border: none; transition: all 0.3s ease; height: 100%; transform: {% if tab == 'manual' %}translateY(-3px){% else %}translateY(0){% endif %}; opacity: {% if tab == 'manual' %}1{% else %}0.85{% endif %};">
+                    <div style="font-size: 3.5rem; margin-bottom: 20px; color: white;">
                         <i class="fas fa-cogs"></i>
                     </div>
-                    <h3 style="color: {% if tab == 'manual' %}white{% else %}#2c3e50{% endif %}; font-weight: 700; margin-bottom: 12px; font-size: 1.5rem;">Manual Process</h3>
-                    <p style="color: {% if tab == 'manual' %}rgba(255,255,255,0.95){% else %}#6c757d{% endif %}; margin: 0; font-size: 1rem; font-weight: 500;">Step-by-Step Control</p>
+                    <h3 style="color: white; font-weight: 600; margin-bottom: 12px; font-size: 1.4rem; letter-spacing: 0.5px;">Manual Process</h3>
+                    <p style="color: rgba(255,255,255,0.9); margin: 0; font-size: 0.95rem; font-weight: 400;">Step-by-Step Control</p>
                 </a>
             </div>
         </div>
@@ -381,17 +381,17 @@
         {% if tab == 'manual' %}
         <div class="row mb-4">
             <div class="col-md-6">
-                <div class="card" style="background: {% if step == 1 %}linear-gradient(135deg, #f093fb 0%, #f5576c 100%){% else %}linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%){% endif %}; border-radius: 20px; padding: 40px; text-align: center; box-shadow: {% if step == 1 %}0 15px 50px rgba(245, 87, 108, 0.4), 0 5px 15px rgba(0,0,0,0.2){% else %}0 10px 30px rgba(0,0,0,0.15), 0 3px 10px rgba(0,0,0,0.1){% endif %}; border: {% if step == 1 %}none{% else %}2px solid rgba(245, 87, 108, 0.2){% endif %}; transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); height: 100%; transform: {% if step == 1 %}translateY(-5px) scale(1.02){% else %}translateY(0) scale(1){% endif %};">
-                    <div style="font-size: 5rem; font-weight: 700; margin-bottom: 20px; color: {% if step == 1 %}white{% else %}#f5576c{% endif %}; text-shadow: {% if step == 1 %}0 2px 10px rgba(0,0,0,0.2){% else %}none{% endif %};">1</div>
-                    <h3 style="color: {% if step == 1 %}white{% else %}#2c3e50{% endif %}; font-weight: 700; margin-bottom: 12px; font-size: 1.5rem;">Clean & Deduplicate</h3>
-                    <p style="color: {% if step == 1 %}rgba(255,255,255,0.95){% else %}#6c757d{% endif %}; margin: 0; font-size: 1rem; font-weight: 500;">Standardize company data</p>
+                <div class="card" style="background: #1e3a5f; border-radius: 12px; padding: 40px; text-align: center; box-shadow: {% if step == 1 %}0 8px 25px rgba(30, 58, 95, 0.3), 0 3px 10px rgba(0,0,0,0.15){% else %}0 4px 15px rgba(0,0,0,0.1){% endif %}; border: none; transition: all 0.3s ease; height: 100%; transform: {% if step == 1 %}translateY(-3px){% else %}translateY(0){% endif %}; opacity: {% if step == 1 %}1{% else %}0.85{% endif %};">
+                    <div style="font-size: 4.5rem; font-weight: 600; margin-bottom: 20px; color: white; letter-spacing: 2px;">1</div>
+                    <h3 style="color: white; font-weight: 600; margin-bottom: 12px; font-size: 1.4rem; letter-spacing: 0.5px;">Clean & Deduplicate</h3>
+                    <p style="color: rgba(255,255,255,0.9); margin: 0; font-size: 0.95rem; font-weight: 400;">Standardize company data</p>
                 </div>
             </div>
             <div class="col-md-6">
-                <div class="card" style="background: {% if step == 2 %}linear-gradient(135deg, #4facfe 0%, #00f2fe 100%){% else %}linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%){% endif %}; border-radius: 20px; padding: 40px; text-align: center; box-shadow: {% if step == 2 %}0 15px 50px rgba(79, 172, 254, 0.4), 0 5px 15px rgba(0,0,0,0.2){% else %}0 10px 30px rgba(0,0,0,0.15), 0 3px 10px rgba(0,0,0,0.1){% endif %}; border: {% if step == 2 %}none{% else %}2px solid rgba(79, 172, 254, 0.2){% endif %}; transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); height: 100%; transform: {% if step == 2 %}translateY(-5px) scale(1.02){% else %}translateY(0) scale(1){% endif %};">
-                    <div style="font-size: 5rem; font-weight: 700; margin-bottom: 20px; color: {% if step == 2 %}white{% else %}#4facfe{% endif %}; text-shadow: {% if step == 2 %}0 2px 10px rgba(0,0,0,0.2){% else %}none{% endif %};">2</div>
-                    <h3 style="color: {% if step == 2 %}white{% else %}#2c3e50{% endif %}; font-weight: 700; margin-bottom: 12px; font-size: 1.5rem;">Enrich Contacts</h3>
-                    <p style="color: {% if step == 2 %}rgba(255,255,255,0.95){% else %}#6c757d{% endif %}; margin: 0; font-size: 1rem; font-weight: 500;">Find phone, email, WhatsApp</p>
+                <div class="card" style="background: #1e3a5f; border-radius: 12px; padding: 40px; text-align: center; box-shadow: {% if step == 2 %}0 8px 25px rgba(30, 58, 95, 0.3), 0 3px 10px rgba(0,0,0,0.15){% else %}0 4px 15px rgba(0,0,0,0.1){% endif %}; border: none; transition: all 0.3s ease; height: 100%; transform: {% if step == 2 %}translateY(-3px){% else %}translateY(0){% endif %}; opacity: {% if step == 2 %}1{% else %}0.85{% endif %};">
+                    <div style="font-size: 4.5rem; font-weight: 600; margin-bottom: 20px; color: white; letter-spacing: 2px;">2</div>
+                    <h3 style="color: white; font-weight: 600; margin-bottom: 12px; font-size: 1.4rem; letter-spacing: 0.5px;">Enrich Contacts</h3>
+                    <p style="color: rgba(255,255,255,0.9); margin: 0; font-size: 0.95rem; font-weight: 400;">Find phone, email, WhatsApp</p>
                 </div>
             </div>
         </div>
