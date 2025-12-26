@@ -1133,29 +1133,52 @@ class ContactDatabase:
     
     def get_stats(self) -> Dict:
         """Get database statistics."""
-        conn = self._get_connection()
-        cursor = conn.cursor()
-        
-        # Total companies
-        cursor.execute("SELECT COUNT(*) as count FROM companies")
-        total_companies = cursor.fetchone()['count'] if self.db_type == 'postgresql' else cursor.fetchone()[0]
-        
-        # Total contacts
-        cursor.execute("SELECT COUNT(*) as count FROM contacts")
-        total_contacts = cursor.fetchone()['count'] if self.db_type == 'postgresql' else cursor.fetchone()[0]
-        
-        # Companies with contacts
-        cursor.execute("SELECT COUNT(DISTINCT company_id) as count FROM contacts")
-        companies_with_contacts = cursor.fetchone()['count'] if self.db_type == 'postgresql' else cursor.fetchone()[0]
-        
-        conn.close()
-        
-        return {
-            'total_companies': total_companies,
-            'total_contacts': total_contacts,
-            'companies_with_contacts': companies_with_contacts,
-            'db_type': self.db_type
-        }
+        logger.info(f"🔍 get_stats() called - db_type: {self.db_type}")
+        try:
+            conn = self._get_connection()
+            logger.info(f"✅ Connection established in get_stats()")
+            cursor = conn.cursor()
+            
+            # Total companies
+            cursor.execute("SELECT COUNT(*) as count FROM companies")
+            result = cursor.fetchone()
+            logger.info(f"📊 Companies query result: {result}")
+            if self.db_type == 'postgresql':
+                total_companies = result['count'] if result else 0
+            else:
+                total_companies = result[0] if result else 0
+            
+            # Total contacts
+            cursor.execute("SELECT COUNT(*) as count FROM contacts")
+            result = cursor.fetchone()
+            logger.info(f"📊 Contacts query result: {result}")
+            if self.db_type == 'postgresql':
+                total_contacts = result['count'] if result else 0
+            else:
+                total_contacts = result[0] if result else 0
+            
+            # Companies with contacts
+            cursor.execute("SELECT COUNT(DISTINCT company_id) as count FROM contacts")
+            result = cursor.fetchone()
+            if self.db_type == 'postgresql':
+                companies_with_contacts = result['count'] if result else 0
+            else:
+                companies_with_contacts = result[0] if result else 0
+            
+            conn.close()
+            logger.info(f"✅ get_stats() SUCCESS: companies={total_companies}, contacts={total_contacts}")
+            
+            return {
+                'total_companies': total_companies,
+                'total_contacts': total_contacts,
+                'companies_with_contacts': companies_with_contacts,
+                'db_type': self.db_type
+            }
+        except Exception as e:
+            logger.error(f"❌ get_stats() FAILED: {str(e)}", exc_info=True)
+            import traceback
+            logger.error(f"❌ Full traceback: {traceback.format_exc()}")
+            raise
     
     def get_all_contacts_paginated(self, page: int = 1, per_page: int = 50, search_query: str = None, 
                                    start_date: str = None, end_date: str = None) -> Dict:
