@@ -397,6 +397,10 @@ class ContactDatabase:
             
             phone_normalized = normalize_phone(phone) or normalize_phone(whatsapp)
             
+            # Store normalize_phone function for later use
+            if 'normalize_phone' not in globals():
+                globals()['normalize_phone'] = normalize_phone
+            
             # Try to find a matching key
             key = None
             
@@ -532,8 +536,90 @@ class ContactDatabase:
                 
                 logger.info(f"🔗 Merged {len(group)} contacts into 1: {merged.get('contact_name') or merged.get('email')}")
         
-        logger.info(f"📊 Contact deduplication: {len(contacts)} → {len(merged_contacts)} contacts")
-        return merged_contacts
+        # STEP 2: Merge contacts with complementary data (phone-only + email-only)
+        # Identify contacts that need complementary data
+        complementary_phone_only = []  # Contacts with phone but no email
+        complementary_email_only = []  # Contacts with email but no phone
+        final_merged = []  # Contacts that already have both or were merged
+        
+        for contact in merged_contacts:
+            phone = contact.get('phone', '').strip()
+            email = contact.get('email', '').strip()
+            
+            if phone and not email:
+                complementary_phone_only.append(contact)
+            elif email and not phone:
+                complementary_email_only.append(contact)
+            else:
+                # Has both or neither - keep as is
+                final_merged.append(contact)
+        
+        # Merge complementary contacts (phone-only + email-only from same method/source)
+        used_phone_indices = set()
+        used_email_indices = set()
+        
+        for i, phone_contact in enumerate(complementary_phone_only):
+            if i in used_phone_indices:
+                continue
+                
+            phone_method = phone_contact.get('method', '').lower()
+            phone_source = phone_contact.get('source_url', '')
+            
+            # Try to find matching email contact (same method or source)
+            best_match_idx = None
+            for j, email_contact in enumerate(complementary_email_only):
+                if j in used_email_indices:
+                    continue
+                    
+                email_method = email_contact.get('method', '').lower()
+                email_source = email_contact.get('source_url', '')
+                
+                # Match if same method (e.g., both from 'serpapi') or same source URL
+                if phone_method and email_method and phone_method == email_method:
+                    best_match_idx = j
+                    break
+                elif phone_source and email_source and phone_source == email_source:
+                    best_match_idx = j
+                    break
+            
+            # If no exact match, use first available email contact
+            if best_match_idx is None and complementary_email_only:
+                for j, email_contact in enumerate(complementary_email_only):
+                    if j not in used_email_indices:
+                        best_match_idx = j
+                        break
+            
+            if best_match_idx is not None:
+                email_contact = complementary_email_only[best_match_idx]
+                
+                # Merge them into one contact
+                merged_comp = {
+                    'contact_name': phone_contact.get('contact_name') or email_contact.get('contact_name', ''),
+                    'first_name': phone_contact.get('first_name') or email_contact.get('first_name', ''),
+                    'last_name': phone_contact.get('last_name') or email_contact.get('last_name', ''),
+                    'phone': phone_contact.get('phone', ''),
+                    'email': email_contact.get('email', ''),
+                    'whatsapp': phone_contact.get('whatsapp') or phone_contact.get('phone', ''),
+                    'source_url': phone_contact.get('source_url') or email_contact.get('source_url', ''),
+                    'method': f"{phone_contact.get('method', '')}+{email_contact.get('method', '')}".strip('+'),
+                    'confidence': min(phone_contact.get('confidence', 100), email_contact.get('confidence', 100))
+                }
+                
+                final_merged.append(merged_comp)
+                used_phone_indices.add(i)
+                used_email_indices.add(best_match_idx)
+                logger.info(f"🔗 Merged complementary: phone={merged_comp.get('phone', 'N/A')[:15]}, email={merged_comp.get('email', 'N/A')[:25]}")
+        
+        # Add remaining unused complementary contacts
+        for i, phone_contact in enumerate(complementary_phone_only):
+            if i not in used_phone_indices:
+                final_merged.append(phone_contact)
+        for i, email_contact in enumerate(complementary_email_only):
+            if i not in used_email_indices:
+                final_merged.append(email_contact)
+        
+        logger.info(f"📊 Contact deduplication: {len(contacts)} → {len(final_merged)} contacts")
+        return final_merged
     
     def check_company_exists(self, company_name: str) -> Optional[int]:
         """
