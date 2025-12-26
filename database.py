@@ -2005,12 +2005,8 @@ class ContactDatabase:
             else:
                 logger.info("ℹ️  processing_jobs table does not exist, using default zeros for job stats")
             
-            # Get total companies and contacts in database - USING SAME PATTERN AS get_stats()
-            total_companies = 0
-            total_contacts_db = 0
-            
             # Use the counts we got from get_stats() above (called before opening this connection)
-            # If get_stats() failed, try direct query as fallback
+            # If get_stats() failed or returned 0, try direct query as fallback
             if total_companies == 0 and total_contacts_db == 0:
                 logger.warning(f"⚠️  get_stats() returned 0, trying direct query fallback...")
                 try:
@@ -2082,19 +2078,18 @@ class ContactDatabase:
                 total_api_calls = job_stats[7] if job_stats and len(job_stats) > 7 else 0
                 avg_processing_time = round(float(job_stats[8] or 0), 2) if job_stats and len(job_stats) > 8 else 0
             
-            # CRITICAL FIX: Use EXACT same pattern as get_stats() which we know works
-            # get_stats() uses: cursor.fetchone()['count'] for PostgreSQL
-            # So we should do the same - no .get(), just direct access
-            database_companies_val = int(total_companies) if total_companies else 0
-            database_contacts_val = int(total_contacts_db) if total_contacts_db else 0
+            # CRITICAL FIX: Use the values from get_stats() (set at the top) or from direct query fallback
+            # Convert to int and ensure they're not None
+            database_companies_val = int(total_companies) if total_companies is not None else 0
+            database_contacts_val = int(total_contacts_db) if total_contacts_db is not None else 0
             
-            # Log what we got from direct query
-            logger.info(f"📊 After direct query: companies={database_companies_val}, contacts={database_contacts_val}")
+            # Log final values
+            logger.info(f"📊 FINAL VALUES: companies={database_companies_val}, contacts={database_contacts_val}")
+            logger.info(f"📊 Source: get_stats() companies={total_companies}, contacts={total_contacts_db}")
             
-            # If still 0, the query itself might be wrong - let's verify the pattern matches get_stats()
+            # If still 0, log a warning but proceed (database might actually be empty)
             if database_companies_val == 0 and database_contacts_val == 0:
-                logger.warning(f"⚠️  Both counts are 0 - this might be correct if database is empty, or query pattern issue")
-                # Don't retry - trust the direct query result
+                logger.warning(f"⚠️  Both counts are 0 - database might be empty, or there's a query issue")
             
             final_stats = {
                 'total_jobs': int(total_jobs or 0),
@@ -2117,10 +2112,23 @@ class ContactDatabase:
             # CRITICAL: Log before returning to debug
             logger.info(f"📊 FINAL RETURN - database_companies={final_stats['database_companies']}, database_contacts={final_stats['database_contacts']}")
             logger.info(f"📊 Final stats dict keys: {list(final_stats.keys())}")
+            logger.info(f"📊 Final stats values: {final_stats}")
+            conn.close()
             return final_stats
         except Exception as e:
             logger.error(f"Error in get_statistics: {str(e)}", exc_info=True)
-            # Return safe defaults
+            import traceback
+            logger.error(f"Full traceback: {traceback.format_exc()}")
+            # Return safe defaults with database counts from get_stats() if possible
+            try:
+                fallback_stats = self.get_stats()
+                database_companies = int(fallback_stats.get('total_companies', 0) or 0)
+                database_contacts = int(fallback_stats.get('total_contacts', 0) or 0)
+                logger.info(f"✅ Exception handler: Got database counts from get_stats() - companies={database_companies}, contacts={database_contacts}")
+            except Exception as e2:
+                logger.error(f"❌ Exception handler: get_stats() also failed: {str(e2)}")
+                database_companies = 0
+                database_contacts = 0
             return {
                 'total_jobs': 0,
                 'completed_jobs': 0,
@@ -2131,12 +2139,15 @@ class ContactDatabase:
                 'total_new_companies': 0,
                 'total_api_calls': 0,
                 'avg_processing_time': 0,
-                'database_companies': 0,
-                'database_contacts': 0,
+                'database_companies': database_companies,
+                'database_contacts': database_contacts,
                 'contacts_by_date': []
             }
         finally:
-            conn.close()
+            try:
+                conn.close()
+            except:
+                pass
 
 
     def save_scheduled_campaign(self, campaign_config: Dict) -> Optional[int]:
