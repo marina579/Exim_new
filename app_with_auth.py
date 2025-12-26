@@ -44,8 +44,15 @@ os.makedirs(app.config['CLEANED_FOLDER'], exist_ok=True)
 # Progress tracking
 progress_data = {}
 
-# Allowed extensions
-ALLOWED_EXTENSIONS = {'xlsx', 'xls', 'xlsm', 'xlsb'}
+# Allowed extensions - Support all common Excel and data formats
+ALLOWED_EXTENSIONS = {
+    # Excel formats
+    'xlsx', 'xls', 'xlsm', 'xlsb', 'xltx', 'xltm',
+    # CSV and text formats
+    'csv', 'tsv', 'txt',
+    # Other data formats
+    'json', 'ods'  # OpenDocument Spreadsheet
+}
 
 # Configuration
 MAX_RECORDS_TO_PROCESS = None  # Process ALL records
@@ -240,10 +247,54 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
+def _read_file_flexible(file_path):
+    """
+    Read file in various formats (Excel, CSV, TSV, etc.)
+    Returns DataFrame or None if failed
+    """
+    file_ext = file_path.rsplit('.', 1)[1].lower() if '.' in file_path else ''
+    
+    try:
+        if file_ext in ['xlsx', 'xls', 'xlsm', 'xlsb', 'xltx', 'xltm', 'ods']:
+            # Excel formats - try different engines
+            for engine in ['openpyxl', 'xlrd']:
+                try:
+                    return pd.read_excel(file_path, engine=engine)
+                except:
+                    continue
+            # If all engines fail, try without specifying engine
+            return pd.read_excel(file_path)
+        elif file_ext in ['csv']:
+            # CSV - try different encodings and separators
+            for encoding in ['utf-8', 'latin-1', 'iso-8859-1', 'cp1252']:
+                try:
+                    return pd.read_csv(file_path, encoding=encoding)
+                except:
+                    continue
+        elif file_ext in ['tsv', 'txt']:
+            # TSV/TXT - tab-delimited
+            for encoding in ['utf-8', 'latin-1', 'iso-8859-1', 'cp1252']:
+                try:
+                    return pd.read_csv(file_path, sep='\t', encoding=encoding)
+                except:
+                    try:
+                        # Try comma-separated
+                        return pd.read_csv(file_path, sep=',', encoding=encoding)
+                    except:
+                        continue
+        elif file_ext == 'json':
+            return pd.read_json(file_path)
+    except Exception as e:
+        logger.error(f"Error reading file {file_path}: {str(e)}")
+        return None
+    
+    return None
+
+
 def clean_and_standardize_excel(file_path, file_id):
     """Step 1: Clean, deduplicate, and standardize company data."""
     progress_data[file_id]['status'] = 'processing'
-    progress_data[file_id]['message'] = 'Reading Excel file...'
+    progress_data[file_id]['message'] = 'Reading file...'
     
     try:
         df = None
@@ -253,7 +304,25 @@ def clean_and_standardize_excel(file_path, file_id):
         # Try different header rows
         for header_row in [0, 1, 2]:
             try:
-                test_df = pd.read_excel(file_path, header=header_row, engine='openpyxl')
+                # Read file with flexible format support
+                if header_row == 0:
+                    test_df = _read_file_flexible(file_path)
+                else:
+                    # For non-zero header rows, try Excel first, then fallback
+                    file_ext = file_path.rsplit('.', 1)[1].lower() if '.' in file_path else ''
+                    if file_ext in ['xlsx', 'xls', 'xlsm', 'xlsb', 'xltx', 'xltm']:
+                        try:
+                            test_df = pd.read_excel(file_path, header=header_row, engine='openpyxl')
+                        except:
+                            test_df = pd.read_excel(file_path, header=header_row, engine='xlrd')
+                    else:
+                        test_df = _read_file_flexible(file_path)
+                        if test_df is not None and header_row > 0:
+                            test_df.columns = test_df.iloc[header_row]
+                            test_df = test_df.iloc[header_row+1:].reset_index(drop=True)
+                
+                if test_df is None:
+                    continue
                 
                 # Look for company name column with priority
                 priority_keywords = [
@@ -1948,8 +2017,8 @@ def upload_automated():
         if file.filename == '':
             return jsonify({'success': False, 'error': 'No file selected'}), 400
         
-        if not file.filename.endswith(('.xlsx', '.xls')):
-            return jsonify({'success': False, 'error': 'Please upload an Excel file (.xlsx or .xls)'}), 400
+        if not allowed_file(file.filename):
+            return jsonify({'success': False, 'error': f'Unsupported file format. Supported: Excel (.xlsx, .xls, .xlsm, .xlsb), CSV (.csv), TSV (.tsv), Text (.txt), JSON (.json)'}), 400
         
         # Save uploaded file
         filename = secure_filename(file.filename)
