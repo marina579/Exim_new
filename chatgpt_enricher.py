@@ -11,7 +11,7 @@ import json
 import re
 import requests
 
-# Note: You need to install openai package
+# Note: You need to install openai package (Enhanced with error logging)
 # pip install openai
 
 try:

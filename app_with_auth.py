@@ -55,7 +55,7 @@ MAX_RECORDS_TO_PROCESS = None  # Process ALL records
 # PAID_MODE: Includes SerpAPI + all other methods
 USE_FREE_MODE = False  # Set to False to enable SerpAPI (NEW KEY PROVIDED!)
 
-COLLECT_ALL_CONTACTS = True  # Collect contacts from ALL methods
+COLLECT_ALL_CONTACTS = False  # Use waterfall approach - only ONE API per company (stops after first success)
 USE_GEMINI = bool(os.getenv('GEMINI_API_KEY') and os.getenv('GEMINI_API_KEY') != 'YOUR_GEMINI_API_KEY_HERE')  # Auto-enable if key is set
 
 # ⚡ SPEED OPTIMIZATION (for FREE MODE)
@@ -714,6 +714,89 @@ def index():
 def step2():
     """Step 2 page - redirect to manual tab step 2."""
     return redirect(url_for('index', tab='manual', step=2))
+
+
+@app.route('/test-chatgpt')
+def test_chatgpt():
+    """Test endpoint to verify ChatGPT/OpenAI API is working."""
+    try:
+        from chatgpt_enricher import ChatGPTEnricher
+        
+        # Check if API key is set
+        api_key = os.getenv('OPENAI_API_KEY')
+        if not api_key:
+            return jsonify({
+                'status': 'error',
+                'message': 'OPENAI_API_KEY not found in environment variables',
+                'key_present': False
+            }), 500
+        
+        # Initialize enricher
+        try:
+            enricher = ChatGPTEnricher(api_key=api_key)
+        except Exception as e:
+            return jsonify({
+                'status': 'error',
+                'message': f'Failed to initialize ChatGPTEnricher: {str(e)}',
+                'error_type': type(e).__name__
+            }), 500
+        
+        # Test with a simple company
+        test_company = "Tata Consultancy Services"
+        test_address = "Mumbai, India"
+        
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"🧪 Testing ChatGPT with: {test_company}")
+        
+        try:
+            result = enricher.find_contact(test_company, test_address)
+            
+            return jsonify({
+                'status': 'success',
+                'message': 'ChatGPT API is working!',
+                'test_company': test_company,
+                'result': result,
+                'api_key_prefix': api_key[:15] + '...' if api_key else 'N/A',
+                'has_phone': bool(result.get('phone')),
+                'has_email': bool(result.get('email')),
+                'has_whatsapp': bool(result.get('whatsapp')),
+                'has_contact_name': bool(result.get('contact_name'))
+            })
+        except Exception as e:
+            error_type = type(e).__name__
+            error_msg = str(e)
+            
+            # Check for specific error types
+            error_details = {
+                'error_type': error_type,
+                'error_message': error_msg,
+                'api_key_prefix': api_key[:15] + '...' if api_key else 'N/A'
+            }
+            
+            if "401" in error_msg or "Unauthorized" in error_msg:
+                error_details['diagnosis'] = 'Invalid or expired API key'
+            elif "429" in error_msg or "rate limit" in error_msg.lower():
+                error_details['diagnosis'] = 'Rate limit exceeded'
+            elif "timeout" in error_msg.lower():
+                error_details['diagnosis'] = 'Request timeout'
+            elif "network" in error_msg.lower() or "connection" in error_msg.lower():
+                error_details['diagnosis'] = 'Network connectivity issue'
+            else:
+                error_details['diagnosis'] = 'Unknown error - check logs'
+            
+            return jsonify({
+                'status': 'error',
+                'message': 'ChatGPT API call failed',
+                **error_details
+            }), 500
+            
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': f'Test endpoint error: {str(e)}',
+            'error_type': type(e).__name__
+        }), 500
 
 
 @app.route('/chatbot')
