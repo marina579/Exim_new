@@ -1935,23 +1935,38 @@ class ContactDatabase:
         cursor = conn.cursor()
         
         try:
-            # Check if processing_jobs table exists
-            if self.db_type == 'postgresql':
-                cursor.execute("""
-                    SELECT EXISTS (
-                        SELECT FROM information_schema.tables 
-                        WHERE table_name = 'processing_jobs'
-                    ) as exists
-                """)
-                result = cursor.fetchone()
-                # RealDictCursor returns a dict, so access by key
-                table_exists = result['exists'] if isinstance(result, dict) else result[0]
-            else:
-                cursor.execute("""
-                    SELECT name FROM sqlite_master 
-                    WHERE type='table' AND name='processing_jobs'
-                """)
-                table_exists = cursor.fetchone() is not None
+            # Check if processing_jobs table exists - use try/except for safety
+            table_exists = False
+            try:
+                if self.db_type == 'postgresql':
+                    cursor.execute("""
+                        SELECT EXISTS (
+                            SELECT FROM information_schema.tables 
+                            WHERE table_name = 'processing_jobs'
+                        ) as exists
+                    """)
+                    result = cursor.fetchone()
+                    # RealDictCursor/RealDictRow returns a dict-like object, access by key
+                    if result:
+                        # Try dict access first (RealDictRow supports both dict and tuple access)
+                        try:
+                            table_exists = bool(result['exists'])
+                        except (KeyError, TypeError):
+                            # Fallback to index access if dict access fails
+                            try:
+                                table_exists = bool(result[0])
+                            except (IndexError, TypeError):
+                                table_exists = False
+                else:
+                    cursor.execute("""
+                        SELECT name FROM sqlite_master 
+                        WHERE type='table' AND name='processing_jobs'
+                    """)
+                    table_exists = cursor.fetchone() is not None
+            except Exception as e:
+                logger.warning(f"Error checking if processing_jobs table exists: {str(e)}")
+                # Assume table exists and try to query it - if it fails, we'll catch it below
+                table_exists = True
             
             # Initialize job_stats to zeros (will be updated if table exists)
             job_stats = (0, 0, 0, 0, 0, 0, 0, 0, 0)
@@ -1982,25 +1997,37 @@ class ContactDatabase:
                     
                     job_stats = cursor.fetchone()
                     
+                    # Log raw result for debugging
+                    logger.info(f"📊 Raw job_stats from query: type={type(job_stats)}, value={job_stats}")
+                    
                     # Handle case where job_stats is None or empty
                     if not job_stats:
+                        logger.warning("⚠️  job_stats is None or empty, using default zeros")
                         job_stats = (0, 0, 0, 0, 0, 0, 0, 0, 0)
                     
                     # Convert PostgreSQL dict result to tuple if needed
                     if self.db_type == 'postgresql' and isinstance(job_stats, dict):
+                        logger.info(f"📊 Converting PostgreSQL dict to tuple...")
                         job_stats = (
-                            job_stats.get('total_jobs', 0) or 0,
-                            job_stats.get('completed_jobs', 0) or 0,
-                            job_stats.get('failed_jobs', 0) or 0,
-                            job_stats.get('processing_jobs', 0) or 0,
-                            job_stats.get('total_contacts', 0) or 0,
-                            job_stats.get('total_duplicates', 0) or 0,
-                            job_stats.get('total_new_companies', 0) or 0,
-                            job_stats.get('total_api_calls', 0) or 0,
-                            job_stats.get('avg_processing_time', 0) or 0
+                            int(job_stats.get('total_jobs', 0) or 0),
+                            int(job_stats.get('completed_jobs', 0) or 0),
+                            int(job_stats.get('failed_jobs', 0) or 0),
+                            int(job_stats.get('processing_jobs', 0) or 0),
+                            int(job_stats.get('total_contacts', 0) or 0),
+                            int(job_stats.get('total_duplicates', 0) or 0),
+                            int(job_stats.get('total_new_companies', 0) or 0),
+                            int(job_stats.get('total_api_calls', 0) or 0),
+                            float(job_stats.get('avg_processing_time', 0) or 0)
                         )
-                    elif not job_stats:
-                        job_stats = (0, 0, 0, 0, 0, 0, 0, 0, 0)
+                        logger.info(f"✅ Converted to tuple: {job_stats}")
+                    elif not isinstance(job_stats, tuple):
+                        # If it's not a tuple and not a dict, try to convert
+                        logger.warning(f"⚠️  job_stats is not tuple or dict: {type(job_stats)}, attempting conversion")
+                        try:
+                            job_stats = tuple(job_stats) if job_stats else (0, 0, 0, 0, 0, 0, 0, 0, 0)
+                        except Exception as conv_e:
+                            logger.error(f"❌ Failed to convert job_stats: {conv_e}")
+                            job_stats = (0, 0, 0, 0, 0, 0, 0, 0, 0)
                 except Exception as e:
                     logger.warning(f"Error fetching job stats from processing_jobs: {str(e)}")
                     job_stats = (0, 0, 0, 0, 0, 0, 0, 0, 0)
@@ -2058,27 +2085,44 @@ class ContactDatabase:
                 contacts_by_date = []
             
             # Handle PostgreSQL vs SQLite result format
-            # Extract values safely
-            if self.db_type == 'postgresql':
-                total_jobs = job_stats[0] if job_stats and len(job_stats) > 0 else 0
-                completed_jobs = job_stats[1] if job_stats and len(job_stats) > 1 else 0
-                failed_jobs = job_stats[2] if job_stats and len(job_stats) > 2 else 0
-                processing_jobs = job_stats[3] if job_stats and len(job_stats) > 3 else 0
-                total_contacts = job_stats[4] if job_stats and len(job_stats) > 4 else 0
-                total_duplicates = job_stats[5] if job_stats and len(job_stats) > 5 else 0
-                total_new_companies = job_stats[6] if job_stats and len(job_stats) > 6 else 0
-                total_api_calls = job_stats[7] if job_stats and len(job_stats) > 7 else 0
-                avg_processing_time = round(float(job_stats[8] or 0), 2) if job_stats and len(job_stats) > 8 else 0
+            # Extract values safely - job_stats is already converted to tuple above
+            # Log the job_stats to debug
+            logger.info(f"📊 Extracting values from job_stats: type={type(job_stats)}, value={job_stats}")
+            
+            if isinstance(job_stats, tuple):
+                total_jobs = int(job_stats[0]) if len(job_stats) > 0 else 0
+                completed_jobs = int(job_stats[1]) if len(job_stats) > 1 else 0
+                failed_jobs = int(job_stats[2]) if len(job_stats) > 2 else 0
+                processing_jobs = int(job_stats[3]) if len(job_stats) > 3 else 0
+                total_contacts = int(job_stats[4]) if len(job_stats) > 4 else 0
+                total_duplicates = int(job_stats[5]) if len(job_stats) > 5 else 0
+                total_new_companies = int(job_stats[6]) if len(job_stats) > 6 else 0
+                total_api_calls = int(job_stats[7]) if len(job_stats) > 7 else 0
+                avg_processing_time = round(float(job_stats[8] or 0), 2) if len(job_stats) > 8 else 0
+                logger.info(f"📊 Extracted from tuple: jobs={total_jobs}, completed={completed_jobs}, contacts={total_contacts}, duplicates={total_duplicates}")
+            elif isinstance(job_stats, dict):
+                # Handle dict format (shouldn't happen after conversion, but just in case)
+                total_jobs = int(job_stats.get('total_jobs', 0) or 0)
+                completed_jobs = int(job_stats.get('completed_jobs', 0) or 0)
+                failed_jobs = int(job_stats.get('failed_jobs', 0) or 0)
+                processing_jobs = int(job_stats.get('processing_jobs', 0) or 0)
+                total_contacts = int(job_stats.get('total_contacts', 0) or 0)
+                total_duplicates = int(job_stats.get('total_duplicates', 0) or 0)
+                total_new_companies = int(job_stats.get('total_new_companies', 0) or 0)
+                total_api_calls = int(job_stats.get('total_api_calls', 0) or 0)
+                avg_processing_time = round(float(job_stats.get('avg_processing_time', 0) or 0), 2)
             else:
-                total_jobs = job_stats[0] if job_stats and len(job_stats) > 0 else 0
-                completed_jobs = job_stats[1] if job_stats and len(job_stats) > 1 else 0
-                failed_jobs = job_stats[2] if job_stats and len(job_stats) > 2 else 0
-                processing_jobs = job_stats[3] if job_stats and len(job_stats) > 3 else 0
-                total_contacts = job_stats[4] if job_stats and len(job_stats) > 4 else 0
-                total_duplicates = job_stats[5] if job_stats and len(job_stats) > 5 else 0
-                total_new_companies = job_stats[6] if job_stats and len(job_stats) > 6 else 0
-                total_api_calls = job_stats[7] if job_stats and len(job_stats) > 7 else 0
-                avg_processing_time = round(float(job_stats[8] or 0), 2) if job_stats and len(job_stats) > 8 else 0
+                # Default to zeros if job_stats is None or unexpected type
+                logger.warning(f"⚠️  job_stats is unexpected type: {type(job_stats)}, defaulting to zeros")
+                total_jobs = 0
+                completed_jobs = 0
+                failed_jobs = 0
+                processing_jobs = 0
+                total_contacts = 0
+                total_duplicates = 0
+                total_new_companies = 0
+                total_api_calls = 0
+                avg_processing_time = 0
             
             # CRITICAL FIX: Use the values from get_stats() (set at the top) or from direct query fallback
             # Convert to int and ensure they're not None
@@ -2121,7 +2165,10 @@ class ContactDatabase:
             logger.error(f"Error in get_statistics: {str(e)}", exc_info=True)
             import traceback
             logger.error(f"Full traceback: {traceback.format_exc()}")
-            # Return safe defaults with database counts from get_stats() if possible
+            
+            # Try to get database counts from get_stats()
+            database_companies = 0
+            database_contacts = 0
             try:
                 fallback_stats = self.get_stats()
                 database_companies = int(fallback_stats.get('total_companies', 0) or 0)
@@ -2129,9 +2176,9 @@ class ContactDatabase:
                 logger.info(f"✅ Exception handler: Got database counts from get_stats() - companies={database_companies}, contacts={database_contacts}")
             except Exception as e2:
                 logger.error(f"❌ Exception handler: get_stats() also failed: {str(e2)}")
-                database_companies = 0
-                database_contacts = 0
-            return {
+            
+            # Try to get job stats directly (bypass table check) - use new connection
+            job_stats_dict = {
                 'total_jobs': 0,
                 'completed_jobs': 0,
                 'failed_jobs': 0,
@@ -2140,7 +2187,82 @@ class ContactDatabase:
                 'total_duplicates': 0,
                 'total_new_companies': 0,
                 'total_api_calls': 0,
-                'avg_processing_time': 0,
+                'avg_processing_time': 0
+            }
+            
+            try:
+                # Create new connection for exception handler
+                fallback_conn = self._get_connection()
+                fallback_cursor = fallback_conn.cursor()
+                
+                # Try to query processing_jobs directly (assume table exists)
+                if self.db_type == 'postgresql':
+                    date_filter = f"uploaded_at >= NOW() - INTERVAL '{days} days'"
+                else:
+                    date_filter = f"uploaded_at >= datetime('now', '-{days} days')"
+                
+                fallback_cursor.execute(f"""
+                    SELECT 
+                        COUNT(*) as total_jobs,
+                        SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed_jobs,
+                        SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed_jobs,
+                        SUM(CASE WHEN status = 'processing' THEN 1 ELSE 0 END) as processing_jobs,
+                        COALESCE(SUM(contacts_found), 0) as total_contacts,
+                        COALESCE(SUM(duplicates_removed), 0) as total_duplicates,
+                        COALESCE(SUM(new_companies), 0) as total_new_companies,
+                        COALESCE(SUM(api_calls_used), 0) as total_api_calls,
+                        COALESCE(AVG(processing_time), 0) as avg_processing_time
+                    FROM processing_jobs
+                    WHERE {date_filter}
+                """)
+                
+                result = fallback_cursor.fetchone()
+                fallback_conn.close()
+                
+                if result:
+                    if self.db_type == 'postgresql' and isinstance(result, dict):
+                        job_stats_dict = {
+                            'total_jobs': int(result.get('total_jobs', 0) or 0),
+                            'completed_jobs': int(result.get('completed_jobs', 0) or 0),
+                            'failed_jobs': int(result.get('failed_jobs', 0) or 0),
+                            'processing_jobs': int(result.get('processing_jobs', 0) or 0),
+                            'total_contacts': int(result.get('total_contacts', 0) or 0),
+                            'total_duplicates': int(result.get('total_duplicates', 0) or 0),
+                            'total_new_companies': int(result.get('total_new_companies', 0) or 0),
+                            'total_api_calls': int(result.get('total_api_calls', 0) or 0),
+                            'avg_processing_time': float(result.get('avg_processing_time', 0) or 0)
+                        }
+                    else:
+                        # SQLite tuple format
+                        job_stats_dict = {
+                            'total_jobs': int(result[0] if len(result) > 0 else 0),
+                            'completed_jobs': int(result[1] if len(result) > 1 else 0),
+                            'failed_jobs': int(result[2] if len(result) > 2 else 0),
+                            'processing_jobs': int(result[3] if len(result) > 3 else 0),
+                            'total_contacts': int(result[4] if len(result) > 4 else 0),
+                            'total_duplicates': int(result[5] if len(result) > 5 else 0),
+                            'total_new_companies': int(result[6] if len(result) > 6 else 0),
+                            'total_api_calls': int(result[7] if len(result) > 7 else 0),
+                            'avg_processing_time': float(result[8] if len(result) > 8 else 0)
+                        }
+                    logger.info(f"✅ Exception handler: Got job stats from direct query - jobs={job_stats_dict['total_jobs']}, contacts={job_stats_dict['total_contacts']}")
+            except Exception as e3:
+                logger.warning(f"⚠️  Exception handler: Could not get job stats: {str(e3)}")
+                try:
+                    fallback_conn.close()
+                except:
+                    pass
+            
+            return {
+                'total_jobs': job_stats_dict['total_jobs'],
+                'completed_jobs': job_stats_dict['completed_jobs'],
+                'failed_jobs': job_stats_dict['failed_jobs'],
+                'processing_jobs': job_stats_dict['processing_jobs'],
+                'total_contacts': job_stats_dict['total_contacts'],
+                'total_duplicates': job_stats_dict['total_duplicates'],
+                'total_new_companies': job_stats_dict['total_new_companies'],
+                'total_api_calls': job_stats_dict['total_api_calls'],
+                'avg_processing_time': job_stats_dict['avg_processing_time'],
                 'database_companies': database_companies,
                 'database_contacts': database_contacts,
                 'contacts_by_date': []
