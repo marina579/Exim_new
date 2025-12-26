@@ -502,39 +502,10 @@ def _auto_push_contacts_to_zoho(company_id: int, company_name: str, contacts: li
         total_skipped = result.get('total_skipped', 0)
         total_failed = result.get('total_failed', 0)
         
-        # Store sync results for tracking
-        sync_summary = {
-            'pushed': total_pushed,
-            'skipped': total_skipped,
-            'failed': total_failed,
-            'skipped_contacts': [],
-            'pushed_contacts': []
-        }
-        
-        # Collect skipped contact details (already exist in Zoho)
-        for skipped_item in result.get('skipped_contacts', []):
-            skipped_contact = skipped_item.get('contact', {})
-            sync_summary['skipped_contacts'].append({
-                'email': skipped_contact.get('email', ''),
-                'phone': skipped_contact.get('phone', ''),
-                'lead_id': skipped_item.get('lead_id', '')
-            })
-        
-        # Collect pushed contact details (successfully synced)
-        for success_item in result.get('successful_contacts', []):
-            success_contact = success_item.get('contact', {})
-            sync_summary['pushed_contacts'].append({
-                'email': success_contact.get('email', ''),
-                'phone': success_contact.get('phone', ''),
-                'lead_id': success_item.get('lead_id', '')
-            })
-        
         if total_pushed > 0 or total_skipped > 0:
             logger.info(f"✅ Auto-pushed to Zoho: {total_pushed} pushed, {total_skipped} skipped, {total_failed} failed for {company_name}")
         else:
             logger.warning(f"⚠️  Auto-push to Zoho: All {total_failed} contacts failed for {company_name}")
-        
-        return sync_summary
             
     except ImportError:
         logger.debug(f"⏭️  Zoho service not available, skipping auto-push")
@@ -638,7 +609,6 @@ def enrich_contacts(file_path, file_id):
                     contacts = [contact_result] if contact_result.get('phone') or contact_result.get('email') else []
                 
                 # 💾 Save to database for future use
-                zoho_sync_summary = None
                 if contacts:
                     try:
                         company_id = db.save_company_and_contacts(company_name, company_addr, contacts)
@@ -646,10 +616,9 @@ def enrich_contacts(file_path, file_id):
                         auto_push = os.getenv('AUTO_PUSH_TO_ZOHO', 'true').lower() == 'true'
                         if auto_push:
                             try:
-                                zoho_sync_summary = _auto_push_contacts_to_zoho(company_id, company_name, contacts)
+                                _auto_push_contacts_to_zoho(company_id, company_name, contacts)
                             except Exception as e:
                                 logger.warning(f"⚠️  Auto-push to Zoho failed for {company_name}: {str(e)}")
-                                zoho_sync_summary = {'pushed': 0, 'skipped': 0, 'failed': len(contacts), 'skipped_contacts': [], 'pushed_contacts': []}
                     except Exception as e:
                         logger.error(f"Failed to save to database: {str(e)}")
             
@@ -676,29 +645,6 @@ def enrich_contacts(file_path, file_id):
                     if whatsapp:
                         stats['whatsapp'] += 1
                     
-                    # Check Zoho sync status for this contact
-                    zoho_status = ''
-                    zoho_message = ''
-                    zoho_lead_id = ''
-                    
-                    if zoho_sync_summary:
-                        # Check if this contact was skipped (already exists in Zoho)
-                        for skipped in zoho_sync_summary.get('skipped_contacts', []):
-                            if (email and skipped.get('email') == email) or (phone and skipped.get('phone') == phone):
-                                zoho_status = 'Already Exists'
-                                zoho_message = 'Duplicate - Contact already in Zoho CRM'
-                                zoho_lead_id = skipped.get('lead_id', '')
-                                break
-                        
-                        # Check if this contact was pushed
-                        if not zoho_status:
-                            for pushed in zoho_sync_summary.get('pushed_contacts', []):
-                                if (email and pushed.get('email') == email) or (phone and pushed.get('phone') == phone):
-                                    zoho_status = 'Synced'
-                                    zoho_message = 'Successfully synced to Zoho CRM'
-                                    zoho_lead_id = pushed.get('lead_id', '')
-                                    break
-                    
                     results.append({
                         'Lead Name': contact_name,
                         'First Name': first_name,
@@ -711,10 +657,7 @@ def enrich_contacts(file_path, file_id):
                         'Lead Owner': 'Auto Import',
                         'Description': f"Address: {company_addr}",
                         'Website': contact.get('source_url', ''),
-                        'WhatsApp': whatsapp,
-                        'Zoho Status': zoho_status,
-                        'Zoho Message': zoho_message,
-                        'Zoho Lead ID': zoho_lead_id
+                        'WhatsApp': whatsapp
                     })
             else:
                 results.append({
@@ -742,31 +685,12 @@ def enrich_contacts(file_path, file_id):
         # Get database stats
         db_stats = db.get_stats()
         
-        # Calculate Zoho sync summary from results
-        zoho_pushed = sum(1 for r in results if r.get('Zoho Status') == 'Synced')
-        zoho_skipped = sum(1 for r in results if r.get('Zoho Status') == 'Already Exists')
-        zoho_failed = len([r for r in results if r.get('Zoho Status') == ''])
-        
-        zoho_summary = {
-            'pushed': zoho_pushed,
-            'skipped': zoho_skipped,
-            'failed': zoho_failed,
-            'total': len([r for r in results if r.get('Zoho Status')])
-        }
-        
         progress_data[file_id]['status'] = 'complete'
         progress_data[file_id]['percentage'] = 100
         progress_data[file_id]['output_file'] = output_filename
         progress_data[file_id]['stats'] = stats
         progress_data[file_id]['db_stats'] = db_stats
-        progress_data[file_id]['zoho_sync'] = zoho_summary
-        
-        # Build message with Zoho sync info
-        message = f'✅ Complete! Found {stats["phone"]} phones, {stats["email"]} emails. (💾 Cached: {stats["cached"]}, 🔍 Processed: {stats["processed"]})'
-        if zoho_summary['total'] > 0:
-            message += f' | 📤 Zoho: {zoho_pushed} pushed, {zoho_skipped} skipped, {zoho_failed} failed'
-        
-        progress_data[file_id]['message'] = message
+        progress_data[file_id]['message'] = f'✅ Complete! Found {stats["phone"]} phones, {stats["email"]} emails. (💾 Cached: {stats["cached"]}, 🔍 Processed: {stats["processed"]})'
         
     except Exception as e:
         progress_data[file_id]['status'] = 'error'
