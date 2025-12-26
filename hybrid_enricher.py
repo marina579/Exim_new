@@ -1,9 +1,11 @@
 """
 Hybrid Contact Enricher - Multi-source waterfall approach.
 NEW PRIORITY ORDER:
-1. Gemini AI (TOP PRIORITY - Has built-in Google Search, no SerpAPI needed!)
-2. ChatGPT AI (FALLBACK - Uses SerpAPI or Gemini internally)
-3. WhatsApp Detective → WhatsApp Hunter → Google Places → SerpAPI → IndiaMART
+1. Gemini AI + ChatGPT AI (BOTH TRIED - Results merged for best coverage!)
+   - Gemini: Built-in Google Search, no SerpAPI needed
+   - ChatGPT: Uses SerpAPI or Gemini internally
+   - Results are merged (Gemini preferred, ChatGPT fills gaps)
+2. WhatsApp Detective → WhatsApp Hunter → Google Places → SerpAPI → IndiaMART
 Target: 80-90% total success rate
 """
 
@@ -255,37 +257,71 @@ class HybridEnricher:
             except Exception as e:
                 logger.error(f"Error with Google Places: {str(e)}")
         
-        # Step 4: Try Gemini AI
+        # STEP 4: Try BOTH Gemini AND ChatGPT (Always try both, merge results!)
+        gemini_result = {}
+        chatgpt_result = {}
+        
+        # Try Gemini AI (Has built-in Google Search!)
         if self.gemini:
-            logger.info(f"[4/7] Trying Gemini AI for: {company_name}")
+            logger.info(f"[4/7] 🥇 Trying Gemini AI for: {company_name}")
             try:
                 gemini_result = self.gemini.find_contact(company_name, address)
-                
                 if gemini_result.get('phone') or gemini_result.get('email'):
-                    result.update(gemini_result)
-                    result['method'] = 'gemini'
-                    logger.info(f"✅ Gemini found contact for: {company_name}")
-                    return result
+                    logger.info(f"✅ Gemini found: phone={gemini_result.get('phone', 'N/A')}, email={gemini_result.get('email', 'N/A')}")
                 else:
                     logger.info(f"❌ Gemini: No contact found")
             except Exception as e:
-                logger.error(f"Error with Gemini: {str(e)}")
+                logger.error(f"❌ Gemini error: {str(e)}")
         
-        # Step 5: Try ChatGPT AI
+        # Try ChatGPT AI (Uses SerpAPI or Gemini internally)
         if self.chatgpt:
-            logger.info(f"[5/7] Trying ChatGPT AI for: {company_name}")
+            logger.info(f"[5/7] 🥈 Trying ChatGPT AI for: {company_name}")
             try:
                 chatgpt_result = self.chatgpt.find_contact(company_name, address)
-                
                 if chatgpt_result.get('phone') or chatgpt_result.get('email'):
-                    result.update(chatgpt_result)
-                    result['method'] = 'chatgpt'
-                    logger.info(f"✅ ChatGPT found contact for: {company_name}")
-                    return result
+                    logger.info(f"✅ ChatGPT found: phone={chatgpt_result.get('phone', 'N/A')}, email={chatgpt_result.get('email', 'N/A')}")
                 else:
                     logger.info(f"❌ ChatGPT: No contact found")
             except Exception as e:
-                logger.error(f"Error with ChatGPT: {str(e)}")
+                logger.error(f"❌ ChatGPT error: {str(e)}")
+        
+        # MERGE results from both Gemini and ChatGPT (prefer Gemini for conflicts)
+        has_any_result = False
+        if gemini_result.get('phone') or gemini_result.get('email'):
+            result.update(gemini_result)
+            result['method'] = 'gemini'
+            has_any_result = True
+            logger.info(f"📊 Merged Gemini results into final result")
+        
+        if chatgpt_result.get('phone') or chatgpt_result.get('email'):
+            # Merge ChatGPT results, but don't overwrite Gemini data
+            if not result.get('phone') and chatgpt_result.get('phone'):
+                result['phone'] = chatgpt_result.get('phone')
+                logger.info(f"📊 Added ChatGPT phone: {chatgpt_result.get('phone')}")
+            if not result.get('email') and chatgpt_result.get('email'):
+                result['email'] = chatgpt_result.get('email')
+                logger.info(f"📊 Added ChatGPT email: {chatgpt_result.get('email')}")
+            if not result.get('contact_name') and chatgpt_result.get('contact_name'):
+                result['contact_name'] = chatgpt_result.get('contact_name')
+            if not result.get('whatsapp') and chatgpt_result.get('whatsapp'):
+                result['whatsapp'] = chatgpt_result.get('whatsapp')
+            
+            # Update method to show both were used
+            if result['method'] == 'gemini':
+                result['method'] = 'gemini+chatgpt'
+            else:
+                result['method'] = 'chatgpt'
+            has_any_result = True
+        
+        # If we got results from either Gemini or ChatGPT, return merged result
+        if has_any_result:
+            logger.info(f"✅ Combined AI results for: {company_name}")
+            logger.info(f"   → Phone: {result.get('phone', 'N/A')}")
+            logger.info(f"   → Email: {result.get('email', 'N/A')}")
+            logger.info(f"   → Method: {result.get('method', 'N/A')}")
+            return result
+        else:
+            logger.info(f"❌ Both Gemini and ChatGPT returned empty, trying other methods...")
         
         # STEP 6: Try SerpApi (Google search API)
         if self.serpapi:
@@ -351,14 +387,14 @@ class HybridEnricher:
         logger.info(f"🔍 Collecting ALL contacts for: {company_name}")
         
         # Try ALL methods and collect results
-        # NEW ORDER: Gemini (TOP PRIORITY) → ChatGPT (FALLBACK) → Other methods
+        # NEW ORDER: Gemini + ChatGPT (BOTH TRIED) → Other methods
         methods = []
         
-        # Method 1: Gemini (TOP PRIORITY)
+        # Method 1: Gemini (Always try)
         if self.gemini:
             methods.append(('Gemini AI', lambda: self.gemini.find_contact(company_name, address)))
         
-        # Method 2: ChatGPT (FALLBACK)
+        # Method 2: ChatGPT (Always try - not fallback, both are tried!)
         if self.chatgpt:
             methods.append(('ChatGPT', lambda: self.chatgpt.find_contact(company_name, address)))
         
