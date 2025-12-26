@@ -1968,30 +1968,36 @@ class ContactDatabase:
             total_companies = 0
             total_contacts_db = 0
             
-            # Get total companies and contacts - USE EXACT SAME PATTERN AS get_stats() WHICH WORKS
+            # Get total companies and contacts - USE get_stats() DIRECTLY (we know it works!)
             try:
-                if self.db_type == 'postgresql':
-                    cursor.execute("SELECT COUNT(*) as count FROM companies")
-                    result = cursor.fetchone()
-                    # Match get_stats() pattern exactly: result['count'] (no .get(), no extra checks)
-                    total_companies = int(result['count']) if result else 0
-                    cursor.execute("SELECT COUNT(*) as count FROM contacts")
-                    result = cursor.fetchone()
-                    total_contacts_db = int(result['count']) if result else 0
-                else:
-                    cursor.execute("SELECT COUNT(*) FROM companies")
-                    result = cursor.fetchone()
-                    total_companies = int(result[0]) if result else 0
-                    cursor.execute("SELECT COUNT(*) FROM contacts")
-                    result = cursor.fetchone()
-                    total_contacts_db = int(result[0]) if result else 0
-                logger.info(f"📊 DIRECT QUERY - companies: {total_companies}, contacts: {total_contacts_db}")
+                # Use get_stats() which we know works - it creates its own connection
+                stats_from_get_stats = self.get_stats()
+                total_companies = int(stats_from_get_stats.get('total_companies', 0) or 0)
+                total_contacts_db = int(stats_from_get_stats.get('total_contacts', 0) or 0)
+                logger.info(f"📊 FROM get_stats() - companies: {total_companies}, contacts: {total_contacts_db}")
             except Exception as e:
-                logger.error(f"❌ Error counting: {str(e)}", exc_info=True)
-                import traceback
-                logger.error(f"❌ Traceback: {traceback.format_exc()}")
-                total_companies = 0
-                total_contacts_db = 0
+                logger.error(f"❌ get_stats() failed, trying direct query: {str(e)}")
+                # Fallback to direct query
+                try:
+                    if self.db_type == 'postgresql':
+                        cursor.execute("SELECT COUNT(*) as count FROM companies")
+                        result = cursor.fetchone()
+                        total_companies = int(result['count']) if result else 0
+                        cursor.execute("SELECT COUNT(*) as count FROM contacts")
+                        result = cursor.fetchone()
+                        total_contacts_db = int(result['count']) if result else 0
+                    else:
+                        cursor.execute("SELECT COUNT(*) FROM companies")
+                        result = cursor.fetchone()
+                        total_companies = int(result[0]) if result else 0
+                        cursor.execute("SELECT COUNT(*) FROM contacts")
+                        result = cursor.fetchone()
+                        total_contacts_db = int(result[0]) if result else 0
+                    logger.info(f"📊 DIRECT QUERY FALLBACK - companies: {total_companies}, contacts: {total_contacts_db}")
+                except Exception as e2:
+                    logger.error(f"❌ Direct query also failed: {str(e2)}")
+                    total_companies = 0
+                    total_contacts_db = 0
             
             # Get contacts by date
             contacts_by_date = []

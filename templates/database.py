@@ -1968,22 +1968,23 @@ class ContactDatabase:
             total_companies = 0
             total_contacts_db = 0
             
-            # Get total companies and contacts - DIRECT QUERY (don't call get_stats to avoid connection issues)
+            # Get total companies and contacts - USE EXACT SAME PATTERN AS get_stats() WHICH WORKS
             try:
                 if self.db_type == 'postgresql':
                     cursor.execute("SELECT COUNT(*) as count FROM companies")
                     result = cursor.fetchone()
-                    total_companies = int(result['count']) if result and result.get('count') else 0
+                    # Match get_stats() pattern exactly: result['count'] (no .get(), no extra checks)
+                    total_companies = int(result['count']) if result else 0
                     cursor.execute("SELECT COUNT(*) as count FROM contacts")
                     result = cursor.fetchone()
-                    total_contacts_db = int(result['count']) if result and result.get('count') else 0
+                    total_contacts_db = int(result['count']) if result else 0
                 else:
                     cursor.execute("SELECT COUNT(*) FROM companies")
                     result = cursor.fetchone()
-                    total_companies = int(result[0]) if result and result[0] else 0
+                    total_companies = int(result[0]) if result else 0
                     cursor.execute("SELECT COUNT(*) FROM contacts")
                     result = cursor.fetchone()
-                    total_contacts_db = int(result[0]) if result and result[0] else 0
+                    total_contacts_db = int(result[0]) if result else 0
                 logger.info(f"📊 DIRECT QUERY - companies: {total_companies}, contacts: {total_contacts_db}")
             except Exception as e:
                 logger.error(f"❌ Error counting: {str(e)}", exc_info=True)
@@ -2042,34 +2043,19 @@ class ContactDatabase:
                 total_api_calls = job_stats[7] if job_stats and len(job_stats) > 7 else 0
                 avg_processing_time = round(float(job_stats[8] or 0), 2) if job_stats and len(job_stats) > 8 else 0
             
-            # CRITICAL FIX: Use the SAME connection and cursor that's already open
-            # Don't call get_stats() which creates a new connection - use direct query with current cursor
+            # CRITICAL FIX: Use EXACT same pattern as get_stats() which we know works
+            # get_stats() uses: cursor.fetchone()['count'] for PostgreSQL
+            # So we should do the same - no .get(), just direct access
             database_companies_val = int(total_companies) if total_companies else 0
             database_contacts_val = int(total_contacts_db) if total_contacts_db else 0
             
-            # If direct query returned 0, try one more time with explicit query
-            if database_companies_val == 0 or database_contacts_val == 0:
-                logger.warning(f"⚠️  Direct query returned 0, retrying with explicit query...")
-                try:
-                    if self.db_type == 'postgresql':
-                        cursor.execute("SELECT COUNT(*) as count FROM companies")
-                        result = cursor.fetchone()
-                        if result:
-                            database_companies_val = int(result.get('count', 0) or result['count'] if isinstance(result, dict) else result[0])
-                        cursor.execute("SELECT COUNT(*) as count FROM contacts")
-                        result = cursor.fetchone()
-                        if result:
-                            database_contacts_val = int(result.get('count', 0) or result['count'] if isinstance(result, dict) else result[0])
-                    else:
-                        cursor.execute("SELECT COUNT(*) FROM companies")
-                        result = cursor.fetchone()
-                        database_companies_val = int(result[0]) if result else 0
-                        cursor.execute("SELECT COUNT(*) FROM contacts")
-                        result = cursor.fetchone()
-                        database_contacts_val = int(result[0]) if result else 0
-                    logger.info(f"✅ Retry query: companies={database_companies_val}, contacts={database_contacts_val}")
-                except Exception as e:
-                    logger.error(f"❌ Retry query also failed: {str(e)}")
+            # Log what we got from direct query
+            logger.info(f"📊 After direct query: companies={database_companies_val}, contacts={database_contacts_val}")
+            
+            # If still 0, the query itself might be wrong - let's verify the pattern matches get_stats()
+            if database_companies_val == 0 and database_contacts_val == 0:
+                logger.warning(f"⚠️  Both counts are 0 - this might be correct if database is empty, or query pattern issue")
+                # Don't retry - trust the direct query result
             
             final_stats = {
                 'total_jobs': int(total_jobs or 0),
