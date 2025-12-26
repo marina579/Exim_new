@@ -19,10 +19,6 @@ from hybrid_enricher import HybridEnricher
 from database import db
 from zoho_crm_service import ZohoCRMService
 from campaign_scheduler import campaign_scheduler
-from n8n_webhooks import n8n_webhooks
-
-# Register n8n webhooks blueprint
-app.register_blueprint(n8n_webhooks, url_prefix='')
 
 # Auto-push to Zoho configuration
 AUTO_PUSH_TO_ZOHO = os.getenv('AUTO_PUSH_TO_ZOHO', 'true').lower() == 'true'
@@ -3304,8 +3300,21 @@ def _initialize_zoho_token_on_startup():
 # Initialize on startup
 _initialize_zoho_token_on_startup()
 
-# Initialize Zoho token refresh service on startup
+# Register n8n webhooks blueprint (AFTER app is created)
 try:
+    from n8n_webhooks import n8n_webhooks
+    app.register_blueprint(n8n_webhooks, url_prefix='')
+    logger.info("✅ n8n webhooks blueprint registered")
+except Exception as e:
+    logger.warning(f"⚠️  Could not register n8n webhooks: {str(e)}")
+
+# Initialize Zoho token on startup (with rate limit protection)
+_initialize_zoho_token_on_startup()
+
+# Initialize Zoho token refresh service on startup (with delay to avoid rate limits)
+try:
+    import time
+    time.sleep(1)  # Small delay to avoid simultaneous requests
     from zoho_token_refresh_service import token_refresh_service
     # Start background token refresh to prevent daily expiry
     token_refresh_service.start_background_refresh()
