@@ -171,7 +171,7 @@ def _auto_push_contacts_to_zoho(company_id: int, company_name: str, contacts: li
 
 # Configuration
 CHUNK_SIZE = 50  # Process 50 companies at a time
-COLLECT_ALL_CONTACTS = True
+COLLECT_ALL_CONTACTS = False  # Use waterfall approach - only ONE API per company (stops after first success)
 USE_GEMINI = bool(os.getenv('GEMINI_API_KEY') and os.getenv('GEMINI_API_KEY') != 'YOUR_GEMINI_API_KEY_HERE')
 
 
@@ -194,13 +194,127 @@ def process_file_automated(job_id, file_path, filename, output_folder, test_mode
         
         logger.info(f"🚀 Starting automated processing for job {job_id}: {filename}")
         
-        # Step 1: Parse Excel file
-        logger.info(f"📖 Step 1: Parsing Excel file...")
+        # Step 1: Parse file (supports Excel, CSV, TSV, JSON, etc.)
+        logger.info(f"📖 Step 1: Parsing file...")
+        
+        # Use flexible file reading function from app_with_auth
+        def _read_file_flexible(file_path):
+            """Read file in various formats (Excel, CSV, TSV, etc.) - detects format by extension or content"""
+            file_ext = file_path.rsplit('.', 1)[1].lower() if '.' in file_path and file_path.rsplit('.', 1)[0] else ''
+            
+            # If no extension, try to detect by content
+            if not file_ext:
+                logger.info(f"⚠️  No file extension detected for {file_path}, trying to detect format by content...")
+                # Try Excel first (most common)
+                try:
+                    df = pd.read_excel(file_path, engine='openpyxl')
+                    logger.info(f"✅ Detected Excel format (no extension)")
+                    return df
+                except:
+                    pass
+                
+                # Try CSV
+                for encoding in ['utf-8', 'latin-1', 'iso-8859-1', 'cp1252']:
+                    try:
+                        df = pd.read_csv(file_path, encoding=encoding)
+                        logger.info(f"✅ Detected CSV format (no extension)")
+                        return df
+                    except:
+                        continue
+                
+                # Try TSV
+                for encoding in ['utf-8', 'latin-1', 'iso-8859-1', 'cp1252']:
+                    try:
+                        df = pd.read_csv(file_path, sep='\t', encoding=encoding)
+                        logger.info(f"✅ Detected TSV format (no extension)")
+                        return df
+                    except:
+                        continue
+            
+            try:
+                if file_ext in ['xlsx', 'xls', 'xlsm', 'xlsb', 'xltx', 'xltm', 'ods']:
+                    # Excel formats - try different engines
+                    for engine in ['openpyxl', 'xlrd']:
+                        try:
+                            return pd.read_excel(file_path, engine=engine)
+                        except:
+                            continue
+                    # If all engines fail, try without specifying engine
+                    try:
+                        return pd.read_excel(file_path)
+                    except:
+                        pass
+                elif file_ext in ['csv']:
+                    # CSV - try different encodings
+                    for encoding in ['utf-8', 'latin-1', 'iso-8859-1', 'cp1252']:
+                        try:
+                            return pd.read_csv(file_path, encoding=encoding)
+                        except:
+                            continue
+                elif file_ext in ['tsv', 'txt']:
+                    # TSV/TXT - tab-delimited
+                    for encoding in ['utf-8', 'latin-1', 'iso-8859-1', 'cp1252']:
+                        try:
+                            return pd.read_csv(file_path, sep='\t', encoding=encoding)
+                        except:
+                            try:
+                                # Try comma-separated
+                                return pd.read_csv(file_path, sep=',', encoding=encoding)
+                            except:
+                                continue
+                elif file_ext == 'json':
+                    return pd.read_json(file_path)
+                
+                # If extension-based detection failed, try all formats
+                logger.info(f"⚠️  Extension-based detection failed for .{file_ext}, trying all formats...")
+                
+                # Try Excel
+                for engine in ['openpyxl', 'xlrd']:
+                    try:
+                        return pd.read_excel(file_path, engine=engine)
+                    except:
+                        continue
+                try:
+                    return pd.read_excel(file_path)
+                except:
+                    pass
+                
+                # Try CSV
+                for encoding in ['utf-8', 'latin-1', 'iso-8859-1', 'cp1252']:
+                    try:
+                        return pd.read_csv(file_path, encoding=encoding)
+                    except:
+                        continue
+                
+                # Try TSV
+                for encoding in ['utf-8', 'latin-1', 'iso-8859-1', 'cp1252']:
+                    try:
+                        return pd.read_csv(file_path, sep='\t', encoding=encoding)
+                    except:
+                        continue
+                
+                # Try JSON
+                try:
+                    return pd.read_json(file_path)
+                except:
+                    pass
+                    
+            except Exception as e:
+                logger.error(f"Error reading file {file_path}: {str(e)}")
+                return None
+            
+            return None
+        
         try:
-            df = pd.read_excel(file_path, engine='openpyxl')
+            df = _read_file_flexible(file_path)
+            if df is None or df.empty:
+                error_msg = f"Failed to parse file or file is empty. Supported formats: Excel (.xlsx, .xls, .xlsm, .xlsb), CSV (.csv), TSV (.tsv), Text (.txt), JSON (.json)"
+                logger.error(error_msg)
+                db.update_job_status(job_id, 'failed', error_message=error_msg)
+                return
         except Exception as e:
-            error_msg = f"Failed to parse Excel file: {str(e)}"
-            logger.error(error_msg)
+            error_msg = f"Failed to parse file: {str(e)}"
+            logger.error(error_msg, exc_info=True)
             db.update_job_status(job_id, 'failed', error_message=error_msg)
             return
         

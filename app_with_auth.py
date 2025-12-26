@@ -243,16 +243,56 @@ def change_password():
 # ==================== UTILITY FUNCTIONS ====================
 
 def allowed_file(filename):
-    """Check if file extension is allowed."""
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+    """Check if file extension is allowed, or if file has no extension (will detect by content)."""
+    if not filename:
+        return False
+    
+    # If file has no extension, allow it (we'll detect format by content)
+    if '.' not in filename:
+        logger.info(f"⚠️  File '{filename}' has no extension, will detect format by content")
+        return True
+    
+    # Check if extension is in allowed list
+    ext = filename.rsplit('.', 1)[1].lower()
+    return ext in ALLOWED_EXTENSIONS
 
 
 def _read_file_flexible(file_path):
     """
     Read file in various formats (Excel, CSV, TSV, etc.)
+    Tries to detect format by extension, then by content if no extension
     Returns DataFrame or None if failed
     """
-    file_ext = file_path.rsplit('.', 1)[1].lower() if '.' in file_path else ''
+    file_ext = file_path.rsplit('.', 1)[1].lower() if '.' in file_path and file_path.rsplit('.', 1)[0] else ''
+    
+    # If no extension, try to detect by content
+    if not file_ext:
+        logger.info(f"⚠️  No file extension detected for {file_path}, trying to detect format by content...")
+        # Try Excel first (most common)
+        try:
+            df = pd.read_excel(file_path, engine='openpyxl')
+            logger.info(f"✅ Detected Excel format (no extension)")
+            return df
+        except:
+            pass
+        
+        # Try CSV
+        for encoding in ['utf-8', 'latin-1', 'iso-8859-1', 'cp1252']:
+            try:
+                df = pd.read_csv(file_path, encoding=encoding)
+                logger.info(f"✅ Detected CSV format (no extension)")
+                return df
+            except:
+                continue
+        
+        # Try TSV
+        for encoding in ['utf-8', 'latin-1', 'iso-8859-1', 'cp1252']:
+            try:
+                df = pd.read_csv(file_path, sep='\t', encoding=encoding)
+                logger.info(f"✅ Detected TSV format (no extension)")
+                return df
+            except:
+                continue
     
     try:
         if file_ext in ['xlsx', 'xls', 'xlsm', 'xlsb', 'xltx', 'xltm', 'ods']:
@@ -263,7 +303,10 @@ def _read_file_flexible(file_path):
                 except:
                     continue
             # If all engines fail, try without specifying engine
-            return pd.read_excel(file_path)
+            try:
+                return pd.read_excel(file_path)
+            except:
+                pass
         elif file_ext in ['csv']:
             # CSV - try different encodings and separators
             for encoding in ['utf-8', 'latin-1', 'iso-8859-1', 'cp1252']:
@@ -284,6 +327,41 @@ def _read_file_flexible(file_path):
                         continue
         elif file_ext == 'json':
             return pd.read_json(file_path)
+        
+        # If extension-based detection failed, try all formats
+        logger.info(f"⚠️  Extension-based detection failed for .{file_ext}, trying all formats...")
+        
+        # Try Excel
+        for engine in ['openpyxl', 'xlrd']:
+            try:
+                return pd.read_excel(file_path, engine=engine)
+            except:
+                continue
+        try:
+            return pd.read_excel(file_path)
+        except:
+            pass
+        
+        # Try CSV
+        for encoding in ['utf-8', 'latin-1', 'iso-8859-1', 'cp1252']:
+            try:
+                return pd.read_csv(file_path, encoding=encoding)
+            except:
+                continue
+        
+        # Try TSV
+        for encoding in ['utf-8', 'latin-1', 'iso-8859-1', 'cp1252']:
+            try:
+                return pd.read_csv(file_path, sep='\t', encoding=encoding)
+            except:
+                continue
+        
+        # Try JSON
+        try:
+            return pd.read_json(file_path)
+        except:
+            pass
+            
     except Exception as e:
         logger.error(f"Error reading file {file_path}: {str(e)}")
         return None
@@ -607,9 +685,11 @@ def _auto_push_contacts_to_zoho(company_id: int, company_name: str, contacts: li
             
     except ImportError:
         logger.debug(f"⏭️  Zoho service not available, skipping auto-push")
+        return None
     except Exception as e:
         logger.error(f"❌ Error in auto-push to Zoho for {company_name}: {str(e)}", exc_info=True)
         # Don't raise - auto-push failures shouldn't break the main process
+        return None
 
 
 def enrich_contacts(file_path, file_id):
@@ -686,6 +766,9 @@ def enrich_contacts(file_path, file_id):
             progress_data[file_id]['percentage'] = int((idx + 1) / total * 100)
             progress_data[file_id]['current_seller'] = company_name
             
+            # Initialize zoho_sync_summary for this company
+            zoho_sync_summary = None
+            
             # 🔍 CHECK CACHE FIRST (avoid re-processing)
             company_id = db.check_company_exists(company_name)
             
@@ -707,7 +790,6 @@ def enrich_contacts(file_path, file_id):
                     contacts = [contact_result] if contact_result.get('phone') or contact_result.get('email') else []
                 
                 # 💾 Save to database for future use
-                zoho_sync_summary = None
                 if contacts:
                     try:
                         company_id = db.save_company_and_contacts(company_name, company_addr, contacts)

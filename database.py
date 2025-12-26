@@ -1831,77 +1831,188 @@ class ContactDatabase:
         conn = self._get_connection()
         cursor = conn.cursor()
         
-        if self.db_type == 'postgresql':
-            date_filter = f"uploaded_at >= NOW() - INTERVAL '{days} days'"
-        else:
-            date_filter = f"uploaded_at >= datetime('now', '-{days} days')"
-        
-        # Get job statistics
-        cursor.execute(f"""
-            SELECT 
-                COUNT(*) as total_jobs,
-                SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed_jobs,
-                SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed_jobs,
-                SUM(CASE WHEN status = 'processing' THEN 1 ELSE 0 END) as processing_jobs,
-                SUM(contacts_found) as total_contacts,
-                SUM(duplicates_removed) as total_duplicates,
-                SUM(new_companies) as total_new_companies,
-                SUM(api_calls_used) as total_api_calls,
-                AVG(processing_time) as avg_processing_time
-            FROM processing_jobs
-            WHERE {date_filter}
-        """)
-        
-        job_stats = cursor.fetchone()
-        
-        # Get total companies and contacts in database
-        cursor.execute("SELECT COUNT(*) FROM companies")
-        total_companies = cursor.fetchone()[0]
-        
-        cursor.execute("SELECT COUNT(*) FROM contacts")
-        total_contacts_db = cursor.fetchone()[0]
-        
-        # Get contacts by date
-        if self.db_type == 'postgresql':
+        try:
+            # Check if processing_jobs table exists
+            if self.db_type == 'postgresql':
+                cursor.execute("""
+                    SELECT EXISTS (
+                        SELECT FROM information_schema.tables 
+                        WHERE table_name = 'processing_jobs'
+                    )
+                """)
+                table_exists = cursor.fetchone()[0]
+            else:
+                cursor.execute("""
+                    SELECT name FROM sqlite_master 
+                    WHERE type='table' AND name='processing_jobs'
+                """)
+                table_exists = cursor.fetchone() is not None
+            
+            if not table_exists:
+                # Table doesn't exist, return empty stats
+                logger.warning("⚠️  processing_jobs table does not exist, returning empty statistics")
+                try:
+                    cursor.execute("SELECT COUNT(*) FROM companies")
+                    total_companies_row = cursor.fetchone()
+                    total_companies = total_companies_row[0] if total_companies_row else 0
+                except:
+                    total_companies = 0
+                
+                try:
+                    cursor.execute("SELECT COUNT(*) FROM contacts")
+                    total_contacts_row = cursor.fetchone()
+                    total_contacts_db = total_contacts_row[0] if total_contacts_row else 0
+                except:
+                    total_contacts_db = 0
+                
+                return {
+                    'total_jobs': 0,
+                    'completed_jobs': 0,
+                    'failed_jobs': 0,
+                    'processing_jobs': 0,
+                    'total_contacts': 0,
+                    'total_duplicates': 0,
+                    'total_new_companies': 0,
+                    'total_api_calls': 0,
+                    'avg_processing_time': 0,
+                    'database_companies': total_companies or 0,
+                    'database_contacts': total_contacts_db or 0,
+                    'contacts_by_date': []
+                }
+            
+            if self.db_type == 'postgresql':
+                date_filter = f"uploaded_at >= NOW() - INTERVAL '{days} days'"
+            else:
+                date_filter = f"uploaded_at >= datetime('now', '-{days} days')"
+            
+            # Get job statistics
             cursor.execute(f"""
-                SELECT DATE(created_at) as date, COUNT(*) as count
-                FROM contacts
-                WHERE created_at >= NOW() - INTERVAL '{days} days'
-                GROUP BY DATE(created_at)
-                ORDER BY date DESC
-                LIMIT 30
+                SELECT 
+                    COUNT(*) as total_jobs,
+                    SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed_jobs,
+                    SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed_jobs,
+                    SUM(CASE WHEN status = 'processing' THEN 1 ELSE 0 END) as processing_jobs,
+                    COALESCE(SUM(contacts_found), 0) as total_contacts,
+                    COALESCE(SUM(duplicates_removed), 0) as total_duplicates,
+                    COALESCE(SUM(new_companies), 0) as total_new_companies,
+                    COALESCE(SUM(api_calls_used), 0) as total_api_calls,
+                    COALESCE(AVG(processing_time), 0) as avg_processing_time
+                FROM processing_jobs
+                WHERE {date_filter}
             """)
-        else:
-            cursor.execute(f"""
-                SELECT DATE(created_at) as date, COUNT(*) as count
-                FROM contacts
-                WHERE created_at >= datetime('now', '-{days} days')
-                GROUP BY DATE(created_at)
-                ORDER BY date DESC
-                LIMIT 30
-            """)
-        
-        contacts_by_date = cursor.fetchall()
-        
-        conn.close()
-        
-        return {
-            'total_jobs': job_stats[0] or 0,
-            'completed_jobs': job_stats[1] or 0,
-            'failed_jobs': job_stats[2] or 0,
-            'processing_jobs': job_stats[3] or 0,
-            'total_contacts': job_stats[4] or 0,
-            'total_duplicates': job_stats[5] or 0,
-            'total_new_companies': job_stats[6] or 0,
-            'total_api_calls': job_stats[7] or 0,
-            'avg_processing_time': round(job_stats[8] or 0, 2),
-            'database_companies': total_companies,
-            'database_contacts': total_contacts_db,
-            'contacts_by_date': [
-                {'date': str(row[0]), 'count': row[1]} 
-                for row in contacts_by_date
-            ]
-        }
+            
+            job_stats = cursor.fetchone()
+            
+            # Handle case where job_stats is None or empty
+            if not job_stats:
+                job_stats = (0, 0, 0, 0, 0, 0, 0, 0, 0)
+            
+            # Get total companies and contacts in database
+            try:
+                cursor.execute("SELECT COUNT(*) FROM companies")
+                total_companies_row = cursor.fetchone()
+                if total_companies_row:
+                    total_companies = total_companies_row[0] if self.db_type == 'postgresql' else total_companies_row[0]
+                else:
+                    total_companies = 0
+            except Exception as e:
+                logger.warning(f"Error counting companies: {str(e)}")
+                total_companies = 0
+            
+            try:
+                cursor.execute("SELECT COUNT(*) FROM contacts")
+                total_contacts_row = cursor.fetchone()
+                if total_contacts_row:
+                    total_contacts_db = total_contacts_row[0] if self.db_type == 'postgresql' else total_contacts_row[0]
+                else:
+                    total_contacts_db = 0
+            except Exception as e:
+                logger.warning(f"Error counting contacts: {str(e)}")
+                total_contacts_db = 0
+            
+            # Get contacts by date
+            contacts_by_date = []
+            try:
+                if self.db_type == 'postgresql':
+                    cursor.execute(f"""
+                        SELECT DATE(created_at) as date, COUNT(*) as count
+                        FROM contacts
+                        WHERE created_at >= NOW() - INTERVAL '{days} days'
+                        GROUP BY DATE(created_at)
+                        ORDER BY date DESC
+                        LIMIT 30
+                    """)
+                else:
+                    cursor.execute(f"""
+                        SELECT DATE(created_at) as date, COUNT(*) as count
+                        FROM contacts
+                        WHERE created_at >= datetime('now', '-{days} days')
+                        GROUP BY DATE(created_at)
+                        ORDER BY date DESC
+                        LIMIT 30
+                    """)
+                
+                contacts_by_date = cursor.fetchall()
+            except Exception as e:
+                logger.warning(f"Error fetching contacts by date: {str(e)}")
+                contacts_by_date = []
+            
+            # Handle PostgreSQL vs SQLite result format
+            if self.db_type == 'postgresql':
+                return {
+                    'total_jobs': job_stats[0] or 0,
+                    'completed_jobs': job_stats[1] or 0,
+                    'failed_jobs': job_stats[2] or 0,
+                    'processing_jobs': job_stats[3] or 0,
+                    'total_contacts': job_stats[4] or 0,
+                    'total_duplicates': job_stats[5] or 0,
+                    'total_new_companies': job_stats[6] or 0,
+                    'total_api_calls': job_stats[7] or 0,
+                    'avg_processing_time': round(float(job_stats[8] or 0), 2),
+                    'database_companies': total_companies or 0,
+                    'database_contacts': total_contacts_db or 0,
+                    'contacts_by_date': [
+                        {'date': str(row[0]), 'count': row[1]} 
+                        for row in contacts_by_date
+                    ]
+                }
+            else:
+                return {
+                    'total_jobs': job_stats[0] or 0,
+                    'completed_jobs': job_stats[1] or 0,
+                    'failed_jobs': job_stats[2] or 0,
+                    'processing_jobs': job_stats[3] or 0,
+                    'total_contacts': job_stats[4] or 0,
+                    'total_duplicates': job_stats[5] or 0,
+                    'total_new_companies': job_stats[6] or 0,
+                    'total_api_calls': job_stats[7] or 0,
+                    'avg_processing_time': round(float(job_stats[8] or 0), 2),
+                    'database_companies': total_companies or 0,
+                    'database_contacts': total_contacts_db or 0,
+                    'contacts_by_date': [
+                        {'date': str(row[0]), 'count': row[1]} 
+                        for row in contacts_by_date
+                    ]
+                }
+        except Exception as e:
+            logger.error(f"Error in get_statistics: {str(e)}", exc_info=True)
+            # Return safe defaults
+            return {
+                'total_jobs': 0,
+                'completed_jobs': 0,
+                'failed_jobs': 0,
+                'processing_jobs': 0,
+                'total_contacts': 0,
+                'total_duplicates': 0,
+                'total_new_companies': 0,
+                'total_api_calls': 0,
+                'avg_processing_time': 0,
+                'database_companies': 0,
+                'database_contacts': 0,
+                'contacts_by_date': []
+            }
+        finally:
+            conn.close()
 
 
 # Global database instance
