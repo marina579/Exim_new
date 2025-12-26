@@ -1968,31 +1968,35 @@ class ContactDatabase:
             total_companies = 0
             total_contacts_db = 0
             
-            # Get total companies - USE EXACT SAME PATTERN AS get_stats() which works
+            # Get total companies - CALL get_stats() which we know works!
             try:
-                if self.db_type == 'postgresql':
-                    cursor.execute("SELECT COUNT(*) as count FROM companies")
-                    total_companies = int(cursor.fetchone()['count'] or 0)
-                else:
-                    cursor.execute("SELECT COUNT(*) FROM companies")
-                    total_companies = int(cursor.fetchone()[0] or 0)
-                logger.info(f"📊 Total companies in database: {total_companies}")
+                stats = self.get_stats()
+                total_companies = stats.get('total_companies', 0) or 0
+                total_contacts_db = stats.get('total_contacts', 0) or 0
+                logger.info(f"📊 Using get_stats() - companies: {total_companies}, contacts: {total_contacts_db}")
             except Exception as e:
-                logger.error(f"❌ Error counting companies: {str(e)}", exc_info=True)
-                total_companies = 0
-            
-            # Get total contacts - USE EXACT SAME PATTERN AS get_stats() which works
-            try:
-                if self.db_type == 'postgresql':
-                    cursor.execute("SELECT COUNT(*) as count FROM contacts")
-                    total_contacts_db = int(cursor.fetchone()['count'] or 0)
-                else:
-                    cursor.execute("SELECT COUNT(*) FROM contacts")
-                    total_contacts_db = int(cursor.fetchone()[0] or 0)
-                logger.info(f"📊 Total contacts in database: {total_contacts_db}")
-            except Exception as e:
-                logger.error(f"❌ Error counting contacts: {str(e)}", exc_info=True)
-                total_contacts_db = 0
+                logger.error(f"❌ Error getting stats: {str(e)}", exc_info=True)
+                # Fallback to direct query
+                try:
+                    if self.db_type == 'postgresql':
+                        cursor.execute("SELECT COUNT(*) as count FROM companies")
+                        result = cursor.fetchone()
+                        total_companies = int(result['count'] or 0) if result else 0
+                        cursor.execute("SELECT COUNT(*) as count FROM contacts")
+                        result = cursor.fetchone()
+                        total_contacts_db = int(result['count'] or 0) if result else 0
+                    else:
+                        cursor.execute("SELECT COUNT(*) FROM companies")
+                        result = cursor.fetchone()
+                        total_companies = int(result[0] or 0) if result else 0
+                        cursor.execute("SELECT COUNT(*) FROM contacts")
+                        result = cursor.fetchone()
+                        total_contacts_db = int(result[0] or 0) if result else 0
+                    logger.info(f"📊 Fallback query - companies: {total_companies}, contacts: {total_contacts_db}")
+                except Exception as e2:
+                    logger.error(f"❌ Fallback query also failed: {str(e2)}", exc_info=True)
+                    total_companies = 0
+                    total_contacts_db = 0
             
             # Get contacts by date
             contacts_by_date = []
