@@ -8,16 +8,17 @@ venv/
 env/
 ENV/
 .venv
-*.egg-info/
-dist/
-build/
 
-# Environment variables - NEVER commit these!
+# Environment variables
 .env
 .env.local
 .env.*.local
-.env.production
-.env.development
+*.env
+
+# Security: Files with hardcoded credentials (if any exist)
+*_credentials.py
+*_secrets.py
+*_keys.py
 
 # IDE
 .vscode/
@@ -25,25 +26,25 @@ build/
 *.swp
 *.swo
 *~
+
+# OS
 .DS_Store
+Thumbs.db
 
 # Logs
 *.log
 app.log
 app_auth.log
 app_two_step.log
-deploy_test.log
 
-# Database files (keep structure, but ignore actual database)
+# Database
 *.db
 *.sqlite
 *.sqlite3
 data/*.db
-data/*.sqlite
-data/*.sqlite3
 !data/.gitkeep
 
-# Uploads and outputs (temporary files)
+# Uploads and outputs
 uploads/*
 !uploads/.gitkeep
 outputs/*
@@ -55,7 +56,6 @@ cleaned/*
 *.tmp
 *.temp
 *.bak
-*.backup
 
 # Test files
 test_*.xlsx
@@ -63,20 +63,3 @@ test_*.xls
 *_test.xlsx
 *_test.xls
 
-# OS files
-Thumbs.db
-.DS_Store
-.AppleDouble
-.LSOverride
-
-# Railway / Deployment
-.railway/
-
-# Secrets and keys
-*.pem
-*.key
-secrets/
-.secrets/
-
-# Ignore markdown documentation files
-*.md

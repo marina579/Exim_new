@@ -4,6 +4,7 @@ Zoho Refresh Token Generator
 Easy-to-use script to generate a Zoho CRM refresh token
 """
 
+import os
 import requests
 import webbrowser
 from urllib.parse import urlencode, parse_qs, urlparse
@@ -12,9 +13,14 @@ print("\n" + "="*80)
 print("🔑 ZOHO CRM REFRESH TOKEN GENERATOR")
 print("="*80 + "\n")
 
-# Your credentials
-CLIENT_ID = "1000.6CD571WYE0T62GTP6TAS2L4KZDHGOG"
-CLIENT_SECRET = "1291d50e4263d9dd59f84b5dc9563b77a35304555e"
+# SECURITY: Never hardcode credentials! Use environment variables.
+CLIENT_ID = os.getenv('ZOHO_CLIENT_ID', '')
+CLIENT_SECRET = os.getenv('ZOHO_CLIENT_SECRET', '')
+
+if not CLIENT_ID or not CLIENT_SECRET:
+    print("❌ ERROR: ZOHO_CLIENT_ID and ZOHO_CLIENT_SECRET must be set in environment variables!")
+    print("   Set them in your .env file or export them before running this script.")
+    exit(1)
 DATA_CENTER = "in"  # India
 
 # Set URLs based on data center
