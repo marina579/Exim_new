@@ -336,13 +336,13 @@
             <a href="{{ url_for('dashboard') }}" class="btn btn-custom" style="white-space: nowrap; min-width: fit-content; background: #ffffff; color: #1e3a5f; border: 2px solid #1e3a5f; box-shadow: 0 4px 15px rgba(0,0,0,0.1); font-weight: 600;">
                 <i class="fas fa-chart-line me-1"></i>Dashboard
             </a>
-            <a href="{{ url_for('view_contacts') }}" class="btn btn-info btn-custom" style="white-space: nowrap; min-width: fit-content;">
+            <a href="{{ url_for('view_contacts') }}" class="btn btn-custom" style="white-space: nowrap; min-width: fit-content; background: #ffffff; color: #1e3a5f; border: 2px solid #1e3a5f; box-shadow: 0 4px 15px rgba(0,0,0,0.1); font-weight: 600;">
                 <i class="fas fa-users me-1"></i>Contacts
             </a>
-            <a href="{{ url_for('campaigns_page') }}" class="btn btn-warning btn-custom" style="white-space: nowrap; min-width: fit-content;">
+            <a href="{{ url_for('campaigns_page') }}" class="btn btn-custom" style="white-space: nowrap; min-width: fit-content; background: #ffffff; color: #1e3a5f; border: 2px solid #1e3a5f; box-shadow: 0 4px 15px rgba(0,0,0,0.1); font-weight: 600;">
                 <i class="fas fa-envelope me-1"></i>Email Campaigns
             </a>
-            <a href="{{ url_for('chatbot') }}" class="btn btn-success btn-custom" style="white-space: nowrap; min-width: fit-content;">
+            <a href="{{ url_for('chatbot') }}" class="btn btn-custom" style="white-space: nowrap; min-width: fit-content; background: #ffffff; color: #1e3a5f; border: 2px solid #1e3a5f; box-shadow: 0 4px 15px rgba(0,0,0,0.1); font-weight: 600;">
                 <i class="fas fa-comments me-1"></i>Chatbot
             </a>
         </div>
@@ -853,7 +853,7 @@
         </div>
         
         <!-- Chatbot Window -->
-        <div id="marinaWindow" style="display: none; background: white; border-radius: 15px 15px 0 0; box-shadow: 0 -5px 25px rgba(0,0,0,0.2); height: 500px; display: flex; flex-direction: column;">
+        <div id="marinaWindow" style="display: none; background: white; border-radius: 15px 15px 0 0; box-shadow: 0 -5px 25px rgba(0,0,0,0.2); height: 500px; flex-direction: column;">
             <!-- Chatbot Header -->
             <div style="background: linear-gradient(135deg, #1e3a5f 0%, #152d4a 100%); color: white; padding: 1rem 1.5rem; border-radius: 15px 15px 0 0; display: flex; justify-content: space-between; align-items: center;">
                 <div style="display: flex; align-items: center; gap: 0.75rem;">
@@ -881,11 +881,14 @@
                         <div style="color: #2c3e50; line-height: 1.6;">
                             I'm your AI assistant. I can help you with:
                             <ul style="margin: 0.5rem 0 0 1.2rem; padding: 0;">
+                                <li><strong>Searching for companies</strong> in the database</li>
                                 <li>Viewing and managing <strong>Contacts</strong></li>
                                 <li>Creating and tracking <strong>Email Campaigns</strong></li>
-                                <li>Searching for company contacts</li>
-                                <li>Answering questions about the system</li>
+                                <li>Finding contact information with AI analysis</li>
                             </ul>
+                            <div style="margin-top: 1rem; padding: 0.75rem; background: #f0f4f8; border-radius: 8px; border-left: 3px solid #1e3a5f;">
+                                <strong>💡 Tip:</strong> Just type a company name to search the database. If not found, I'll help you run AI analysis!
+                            </div>
                             <div style="margin-top: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
                                 <button class="marina-quick-action" data-action="contacts" style="background: #1e3a5f; color: white; border: none; padding: 0.5rem 1rem; border-radius: 20px; font-size: 0.85rem; cursor: pointer; font-weight: 500;">📇 Contacts</button>
                                 <button class="marina-quick-action" data-action="campaigns" style="background: #1e3a5f; color: white; border: none; padding: 0.5rem 1rem; border-radius: 20px; font-size: 0.85rem; cursor: pointer; font-weight: 500;">📧 Email Campaigns</button>
@@ -976,6 +979,13 @@
         const marinaCampaignsUrl = "{{ url_for('campaigns_page') }}";
         const marinaChatbotUrl = "{{ url_for('chatbot') }}";
         
+        // Ensure Marina window is hidden on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('marinaWindow').style.display = 'none';
+            document.getElementById('marinaToggle').style.display = 'flex';
+            marinaOpen = false;
+        });
+        
         document.getElementById('marinaToggle').addEventListener('click', function() {
             const window = document.getElementById('marinaWindow');
             const toggle = document.getElementById('marinaToggle');
@@ -1021,31 +1031,119 @@
             addMarinaMessage('user', message);
             input.value = '';
             
-            // Simulate AI response
-            setTimeout(() => {
-                let response = '';
-                const lowerMessage = message.toLowerCase();
-                
-                if (lowerMessage.includes('contact') || lowerMessage.includes('contact')) {
-                    response = 'I can help you with contacts! You can view all contacts, search for specific companies, or manage your contact database. Would you like to <a href="' + marinaContactsUrl + '" style="color: #1e3a5f; font-weight: 600;">view contacts</a>?';
-                } else if (lowerMessage.includes('campaign') || lowerMessage.includes('email')) {
-                    response = 'I can help you with email campaigns! You can create campaigns, schedule them, and track their performance. Would you like to <a href="' + marinaCampaignsUrl + '" style="color: #1e3a5f; font-weight: 600;">manage campaigns</a>?';
-                } else if (lowerMessage.includes('search') || lowerMessage.includes('find')) {
-                    response = 'I can help you search for contacts! For advanced contact searches, you can use the <a href="' + marinaChatbotUrl + '" style="color: #1e3a5f; font-weight: 600;">chatbot page</a> where you can search by company name and get enriched contact information.';
-                } else if (lowerMessage.includes('help') || lowerMessage.includes('what can you do')) {
-                    response = "I'm Marina, your AI assistant! I can help you with:\n\n• Viewing and managing Contacts\n• Creating and tracking Email Campaigns\n• Searching for company contacts\n• Answering questions about the system\n\nJust ask me anything!";
-                } else {
-                    response = 'I understand you\'re asking about "' + message + '". I can help you with contacts, email campaigns, or contact searches. What would you like to do?';
-                }
-                
-                addMarinaMessage('bot', response);
-            }, 500);
+            // Show typing indicator
+            const typingId = addMarinaMessage('bot', '🔍 Searching...');
+            
+            // Check if message looks like a company name (not a command/question)
+            const lowerMessage = message.toLowerCase();
+            const isQuestion = lowerMessage.includes('?') || 
+                             lowerMessage.startsWith('what') || 
+                             lowerMessage.startsWith('how') || 
+                             lowerMessage.startsWith('where') ||
+                             lowerMessage.startsWith('when') ||
+                             lowerMessage.startsWith('why') ||
+                             lowerMessage.startsWith('who') ||
+                             lowerMessage.includes('help') ||
+                             lowerMessage.includes('can you');
+            
+            // If it's not a question, treat it as a company name and search database
+            if (!isQuestion && message.length > 2) {
+                // Search database for company
+                fetch('/api/search_company', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ company_name: message })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    // Remove typing indicator
+                    const typingMsg = document.getElementById('marinaMessages').lastElementChild;
+                    if (typingMsg && typingMsg.id === typingId) {
+                        typingMsg.remove();
+                    }
+                    
+                    if (data.status === 'found' && data.contacts && data.contacts.length > 0) {
+                        // Company found in database
+                        let contactsHtml = '<div style="margin-top: 0.5rem;"><strong>📇 Found ' + data.contacts.length + ' contact(s) for "' + data.company_name + '":</strong></div>';
+                        contactsHtml += '<div style="margin-top: 0.75rem; max-height: 300px; overflow-y: auto;">';
+                        
+                        data.contacts.forEach((contact, index) => {
+                            contactsHtml += '<div style="background: #f8f9fa; padding: 0.75rem; border-radius: 8px; margin-bottom: 0.5rem; border-left: 3px solid #1e3a5f;">';
+                            if (contact.contact_name) {
+                                contactsHtml += '<div style="font-weight: 600; color: #1e3a5f; margin-bottom: 0.25rem;">👤 ' + contact.contact_name + '</div>';
+                            }
+                            if (contact.phone) {
+                                contactsHtml += '<div style="font-size: 0.9rem; color: #2c3e50;">📞 ' + contact.phone + '</div>';
+                            }
+                            if (contact.email) {
+                                contactsHtml += '<div style="font-size: 0.9rem; color: #2c3e50;">✉️ ' + contact.email + '</div>';
+                            }
+                            if (contact.whatsapp && contact.whatsapp !== contact.phone) {
+                                contactsHtml += '<div style="font-size: 0.9rem; color: #2c3e50;">💬 WhatsApp: ' + contact.whatsapp + '</div>';
+                            }
+                            contactsHtml += '</div>';
+                        });
+                        
+                        contactsHtml += '</div>';
+                        contactsHtml += '<div style="margin-top: 0.75rem;"><a href="' + marinaContactsUrl + '" style="color: #1e3a5f; font-weight: 600; text-decoration: underline;">View all contacts →</a></div>';
+                        
+                        addMarinaMessage('bot', contactsHtml);
+                    } else {
+                        // Company not found - suggest chatbot
+                        let response = '❌ I couldn\'t find "' + message + '" in the database.\n\n';
+                        response += '💡 <strong>Would you like to run AI analysis?</strong>\n\n';
+                        response += 'I can help you find contact information using our AI-powered chatbot. Click the button below to search for this company:\n\n';
+                        response += '<a href="' + marinaChatbotUrl + '?company=' + encodeURIComponent(message) + '" style="display: inline-block; background: #1e3a5f; color: white; padding: 0.75rem 1.5rem; border-radius: 25px; text-decoration: none; font-weight: 600; margin-top: 0.5rem;">🔍 Search with AI Chatbot</a>';
+                        
+                        addMarinaMessage('bot', response);
+                    }
+                })
+                .catch(error => {
+                    // Remove typing indicator
+                    const typingMsg = document.getElementById('marinaMessages').lastElementChild;
+                    if (typingMsg && typingMsg.id === typingId) {
+                        typingMsg.remove();
+                    }
+                    
+                    console.error('Error searching database:', error);
+                    addMarinaMessage('bot', 'Sorry, I encountered an error while searching. Please try again or use the <a href="' + marinaChatbotUrl + '" style="color: #1e3a5f; font-weight: 600;">chatbot page</a> for advanced searches.');
+                });
+            } else {
+                // Handle questions and commands
+                setTimeout(() => {
+                    // Remove typing indicator
+                    const typingMsg = document.getElementById('marinaMessages').lastElementChild;
+                    if (typingMsg && typingMsg.id === typingId) {
+                        typingMsg.remove();
+                    }
+                    
+                    let response = '';
+                    
+                    if (lowerMessage.includes('contact') || lowerMessage.includes('contact')) {
+                        response = 'I can help you with contacts! You can view all contacts, search for specific companies, or manage your contact database. Would you like to <a href="' + marinaContactsUrl + '" style="color: #1e3a5f; font-weight: 600;">view contacts</a>?';
+                    } else if (lowerMessage.includes('campaign') || lowerMessage.includes('email')) {
+                        response = 'I can help you with email campaigns! You can create campaigns, schedule them, and track their performance. Would you like to <a href="' + marinaCampaignsUrl + '" style="color: #1e3a5f; font-weight: 600;">manage campaigns</a>?';
+                    } else if (lowerMessage.includes('search') || lowerMessage.includes('find')) {
+                        response = 'I can help you search for contacts! For advanced contact searches, you can use the <a href="' + marinaChatbotUrl + '" style="color: #1e3a5f; font-weight: 600;">chatbot page</a> where you can search by company name and get enriched contact information.';
+                    } else if (lowerMessage.includes('help') || lowerMessage.includes('what can you do')) {
+                        response = "I'm Marina, your AI assistant! I can help you with:\n\n• Searching for companies in the database\n• Viewing and managing Contacts\n• Creating and tracking Email Campaigns\n• Finding contact information with AI analysis\n\nJust type a company name to search, or ask me a question!";
+                    } else {
+                        response = 'I understand you\'re asking about "' + message + '". I can help you with:\n\n• Searching for companies in the database\n• Viewing contacts\n• Managing email campaigns\n• Finding contact information\n\nTry typing a company name to search, or ask me a question!';
+                    }
+                    
+                    addMarinaMessage('bot', response);
+                }, 500);
+            }
         }
         
         function addMarinaMessage(type, content) {
             const messagesDiv = document.getElementById('marinaMessages');
             const messageDiv = document.createElement('div');
             messageDiv.className = 'marina-message';
+            const messageId = 'marina-msg-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+            messageDiv.id = messageId;
             
             if (type === 'user') {
                 messageDiv.style.cssText = 'margin-bottom: 1rem; display: flex; align-items: flex-start; gap: 0.75rem; flex-direction: row-reverse;';
@@ -1071,6 +1169,7 @@
             
             messagesDiv.appendChild(messageDiv);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            return messageId;
         }
     </script>
 </body>

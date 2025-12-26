@@ -1247,7 +1247,8 @@ def test_chatgpt():
 @login_required
 def chatbot():
     """Chatbot page for instant contact lookup."""
-    return render_template('chatbot.html', username=session.get('username'))
+    company = request.args.get('company', '')
+    return render_template('chatbot.html', username=session.get('username'), company=company)
 
 
 @app.route('/contacts')
