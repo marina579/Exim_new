@@ -1994,16 +1994,24 @@ class ContactDatabase:
                     # Use explicit alias for PostgreSQL RealDictCursor
                     cursor.execute("SELECT COUNT(*) as total FROM contacts")
                     total_contacts_row = cursor.fetchone()
+                    logger.info(f"🔍 Contacts query result: type={type(total_contacts_row)}, value={total_contacts_row}, keys={list(total_contacts_row.keys()) if isinstance(total_contacts_row, dict) else 'N/A'}")
                     if total_contacts_row:
                         # PostgreSQL RealDictCursor returns dict
                         if isinstance(total_contacts_row, dict):
-                            # RealDictCursor uses the alias 'total' as the key
-                            total_contacts_db = int(total_contacts_row.get('total', 0) or 0)
+                            # Try all possible keys
+                            total_contacts_db = int(
+                                total_contacts_row.get('total') or 
+                                total_contacts_row.get('count') or 
+                                (list(total_contacts_row.values())[0] if total_contacts_row.values() else 0)
+                            )
+                            logger.info(f"✅ Extracted contacts count from dict: {total_contacts_db}")
                         else:
                             # Fallback if tuple
                             total_contacts_db = int(total_contacts_row[0] if total_contacts_row else 0)
+                            logger.info(f"✅ Extracted contacts count from tuple: {total_contacts_db}")
                     else:
                         total_contacts_db = 0
+                        logger.warning("⚠️  Contacts query returned None/empty")
                 else:
                     cursor.execute("SELECT COUNT(*) FROM contacts")
                     total_contacts_row = cursor.fetchone()
@@ -2083,6 +2091,7 @@ class ContactDatabase:
             }
             
             logger.info(f"📊 Final stats being returned: companies={final_stats['database_companies']}, contacts={final_stats['database_contacts']}")
+            logger.info(f"📊 Full stats dict: {final_stats}")
             return final_stats
         except Exception as e:
             logger.error(f"Error in get_statistics: {str(e)}", exc_info=True)

@@ -2933,6 +2933,78 @@ def campaigns_page():
     return render_template('campaigns.html')
 
 
+@app.route('/test-db-stats')
+@login_required
+def test_db_stats():
+    """Test endpoint to debug database statistics."""
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    try:
+        conn = db._get_connection()
+        cursor = conn.cursor()
+        
+        # Test companies count
+        if db.db_type == 'postgresql':
+            cursor.execute("SELECT COUNT(*) as total FROM companies")
+        else:
+            cursor.execute("SELECT COUNT(*) FROM companies")
+        companies_row = cursor.fetchone()
+        
+        # Test contacts count
+        if db.db_type == 'postgresql':
+            cursor.execute("SELECT COUNT(*) as total FROM contacts")
+        else:
+            cursor.execute("SELECT COUNT(*) FROM contacts")
+        contacts_row = cursor.fetchone()
+        
+        conn.close()
+        
+        # Format results
+        if db.db_type == 'postgresql':
+            companies_count = companies_row.get('total', 0) if isinstance(companies_row, dict) else companies_row[0] if companies_row else 0
+            contacts_count = contacts_row.get('total', 0) if isinstance(contacts_row, dict) else contacts_row[0] if contacts_row else 0
+            companies_type = type(companies_row).__name__
+            contacts_type = type(contacts_row).__name__
+        else:
+            companies_count = companies_row[0] if companies_row else 0
+            contacts_count = contacts_row[0] if contacts_row else 0
+            companies_type = type(companies_row).__name__
+            contacts_type = type(contacts_row).__name__
+        
+        # Get stats from function
+        stats = db.get_statistics(days=90)
+        
+        return jsonify({
+            'status': 'success',
+            'db_type': db.db_type,
+            'direct_query': {
+                'companies': {
+                    'count': companies_count,
+                    'type': companies_type,
+                    'raw': str(companies_row)
+                },
+                'contacts': {
+                    'count': contacts_count,
+                    'type': contacts_type,
+                    'raw': str(contacts_row)
+                }
+            },
+            'get_statistics': {
+                'database_companies': stats.get('database_companies', 'MISSING'),
+                'database_contacts': stats.get('database_contacts', 'MISSING'),
+                'all_keys': list(stats.keys())
+            }
+        })
+    except Exception as e:
+        logger.error(f"Error in test-db-stats: {str(e)}", exc_info=True)
+        return jsonify({
+            'status': 'error',
+            'message': str(e),
+            'error_type': type(e).__name__
+        }), 500
+
+
 @app.route('/api/campaigns/reports/<campaign_id>', methods=['GET'])
 @login_required
 def get_campaign_report(campaign_id):
