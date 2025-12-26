@@ -2078,10 +2078,17 @@ def push_single_contact_to_zoho(contact_id):
             else:
                 # Update status to 'failed' with error message
                 db.update_zoho_status(contact_id, 'failed', error=message)
+                
+                # Provide user-friendly error message
+                user_message = message
+                if "general_error" in message.lower() or "access_denied" in message.lower():
+                    user_message = "Zoho API error. Check Railway logs for details. Common causes: invalid credentials, expired token, or insufficient permissions."
+                
                 return jsonify({
                     'success': False,
-                    'message': message,
-                    'status': 'failed'
+                    'message': user_message,
+                    'status': 'failed',
+                    'debug_message': message  # Include original message for debugging
                 }), 400
             
     except Exception as e:
@@ -2141,17 +2148,20 @@ def push_to_zoho():
         access_token, error = zoho_service.get_access_token()
         if error:
             logger.error(f"❌ Zoho connection failed: {error}")
+            logger.error(f"❌ Check Railway logs for full Zoho API response details")
             
             # Provide helpful error message based on error type
             if "invalid_code" in error.lower() or "invalid refresh token" in error.lower() or "invalid_grant" in error.lower():
                 flash('Your Zoho refresh token is invalid or expired. Please generate a new one.', 'error')
                 flash('Run: ./venv/bin/python generate_zoho_token.py', 'info')
             elif "invalid_client" in error.lower():
-                flash('Invalid Client ID or Client Secret. Please check your Zoho credentials.', 'error')
-            elif "general_error" in error.lower():
-                flash(f'Zoho API error: {error}. Please check your credentials and API permissions.', 'error')
+                flash('Invalid Client ID or Client Secret. Please check your Zoho credentials in Railway variables.', 'error')
+            elif "general_error" in error.lower() or "access_denied" in error.lower():
+                flash('Zoho API returned an error. Check Railway logs for details.', 'error')
+                flash('Common causes: Invalid credentials, expired token, or insufficient API permissions in Zoho.', 'info')
             else:
                 flash(f'Zoho CRM connection failed: {error}', 'error')
+                flash('Check Railway deployment logs for full error details.', 'info')
             
             return redirect(url_for('zoho_config'))
         

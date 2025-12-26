@@ -120,38 +120,50 @@ class ZohoCRMService:
             
             data = response.json()
             
+            # Log full response for debugging
+            logger.debug(f"📋 Full Zoho auth response: {data}")
+            
             # Check for errors in response
             if 'error' in data:
                 error_code = data.get('error', 'unknown_error')
                 error_description = data.get('error_description', '')
+                
+                # Log all available error fields
+                logger.error(f"❌ Zoho error detected:")
+                logger.error(f"   Error code: {error_code}")
+                logger.error(f"   Error description: {error_description}")
+                logger.error(f"   Full response: {data}")
                 
                 # Build detailed error message
                 if error_description:
                     error_msg = f"Zoho error: {error_code} - {error_description}"
                 else:
                     # Try to get more details from response
-                    error_details = data.get('error_description') or data.get('message') or data.get('details') or response.text
+                    error_details = (data.get('error_description') or 
+                                   data.get('message') or 
+                                   data.get('details') or 
+                                   data.get('error_uri') or
+                                   response.text)
                     if error_details and error_details != response.text:
                         error_msg = f"Zoho error: {error_code} - {error_details}"
                     else:
                         error_msg = f"Zoho error: {error_code}"
                 
-                logger.error(f"❌ {error_msg}")
-                logger.error(f"❌ Full Zoho response: {data}")
-                
-                # Provide helpful error messages
+                # Provide helpful error messages based on error code
                 if error_code == 'invalid_code' or 'invalid_code' in str(error_code).lower():
                     error_msg = "Invalid refresh token. Please generate a new one from Zoho API Console."
                 elif error_code == 'invalid_client' or 'invalid_client' in str(error_code).lower():
                     error_msg = "Invalid Client ID or Client Secret. Please check your credentials."
                 elif error_code == 'invalid_grant':
                     error_msg = "Invalid refresh token or token expired. Please generate a new refresh token."
-                elif error_code == 'general_error':
-                    # Try to extract more details
+                elif error_code == 'general_error' or error_code == 'access_denied':
+                    # Try to extract more details from description or other fields
                     if error_description:
                         error_msg = f"Zoho API error: {error_description}"
+                    elif data.get('message'):
+                        error_msg = f"Zoho API error: {data.get('message')}"
                     else:
-                        error_msg = "Zoho API returned a general error. Please check your credentials and API permissions."
+                        error_msg = f"Zoho API error: {error_code}. Check Railway logs for full details. Common causes: invalid credentials, expired token, or insufficient API permissions."
                 
                 return None, error_msg
             
