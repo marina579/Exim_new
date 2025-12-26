@@ -11,7 +11,7 @@ import json
 import re
 import requests
 
-# Note: You need to install openai package (Enhanced with error logging)
+# Note: You need to install openai package
 # pip install openai
 
 try:
@@ -61,28 +61,79 @@ class ChatGPTEnricher:
         # Step 1: Get search results from SerpApi
         search_results = self._search_with_serpapi(company_name, address)
         
-        # Step 2: Use ChatGPT to extract contact info from search results
-        if address:
-            prompt = f"""I searched Google for "{company_name} {address} India contact" and got these results:
-
-{search_results}
-
-Extract the contact person name, phone number, WhatsApp number, and email address for this Indian business from the search results above.
-Look for: Proprietor name, Director name, Owner name, or main contact person.
-Return ONLY valid Indian phone numbers (starting with +91 and digits 6-9) and business emails.
-Return in this exact JSON format: {{"contact_name": "Full Name", "phone": "+91-XXXXXXXXXX", "email": "xxx@xxx.com", "whatsapp": "+91-XXXXXXXXXX"}}
-If not found, use empty string "".
-"""
+        if not search_results or search_results == "No search results found":
+            logger.warning(f"⚠️  No search results from SerpAPI for {company_name}. ChatGPT may return empty results.")
         else:
-            prompt = f"""I searched Google for "{company_name} India contact" and got these results:
+            logger.info(f"✅ Got {len(search_results)} chars of search results from SerpAPI for {company_name}")
+            logger.debug(f"Search results preview: {search_results[:200]}...")
+        
+        # Step 2: Use ChatGPT to extract contact info from search results
+            if address:
+                prompt = f"""You are an expert at extracting contact information for Indian businesses. I searched Google for "{company_name}" located at "{address}" in India and got these search results:
 
 {search_results}
 
-Extract the contact person name, phone number, WhatsApp number, and email address for this Indian business from the search results above.
-Look for: Proprietor name, Director name, Owner name, or main contact person.
-Return ONLY valid Indian phone numbers (starting with +91 and digits 6-9) and business emails.
-Return in this exact JSON format: {{"contact_name": "Full Name", "phone": "+91-XXXXXXXXXX", "email": "xxx@xxx.com", "whatsapp": "+91-XXXXXXXXXX"}}
-If not found, use empty string "".
+IMPORTANT INSTRUCTIONS:
+1. Analyze the search results carefully. Look for contact information on:
+   - IndiaMART listings (indiamart.com)
+   - Justdial listings (justdial.com)
+   - TradeIndia listings (tradeindia.com)
+   - Company's official website
+   - Google Business listings
+   - Export council directories (SGEPC, FIEO, etc.)
+
+2. Extract the following information with HIGH PRIORITY:
+   - Contact person name: Look for "Proprietor:", "Director:", "Owner:", "Contact Person:", "Mr./Mrs." followed by a full name (First + Last)
+   - Phone number: Must be Indian mobile (10 digits, starts with 6, 7, 8, or 9). Format as +91-XXXXXXXXXX
+   - Email address: Business email (prefer specific emails over generic info@ or contact@)
+   - WhatsApp number: If explicitly mentioned, otherwise use phone if it's a mobile number
+
+3. VALIDATION RULES (STRICT):
+   - Phone: Must be exactly 10 digits, starting with 6-9 (Indian mobile). Reject landlines.
+   - Email: Must contain @ and valid domain (not placeholder emails)
+   - Contact name: Must be a full name (First + Last), not just "Mr." or "Proprietor"
+   - WhatsApp: Only if explicitly mentioned, otherwise leave empty
+
+4. Return ONLY valid JSON (no explanations, no markdown, no code blocks):
+{{"contact_name": "Full Name", "phone": "+91-XXXXXXXXXX", "email": "email@domain.com", "whatsapp": "+91-XXXXXXXXXX"}}
+
+5. If any field is not found or doesn't meet validation, use empty string "" for that field.
+
+Company: {company_name}
+Address: {address}
+"""
+            else:
+                prompt = f"""You are an expert at extracting contact information for Indian businesses. I searched Google for "{company_name}" in India and got these search results:
+
+{search_results}
+
+IMPORTANT INSTRUCTIONS:
+1. Analyze the search results carefully. Look for contact information on:
+   - IndiaMART listings (indiamart.com)
+   - Justdial listings (justdial.com)
+   - TradeIndia listings (tradeindia.com)
+   - Company's official website
+   - Google Business listings
+   - Export council directories (SGEPC, FIEO, etc.)
+
+2. Extract the following information with HIGH PRIORITY:
+   - Contact person name: Look for "Proprietor:", "Director:", "Owner:", "Contact Person:", "Mr./Mrs." followed by a full name (First + Last)
+   - Phone number: Must be Indian mobile (10 digits, starts with 6, 7, 8, or 9). Format as +91-XXXXXXXXXX
+   - Email address: Business email (prefer specific emails over generic info@ or contact@)
+   - WhatsApp number: If explicitly mentioned, otherwise use phone if it's a mobile number
+
+3. VALIDATION RULES (STRICT):
+   - Phone: Must be exactly 10 digits, starting with 6-9 (Indian mobile). Reject landlines.
+   - Email: Must contain @ and valid domain (not placeholder emails)
+   - Contact name: Must be a full name (First + Last), not just "Mr." or "Proprietor"
+   - WhatsApp: Only if explicitly mentioned, otherwise leave empty
+
+4. Return ONLY valid JSON (no explanations, no markdown, no code blocks):
+{{"contact_name": "Full Name", "phone": "+91-XXXXXXXXXX", "email": "email@domain.com", "whatsapp": "+91-XXXXXXXXXX"}}
+
+5. If any field is not found or doesn't meet validation, use empty string "" for that field.
+
+Company: {company_name}
 """
         
         try:
@@ -96,7 +147,7 @@ If not found, use empty string "".
                 messages=[
                     {
                         "role": "system",
-                        "content": "You are a data extraction expert. Extract contact information from search results and return it in JSON format. Only return verified, valid Indian phone numbers and business emails."
+                        "content": "You are an expert data extraction specialist for Indian business contacts. Your task is to extract accurate contact information (name, phone, email, WhatsApp) from search results. You must:\n1. Only extract verified, valid Indian mobile numbers (10 digits, starting with 6-9)\n2. Extract full contact names (First + Last), not titles\n3. Prefer specific business emails over generic ones\n4. Return ONLY valid JSON format with no explanations\n5. Use empty strings for missing or invalid data"
                     },
                     {
                         "role": "user",
@@ -104,25 +155,44 @@ If not found, use empty string "".
                     }
                 ],
                 temperature=0.1,  # Very low temperature for factual extraction
-                max_tokens=200
+                max_tokens=300,  # Increased for better extraction
+                response_format={"type": "json_object"}  # Force JSON response
             )
             
             # Extract response
             result_text = response.choices[0].message.content.strip()
-            logger.info(f"✅ ChatGPT response for {company_name}: {result_text[:100]}")
+            logger.info(f"✅ ChatGPT response for {company_name}: {result_text[:300]}")
             
             # Try to parse JSON response
             try:
-                # Extract JSON from response (might have markdown code blocks)
-                json_match = re.search(r'\{[^}]+\}', result_text)
-                if json_match:
-                    result_json = json.loads(json_match.group())
-                    return {
-                        'contact_name': result_json.get('contact_name', ''),
-                        'phone': result_json.get('phone', ''),
-                        'email': result_json.get('email', ''),
-                        'whatsapp': result_json.get('whatsapp', '')
-                    }
+                # Since we're using response_format={"type": "json_object"}, response should be pure JSON
+                # But handle markdown code blocks just in case
+                clean_text = result_text
+                if '```' in clean_text:
+                    # Extract JSON from markdown code block
+                    json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', clean_text, re.DOTALL)
+                    if json_match:
+                        clean_text = json_match.group(1)
+                    else:
+                        # Try to find JSON object
+                        json_match = re.search(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', clean_text)
+                        if json_match:
+                            clean_text = json_match.group(0)
+                else:
+                    # Try to find JSON object directly
+                    json_match = re.search(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', clean_text, re.DOTALL)
+                    if json_match:
+                        clean_text = json_match.group(0)
+                
+                result_json = json.loads(clean_text.strip())
+                logger.info(f"✅ Parsed JSON: contact_name={result_json.get('contact_name', 'N/A')}, phone={result_json.get('phone', 'N/A')}, email={result_json.get('email', 'N/A')}")
+                
+                return {
+                    'contact_name': result_json.get('contact_name', ''),
+                    'phone': result_json.get('phone', ''),
+                    'email': result_json.get('email', ''),
+                    'whatsapp': result_json.get('whatsapp', '')
+                }
             except json.JSONDecodeError:
                 # If JSON parsing fails, try to extract from text
                 phone = self._extract_phone_from_text(result_text)
@@ -226,11 +296,11 @@ If not found, use empty string "".
                 logger.warning("SerpApi key not available for ChatGPT fallback")
                 return ""
             
-            # Build search query
+            # Build search query - more specific to get better results
             if address:
-                query = f"{company_name} {address} India phone contact email"
+                query = f'"{company_name}" {address} India contact phone email IndiaMART Justdial'
             else:
-                query = f"{company_name} India contact phone email IndiaMART Justdial"
+                query = f'"{company_name}" India contact phone email IndiaMART Justdial TradeIndia'
             
             # Call SerpApi
             params = {
