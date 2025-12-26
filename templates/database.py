@@ -1894,13 +1894,17 @@ class ContactDatabase:
         # This ensures we get the counts even if the main connection fails
         total_companies = 0
         total_contacts_db = 0
+        
+        # Try get_stats() FIRST - it creates its own connection
+        logger.info(f"📊 STEP 1: Calling get_stats() to get database counts...")
         try:
             stats_from_get_stats = self.get_stats()
             total_companies = int(stats_from_get_stats.get('total_companies', 0) or 0)
             total_contacts_db = int(stats_from_get_stats.get('total_contacts', 0) or 0)
-            logger.info(f"📊 FROM get_stats() (called FIRST) - companies: {total_companies}, contacts: {total_contacts_db}")
+            logger.info(f"✅ get_stats() SUCCESS - companies: {total_companies}, contacts: {total_contacts_db}")
         except Exception as e:
-            logger.error(f"❌ get_stats() failed in get_statistics(): {str(e)}", exc_info=True)
+            logger.error(f"❌ get_stats() FAILED: {str(e)}", exc_info=True)
+            logger.error(f"❌ Full error details: {type(e).__name__}: {str(e)}")
             # Will try direct query as fallback below
         
         # Now open connection for other queries

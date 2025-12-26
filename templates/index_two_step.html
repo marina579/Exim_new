@@ -358,7 +358,7 @@
         <!-- Tab Navigation - Auto Upload / Manual Process (Half and Half) -->
         <div class="row mb-4">
             <div class="col-md-6">
-                <a href="{{ url_for('index', tab='auto') }}" class="card text-decoration-none" style="background: {% if tab == 'auto' %}linear-gradient(135deg, #3498db 0%, #2980b9 100%){% else %}white{% endif %}; border-radius: 15px; padding: 30px; text-align: center; box-shadow: 0 8px 30px rgba(0,0,0,0.25); border: 2px solid rgba(255,255,255,0.3); transition: all 0.3s ease; height: 100%;">
+                <a href="{{ url_for('index', tab='auto') }}" class="card text-decoration-none" style="background: {% if tab == 'auto' %}linear-gradient(135deg, #3498db 0%, #2980b9 100%){% else %}#ffffff{% endif %}; border-radius: 15px; padding: 30px; text-align: center; box-shadow: 0 12px 40px rgba(0,0,0,0.4); border: 3px solid {% if tab == 'auto' %}rgba(255,255,255,0.5){% else %}#e0e0e0{% endif %}; transition: all 0.3s ease; height: 100%; transform: {% if tab == 'auto' %}scale(1.02){% else %}scale(1){% endif %};">
                     <div style="font-size: 3rem; margin-bottom: 15px; color: {% if tab == 'auto' %}white{% else %}#3498db{% endif %};">
                         <i class="fas fa-rocket"></i>
                     </div>
@@ -367,7 +367,7 @@
                 </a>
             </div>
             <div class="col-md-6">
-                <a href="{{ url_for('index', tab='manual', step=1) }}" class="card text-decoration-none" style="background: {% if tab == 'manual' %}linear-gradient(135deg, #3498db 0%, #2980b9 100%){% else %}white{% endif %}; border-radius: 15px; padding: 30px; text-align: center; box-shadow: 0 8px 30px rgba(0,0,0,0.25); border: 2px solid rgba(255,255,255,0.3); transition: all 0.3s ease; height: 100%;">
+                <a href="{{ url_for('index', tab='manual', step=1) }}" class="card text-decoration-none" style="background: {% if tab == 'manual' %}linear-gradient(135deg, #3498db 0%, #2980b9 100%){% else %}#ffffff{% endif %}; border-radius: 15px; padding: 30px; text-align: center; box-shadow: 0 12px 40px rgba(0,0,0,0.4); border: 3px solid {% if tab == 'manual' %}rgba(255,255,255,0.5){% else %}#e0e0e0{% endif %}; transition: all 0.3s ease; height: 100%; transform: {% if tab == 'manual' %}scale(1.02){% else %}scale(1){% endif %};">
                     <div style="font-size: 3rem; margin-bottom: 15px; color: {% if tab == 'manual' %}white{% else %}#3498db{% endif %};">
                         <i class="fas fa-cogs"></i>
                     </div>
@@ -381,14 +381,14 @@
         {% if tab == 'manual' %}
         <div class="row mb-4">
             <div class="col-md-6">
-                <div class="card" style="background: {% if step == 1 %}linear-gradient(135deg, #3498db 0%, #2980b9 100%){% else %}white{% endif %}; border-radius: 15px; padding: 30px; text-align: center; box-shadow: 0 8px 30px rgba(0,0,0,0.25); border: 2px solid rgba(255,255,255,0.3); transition: all 0.3s ease; height: 100%;">
+                <div class="card" style="background: {% if step == 1 %}linear-gradient(135deg, #3498db 0%, #2980b9 100%){% else %}#ffffff{% endif %}; border-radius: 15px; padding: 30px; text-align: center; box-shadow: 0 12px 40px rgba(0,0,0,0.4); border: 3px solid {% if step == 1 %}rgba(255,255,255,0.5){% else %}#e0e0e0{% endif %}; transition: all 0.3s ease; height: 100%; transform: {% if step == 1 %}scale(1.02){% else %}scale(1){% endif %};">
                     <div style="font-size: 4rem; font-weight: 700; margin-bottom: 15px; color: {% if step == 1 %}white{% else %}#3498db{% endif %};">1</div>
                     <h3 style="color: {% if step == 1 %}white{% else %}#2c3e50{% endif %}; font-weight: 700; margin-bottom: 10px;">Clean & Deduplicate</h3>
                     <p style="color: {% if step == 1 %}rgba(255,255,255,0.9){% else %}#7f8c8d{% endif %}; margin: 0;">Standardize company data</p>
                 </div>
             </div>
             <div class="col-md-6">
-                <div class="card" style="background: {% if step == 2 %}linear-gradient(135deg, #3498db 0%, #2980b9 100%){% else %}white{% endif %}; border-radius: 15px; padding: 30px; text-align: center; box-shadow: 0 8px 30px rgba(0,0,0,0.25); border: 2px solid rgba(255,255,255,0.3); transition: all 0.3s ease; height: 100%;">
+                <div class="card" style="background: {% if step == 2 %}linear-gradient(135deg, #3498db 0%, #2980b9 100%){% else %}#ffffff{% endif %}; border-radius: 15px; padding: 30px; text-align: center; box-shadow: 0 12px 40px rgba(0,0,0,0.4); border: 3px solid {% if step == 2 %}rgba(255,255,255,0.5){% else %}#e0e0e0{% endif %}; transition: all 0.3s ease; height: 100%; transform: {% if step == 2 %}scale(1.02){% else %}scale(1){% endif %};">
                     <div style="font-size: 4rem; font-weight: 700; margin-bottom: 15px; color: {% if step == 2 %}white{% else %}#3498db{% endif %};">2</div>
                     <h3 style="color: {% if step == 2 %}white{% else %}#2c3e50{% endif %}; font-weight: 700; margin-bottom: 10px;">Enrich Contacts</h3>
                     <p style="color: {% if step == 2 %}rgba(255,255,255,0.9){% else %}#7f8c8d{% endif %}; margin: 0;">Find phone, email, WhatsApp</p>

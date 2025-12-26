@@ -18,6 +18,7 @@ from dotenv import load_dotenv
 from hybrid_enricher import HybridEnricher
 from database import db
 from zoho_crm_service import ZohoCRMService
+from campaign_scheduler import campaign_scheduler
 
 # Auto-push to Zoho configuration
 AUTO_PUSH_TO_ZOHO = os.getenv('AUTO_PUSH_TO_ZOHO', 'true').lower() == 'true'
@@ -44,8 +45,15 @@ os.makedirs(app.config['CLEANED_FOLDER'], exist_ok=True)
 # Progress tracking
 progress_data = {}
 
-# Allowed extensions
-ALLOWED_EXTENSIONS = {'xlsx', 'xls', 'xlsm', 'xlsb'}
+# Allowed extensions - Support all common Excel and data formats
+ALLOWED_EXTENSIONS = {
+    # Excel formats
+    'xlsx', 'xls', 'xlsm', 'xlsb', 'xltx', 'xltm',
+    # CSV and text formats
+    'csv', 'tsv', 'txt',
+    # Other data formats
+    'json', 'ods'  # OpenDocument Spreadsheet
+}
 
 # Configuration
 MAX_RECORDS_TO_PROCESS = None  # Process ALL records
@@ -236,14 +244,136 @@ def change_password():
 # ==================== UTILITY FUNCTIONS ====================
 
 def allowed_file(filename):
-    """Check if file extension is allowed."""
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+    """Check if file extension is allowed, or if file has no extension (will detect by content)."""
+    if not filename:
+        return False
+    
+    # If file has no extension, allow it (we'll detect format by content)
+    if '.' not in filename:
+        logger.info(f"⚠️  File '{filename}' has no extension, will detect format by content")
+        return True
+    
+    # Check if extension is in allowed list
+    ext = filename.rsplit('.', 1)[1].lower()
+    return ext in ALLOWED_EXTENSIONS
+
+
+def _read_file_flexible(file_path):
+    """
+    Read file in various formats (Excel, CSV, TSV, etc.)
+    Tries to detect format by extension, then by content if no extension
+    Returns DataFrame or None if failed
+    """
+    file_ext = file_path.rsplit('.', 1)[1].lower() if '.' in file_path and file_path.rsplit('.', 1)[0] else ''
+    
+    # If no extension, try to detect by content
+    if not file_ext:
+        logger.info(f"⚠️  No file extension detected for {file_path}, trying to detect format by content...")
+        # Try Excel first (most common)
+        try:
+            df = pd.read_excel(file_path, engine='openpyxl')
+            logger.info(f"✅ Detected Excel format (no extension)")
+            return df
+        except:
+            pass
+        
+        # Try CSV
+        for encoding in ['utf-8', 'latin-1', 'iso-8859-1', 'cp1252']:
+            try:
+                df = pd.read_csv(file_path, encoding=encoding)
+                logger.info(f"✅ Detected CSV format (no extension)")
+                return df
+            except:
+                continue
+        
+        # Try TSV
+        for encoding in ['utf-8', 'latin-1', 'iso-8859-1', 'cp1252']:
+            try:
+                df = pd.read_csv(file_path, sep='\t', encoding=encoding)
+                logger.info(f"✅ Detected TSV format (no extension)")
+                return df
+            except:
+                continue
+    
+    try:
+        if file_ext in ['xlsx', 'xls', 'xlsm', 'xlsb', 'xltx', 'xltm', 'ods']:
+            # Excel formats - try different engines
+            for engine in ['openpyxl', 'xlrd']:
+                try:
+                    return pd.read_excel(file_path, engine=engine)
+                except:
+                    continue
+            # If all engines fail, try without specifying engine
+            try:
+                return pd.read_excel(file_path)
+            except:
+                pass
+        elif file_ext in ['csv']:
+            # CSV - try different encodings and separators
+            for encoding in ['utf-8', 'latin-1', 'iso-8859-1', 'cp1252']:
+                try:
+                    return pd.read_csv(file_path, encoding=encoding)
+                except:
+                    continue
+        elif file_ext in ['tsv', 'txt']:
+            # TSV/TXT - tab-delimited
+            for encoding in ['utf-8', 'latin-1', 'iso-8859-1', 'cp1252']:
+                try:
+                    return pd.read_csv(file_path, sep='\t', encoding=encoding)
+                except:
+                    try:
+                        # Try comma-separated
+                        return pd.read_csv(file_path, sep=',', encoding=encoding)
+                    except:
+                        continue
+        elif file_ext == 'json':
+            return pd.read_json(file_path)
+        
+        # If extension-based detection failed, try all formats
+        logger.info(f"⚠️  Extension-based detection failed for .{file_ext}, trying all formats...")
+        
+        # Try Excel
+        for engine in ['openpyxl', 'xlrd']:
+            try:
+                return pd.read_excel(file_path, engine=engine)
+            except:
+                continue
+        try:
+            return pd.read_excel(file_path)
+        except:
+            pass
+        
+        # Try CSV
+        for encoding in ['utf-8', 'latin-1', 'iso-8859-1', 'cp1252']:
+            try:
+                return pd.read_csv(file_path, encoding=encoding)
+            except:
+                continue
+        
+        # Try TSV
+        for encoding in ['utf-8', 'latin-1', 'iso-8859-1', 'cp1252']:
+            try:
+                return pd.read_csv(file_path, sep='\t', encoding=encoding)
+            except:
+                continue
+        
+        # Try JSON
+        try:
+            return pd.read_json(file_path)
+        except:
+            pass
+            
+    except Exception as e:
+        logger.error(f"Error reading file {file_path}: {str(e)}")
+        return None
+    
+    return None
 
 
 def clean_and_standardize_excel(file_path, file_id):
     """Step 1: Clean, deduplicate, and standardize company data."""
     progress_data[file_id]['status'] = 'processing'
-    progress_data[file_id]['message'] = 'Reading Excel file...'
+    progress_data[file_id]['message'] = 'Reading file...'
     
     try:
         df = None
@@ -253,7 +383,25 @@ def clean_and_standardize_excel(file_path, file_id):
         # Try different header rows
         for header_row in [0, 1, 2]:
             try:
-                test_df = pd.read_excel(file_path, header=header_row, engine='openpyxl')
+                # Read file with flexible format support
+                if header_row == 0:
+                    test_df = _read_file_flexible(file_path)
+                else:
+                    # For non-zero header rows, try Excel first, then fallback
+                    file_ext = file_path.rsplit('.', 1)[1].lower() if '.' in file_path else ''
+                    if file_ext in ['xlsx', 'xls', 'xlsm', 'xlsb', 'xltx', 'xltm']:
+                        try:
+                            test_df = pd.read_excel(file_path, header=header_row, engine='openpyxl')
+                        except:
+                            test_df = pd.read_excel(file_path, header=header_row, engine='xlrd')
+                    else:
+                        test_df = _read_file_flexible(file_path)
+                        if test_df is not None and header_row > 0:
+                            test_df.columns = test_df.iloc[header_row]
+                            test_df = test_df.iloc[header_row+1:].reset_index(drop=True)
+                
+                if test_df is None:
+                    continue
                 
                 # Look for company name column with priority
                 priority_keywords = [
@@ -372,6 +520,9 @@ def _auto_push_contacts_to_zoho(company_id: int, company_name: str, contacts: li
         company_name: Company name
         contacts: List of contact dictionaries (original contact data)
     """
+    import logging
+    logger = logging.getLogger(__name__)
+    
     # Check if Zoho is configured
     zoho_client_id = os.getenv('ZOHO_CLIENT_ID')
     zoho_client_secret = os.getenv('ZOHO_CLIENT_SECRET')
@@ -449,17 +600,22 @@ def _auto_push_contacts_to_zoho(company_id: int, company_name: str, contacts: li
             zoho_first_name = name_parts[0] if name_parts else 'Unknown'
             zoho_last_name = ' '.join(name_parts[1:]) if len(name_parts) > 1 else '.'
             
-            contact_data = {
-                'first_name': zoho_first_name,
-                'last_name': zoho_last_name,
-                'company': company_name,
-                'email': email,
-                'phone': phone,
-                '_contact_id': contact_id,  # Store contact ID for status updates
-            }
-            zoho_contacts.append(contact_data)
+            # Only add contact if it has at least phone OR email
+            if phone or email:
+                contact_data = {
+                    'first_name': zoho_first_name,
+                    'last_name': zoho_last_name,
+                    'company': company_name,
+                    'email': email,
+                    'phone': phone,
+                    '_contact_id': contact_id,  # Store contact ID for status updates
+                }
+                zoho_contacts.append(contact_data)
+            else:
+                logger.warning(f"⚠️  Skipping contact {contact_id} for {company_name}: No phone or email")
         
         if not zoho_contacts:
+            logger.info(f"ℹ️  No contacts with phone/email to push for {company_name}")
             return
         
         logger.info(f"📤 Auto-pushing {len(zoho_contacts)} contacts to Zoho for {company_name}...")
@@ -502,16 +658,172 @@ def _auto_push_contacts_to_zoho(company_id: int, company_name: str, contacts: li
         total_skipped = result.get('total_skipped', 0)
         total_failed = result.get('total_failed', 0)
         
+        # Store sync results for tracking
+        sync_summary = {
+            'pushed': total_pushed,
+            'skipped': total_skipped,
+            'failed': total_failed,
+            'skipped_contacts': [],
+            'pushed_contacts': []
+        }
+        
+        # Collect skipped contact details (already exist in Zoho)
+        for skipped_item in result.get('skipped_contacts', []):
+            skipped_contact = skipped_item.get('contact', {})
+            sync_summary['skipped_contacts'].append({
+                'email': skipped_contact.get('email', ''),
+                'phone': skipped_contact.get('phone', ''),
+                'lead_id': skipped_item.get('lead_id', '')
+            })
+        
+        # Collect pushed contact details (successfully synced)
+        for success_item in result.get('successful_contacts', []):
+            success_contact = success_item.get('contact', {})
+            sync_summary['pushed_contacts'].append({
+                'email': success_contact.get('email', ''),
+                'phone': success_contact.get('phone', ''),
+                'lead_id': success_item.get('lead_id', '')
+            })
+        
         if total_pushed > 0 or total_skipped > 0:
             logger.info(f"✅ Auto-pushed to Zoho: {total_pushed} pushed, {total_skipped} skipped, {total_failed} failed for {company_name}")
         else:
             logger.warning(f"⚠️  Auto-push to Zoho: All {total_failed} contacts failed for {company_name}")
+        
+        # Auto-send welcome email if enabled and contacts were pushed
+        if total_pushed > 0 and campaign_scheduler:
+            try:
+                _trigger_welcome_email_campaign(company_name, contacts)
+            except Exception as e:
+                logger.warning(f"⚠️  Auto-welcome email failed: {str(e)}")
+        
+        return sync_summary
             
     except ImportError:
         logger.debug(f"⏭️  Zoho service not available, skipping auto-push")
+        return None
     except Exception as e:
         logger.error(f"❌ Error in auto-push to Zoho for {company_name}: {str(e)}", exc_info=True)
         # Don't raise - auto-push failures shouldn't break the main process
+        return None
+
+
+def _trigger_welcome_email_campaign(company_name: str, contacts: list):
+    """
+    Automatically trigger welcome email campaign for new contacts.
+    Checks if auto-welcome email is enabled and sends immediately.
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    if not campaign_scheduler:
+        return
+    
+    # Check if auto-welcome email is enabled
+    auto_welcome_enabled = os.getenv('AUTO_WELCOME_EMAIL', 'false').lower() == 'true'
+    if not auto_welcome_enabled:
+        logger.debug("⏭️  Auto-welcome email disabled")
+        return
+    
+    # Get welcome email campaign config
+    welcome_list_key = os.getenv('ZOHO_CAMPAIGNS_WELCOME_LIST', 'marketing_list')
+    welcome_template_key = os.getenv('ZOHO_CAMPAIGNS_WELCOME_TEMPLATE', '')
+    
+    if not welcome_template_key:
+        logger.warning("⚠️  Welcome email template not configured (ZOHO_CAMPAIGNS_WELCOME_TEMPLATE)")
+        return
+    
+    try:
+        # Get campaigns service
+        from zoho_crm_service import ZohoCRMService
+        crm_service = ZohoCRMService()
+        access_token, error = crm_service.get_access_token()
+        
+        if error or not access_token:
+            logger.warning(f"⚠️  Cannot get access token for welcome email: {error}")
+            return
+        
+        from zoho_campaigns_service import ZohoCampaignsService
+        campaigns_service = ZohoCampaignsService(access_token=access_token)
+        
+        # Sync new contacts to welcome list
+        logger.info(f"📧 Auto-sending welcome email for {len(contacts)} new contacts from {company_name}")
+        success, count = campaigns_service.add_contacts_to_list(welcome_list_key, contacts)
+        
+        if success and count > 0:
+            # Send welcome email immediately
+            from_email = os.getenv('ZOHO_CAMPAIGNS_FROM_EMAIL', '')
+            from_name = os.getenv('ZOHO_CAMPAIGNS_FROM_NAME', 'Marineco AI')
+            subject = os.getenv('ZOHO_CAMPAIGNS_WELCOME_SUBJECT', 'Welcome to Marineco!')
+            
+            # Note: Brochures are embedded in email body (not attachments)
+            # The template includes {{brochure1_url}} and {{brochure2_url}} placeholders
+            # These should be replaced with actual Zoho Campaigns file URLs
+            
+            send_success, campaign_id, message = campaigns_service.send_campaign(
+                list_key=welcome_list_key,
+                template_key=welcome_template_key,
+                subject=subject,
+                from_email=from_email,
+                from_name=from_name
+            )
+            
+            if send_success:
+                logger.info(f"✅ Welcome email sent successfully: {campaign_id}")
+                
+                # Start email sequence for this contact
+                try:
+                    from email_sequence_manager import email_sequence_manager
+                    # Get contact ID from database
+                    conn = db._get_connection()
+                    cursor = conn.cursor()
+                    try:
+                        if db.db_type == 'postgresql':
+                            cursor.execute("""
+                                SELECT id, email, first_name, contact_name 
+                                FROM contacts 
+                                WHERE email = %s 
+                                ORDER BY id DESC 
+                                LIMIT 1
+                            """, (contacts[0].get('email', '').lower(),))
+                        else:
+                            cursor.execute("""
+                                SELECT id, email, first_name, contact_name 
+                                FROM contacts 
+                                WHERE email = ? 
+                                ORDER BY id DESC 
+                                LIMIT 1
+                            """, (contacts[0].get('email', '').lower(),))
+                        
+                        row = cursor.fetchone()
+                        if row:
+                            if db.db_type == 'postgresql':
+                                contact_id = row['id']
+                                email = row['email']
+                                first_name = row['first_name'] or row['contact_name'] or ''
+                            else:
+                                contact_id = row[0]
+                                email = row[1]
+                                first_name = row[2] or row[3] or ''
+                            
+                            # Start email sequence
+                            email_sequence_manager.start_sequence_for_contact(
+                                contact_id=contact_id,
+                                contact_email=email,
+                                first_name=first_name,
+                                company_name=company_name
+                            )
+                    finally:
+                        conn.close()
+                except Exception as e:
+                    logger.warning(f"⚠️  Failed to start email sequence: {str(e)}")
+            else:
+                logger.warning(f"⚠️  Welcome email failed: {message}")
+        else:
+            logger.warning(f"⚠️  Failed to sync contacts for welcome email")
+            
+    except Exception as e:
+        logger.error(f"❌ Error sending welcome email: {str(e)}", exc_info=True)
 
 
 def enrich_contacts(file_path, file_id):
@@ -588,6 +900,9 @@ def enrich_contacts(file_path, file_id):
             progress_data[file_id]['percentage'] = int((idx + 1) / total * 100)
             progress_data[file_id]['current_seller'] = company_name
             
+            # Initialize zoho_sync_summary for this company
+            zoho_sync_summary = None
+            
             # 🔍 CHECK CACHE FIRST (avoid re-processing)
             company_id = db.check_company_exists(company_name)
             
@@ -616,9 +931,10 @@ def enrich_contacts(file_path, file_id):
                         auto_push = os.getenv('AUTO_PUSH_TO_ZOHO', 'true').lower() == 'true'
                         if auto_push:
                             try:
-                                _auto_push_contacts_to_zoho(company_id, company_name, contacts)
+                                zoho_sync_summary = _auto_push_contacts_to_zoho(company_id, company_name, contacts)
                             except Exception as e:
                                 logger.warning(f"⚠️  Auto-push to Zoho failed for {company_name}: {str(e)}")
+                                zoho_sync_summary = {'pushed': 0, 'skipped': 0, 'failed': len(contacts), 'skipped_contacts': [], 'pushed_contacts': []}
                     except Exception as e:
                         logger.error(f"Failed to save to database: {str(e)}")
             
@@ -645,6 +961,29 @@ def enrich_contacts(file_path, file_id):
                     if whatsapp:
                         stats['whatsapp'] += 1
                     
+                    # Check Zoho sync status for this contact
+                    zoho_status = ''
+                    zoho_message = ''
+                    zoho_lead_id = ''
+                    
+                    if zoho_sync_summary:
+                        # Check if this contact was skipped (already exists in Zoho)
+                        for skipped in zoho_sync_summary.get('skipped_contacts', []):
+                            if (email and skipped.get('email') == email) or (phone and skipped.get('phone') == phone):
+                                zoho_status = 'Already Exists'
+                                zoho_message = 'Duplicate - Contact already in Zoho CRM'
+                                zoho_lead_id = skipped.get('lead_id', '')
+                                break
+                        
+                        # Check if this contact was pushed
+                        if not zoho_status:
+                            for pushed in zoho_sync_summary.get('pushed_contacts', []):
+                                if (email and pushed.get('email') == email) or (phone and pushed.get('phone') == phone):
+                                    zoho_status = 'Synced'
+                                    zoho_message = 'Successfully synced to Zoho CRM'
+                                    zoho_lead_id = pushed.get('lead_id', '')
+                                    break
+                    
                     results.append({
                         'Lead Name': contact_name,
                         'First Name': first_name,
@@ -657,7 +996,10 @@ def enrich_contacts(file_path, file_id):
                         'Lead Owner': 'Auto Import',
                         'Description': f"Address: {company_addr}",
                         'Website': contact.get('source_url', ''),
-                        'WhatsApp': whatsapp
+                        'WhatsApp': whatsapp,
+                        'Zoho Status': zoho_status,
+                        'Zoho Message': zoho_message,
+                        'Zoho Lead ID': zoho_lead_id
                     })
             else:
                 results.append({
@@ -685,12 +1027,31 @@ def enrich_contacts(file_path, file_id):
         # Get database stats
         db_stats = db.get_stats()
         
+        # Calculate Zoho sync summary from results
+        zoho_pushed = sum(1 for r in results if r.get('Zoho Status') == 'Synced')
+        zoho_skipped = sum(1 for r in results if r.get('Zoho Status') == 'Already Exists')
+        zoho_failed = len([r for r in results if r.get('Zoho Status') == ''])
+        
+        zoho_summary = {
+            'pushed': zoho_pushed,
+            'skipped': zoho_skipped,
+            'failed': zoho_failed,
+            'total': len([r for r in results if r.get('Zoho Status')])
+        }
+        
         progress_data[file_id]['status'] = 'complete'
         progress_data[file_id]['percentage'] = 100
         progress_data[file_id]['output_file'] = output_filename
         progress_data[file_id]['stats'] = stats
         progress_data[file_id]['db_stats'] = db_stats
-        progress_data[file_id]['message'] = f'✅ Complete! Found {stats["phone"]} phones, {stats["email"]} emails. (💾 Cached: {stats["cached"]}, 🔍 Processed: {stats["processed"]})'
+        progress_data[file_id]['zoho_sync'] = zoho_summary
+        
+        # Build message with Zoho sync info
+        message = f'✅ Complete! Found {stats["phone"]} phones, {stats["email"]} emails. (💾 Cached: {stats["cached"]}, 🔍 Processed: {stats["processed"]})'
+        if zoho_summary['total'] > 0:
+            message += f' | 📤 Zoho: {zoho_pushed} pushed, {zoho_skipped} skipped, {zoho_failed} failed'
+        
+        progress_data[file_id]['message'] = message
         
     except Exception as e:
         progress_data[file_id]['status'] = 'error'
@@ -1266,6 +1627,13 @@ def process_company():
                         logger.info(f"✅ Zoho sync complete: {pushed} pushed, {skipped} skipped, {failed} failed")
                     finally:
                         conn.close()
+                    
+                    # Auto-send welcome email if enabled and contacts were pushed
+                    if pushed > 0 and campaign_scheduler:
+                        try:
+                            _trigger_welcome_email_campaign(company_name, contacts)
+                        except Exception as e:
+                            logger.warning(f"⚠️  Auto-welcome email failed: {str(e)}")
                 except Exception as e:
                     logger.warning(f"⚠️  Auto-sync to Zoho failed for {company_name}: {str(e)}")
                     zoho_sync_status = {
@@ -1872,8 +2240,8 @@ def upload_automated():
         if file.filename == '':
             return jsonify({'success': False, 'error': 'No file selected'}), 400
         
-        if not file.filename.endswith(('.xlsx', '.xls')):
-            return jsonify({'success': False, 'error': 'Please upload an Excel file (.xlsx or .xls)'}), 400
+        if not allowed_file(file.filename):
+            return jsonify({'success': False, 'error': f'Unsupported file format. Supported: Excel (.xlsx, .xls, .xlsm, .xlsb), CSV (.csv), TSV (.tsv), Text (.txt), JSON (.json)'}), 400
         
         # Save uploaded file
         filename = secure_filename(file.filename)
@@ -2001,8 +2369,39 @@ def dashboard():
     
     try:
         days = request.args.get('days', 90, type=int)
+        logger.info(f"📊 Loading dashboard for last {days} days")
+        
+        # CRITICAL: Test get_stats() directly first to verify it works
+        try:
+            direct_stats = db.get_stats()
+            logger.info(f"🔍 DIRECT get_stats() test: companies={direct_stats.get('total_companies', 0)}, contacts={direct_stats.get('total_contacts', 0)}")
+        except Exception as e:
+            logger.error(f"❌ DIRECT get_stats() test FAILED: {str(e)}", exc_info=True)
+        
         stats = db.get_statistics(days=days)
         recent_jobs = db.get_processing_history(limit=10)
+        
+        # Log statistics for debugging
+        logger.info(f"📊 Dashboard stats: companies={stats.get('database_companies', 0)}, contacts={stats.get('database_contacts', 0)}, jobs={stats.get('total_jobs', 0)}")
+        logger.info(f"📊 Full stats dict keys: {list(stats.keys())}")
+        logger.info(f"📊 Stats values: {stats}")
+        
+        # Ensure database counts are always present
+        if 'database_companies' not in stats:
+            stats['database_companies'] = 0
+        if 'database_contacts' not in stats:
+            stats['database_contacts'] = 0
+        
+        # CRITICAL: If still 0, try one more time with get_stats()
+        if stats.get('database_companies', 0) == 0 and stats.get('database_contacts', 0) == 0:
+            logger.warning(f"⚠️  Dashboard stats are 0, trying get_stats() one more time...")
+            try:
+                fallback_stats = db.get_stats()
+                stats['database_companies'] = int(fallback_stats.get('total_companies', 0) or 0)
+                stats['database_contacts'] = int(fallback_stats.get('total_contacts', 0) or 0)
+                logger.info(f"✅ Fallback get_stats() SUCCESS: companies={stats['database_companies']}, contacts={stats['database_contacts']}")
+            except Exception as e:
+                logger.error(f"❌ Fallback get_stats() also FAILED: {str(e)}", exc_info=True)
         
         return render_template('dashboard.html',
                              stats=stats,
@@ -2010,7 +2409,7 @@ def dashboard():
                              days=days,
                              username=session.get('username'))
     except Exception as e:
-        logger.error(f"Error loading dashboard: {str(e)}")
+        logger.error(f"Error loading dashboard: {str(e)}", exc_info=True)
         flash(f'Error loading dashboard: {str(e)}', 'error')
         return redirect(url_for('index'))
 
@@ -2543,9 +2942,340 @@ def migrate_database_route():
         return redirect(url_for('view_contacts'))
 
 
+# ==================== EMAIL CAMPAIGNS & TRACKING ====================
+
+@app.route('/campaigns')
+@login_required
+def campaigns_page():
+    """Campaign management page with email tracking."""
+    return render_template('campaigns.html')
+
+
+@app.route('/test-db-stats')
+@login_required
+def test_db_stats():
+    """Test endpoint to debug database statistics."""
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    try:
+        conn = db._get_connection()
+        cursor = conn.cursor()
+        
+        # Test companies count
+        if db.db_type == 'postgresql':
+            cursor.execute("SELECT COUNT(*) as total FROM companies")
+        else:
+            cursor.execute("SELECT COUNT(*) FROM companies")
+        companies_row = cursor.fetchone()
+        
+        # Test contacts count
+        if db.db_type == 'postgresql':
+            cursor.execute("SELECT COUNT(*) as total FROM contacts")
+        else:
+            cursor.execute("SELECT COUNT(*) FROM contacts")
+        contacts_row = cursor.fetchone()
+        
+        conn.close()
+        
+        # Format results
+        if db.db_type == 'postgresql':
+            companies_count = companies_row.get('total', 0) if isinstance(companies_row, dict) else companies_row[0] if companies_row else 0
+            contacts_count = contacts_row.get('total', 0) if isinstance(contacts_row, dict) else contacts_row[0] if contacts_row else 0
+            companies_type = type(companies_row).__name__
+            contacts_type = type(contacts_row).__name__
+        else:
+            companies_count = companies_row[0] if companies_row else 0
+            contacts_count = contacts_row[0] if contacts_row else 0
+            companies_type = type(companies_row).__name__
+            contacts_type = type(contacts_row).__name__
+        
+        # Get stats from function
+        stats = db.get_statistics(days=90)
+        
+        return jsonify({
+            'status': 'success',
+            'db_type': db.db_type,
+            'direct_query': {
+                'companies': {
+                    'count': companies_count,
+                    'type': companies_type,
+                    'raw': str(companies_row)
+                },
+                'contacts': {
+                    'count': contacts_count,
+                    'type': contacts_type,
+                    'raw': str(contacts_row)
+                }
+            },
+            'get_statistics': {
+                'database_companies': stats.get('database_companies', 'MISSING'),
+                'database_contacts': stats.get('database_contacts', 'MISSING'),
+                'all_keys': list(stats.keys())
+            }
+        })
+    except Exception as e:
+        logger.error(f"Error in test-db-stats: {str(e)}", exc_info=True)
+        return jsonify({
+            'status': 'error',
+            'message': str(e),
+            'error_type': type(e).__name__
+        }), 500
+
+
+@app.route('/api/campaigns/reports/<campaign_id>', methods=['GET'])
+@login_required
+def get_campaign_report(campaign_id):
+    """Get campaign tracking report."""
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    try:
+        # Get access token
+        from zoho_crm_service import ZohoCRMService
+        crm_service = ZohoCRMService()
+        access_token, error = crm_service.get_access_token()
+        
+        if error or not access_token:
+            return jsonify({
+                'status': 'error',
+                'message': f'Cannot get access token: {error}'
+            }), 500
+        
+        # Get campaign report
+        from zoho_campaigns_service import ZohoCampaignsService
+        campaigns_service = ZohoCampaignsService(access_token=access_token)
+        
+        report, error = campaigns_service.get_campaign_reports(campaign_id)
+        
+        if report:
+            return jsonify({
+                'status': 'success',
+                'report': report
+            })
+        else:
+            return jsonify({
+                'status': 'error',
+                'message': error or 'Failed to get campaign report'
+            }), 500
+            
+    except Exception as e:
+        logger.error(f"Error getting campaign report: {str(e)}", exc_info=True)
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+
+@app.route('/api/campaigns/all', methods=['GET'])
+@login_required
+def get_all_campaigns():
+    """Get all campaigns from Zoho Campaigns."""
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    try:
+        limit = request.args.get('limit', 50, type=int)
+        
+        # Get access token
+        from zoho_crm_service import ZohoCRMService
+        crm_service = ZohoCRMService()
+        access_token, error = crm_service.get_access_token()
+        
+        if error or not access_token:
+            return jsonify({
+                'status': 'error',
+                'message': f'Cannot get access token: {error}'
+            }), 500
+        
+        # Get campaigns
+        from zoho_campaigns_service import ZohoCampaignsService
+        campaigns_service = ZohoCampaignsService(access_token=access_token)
+        
+        campaigns, error = campaigns_service.get_all_campaigns(limit=limit)
+        
+        if campaigns is not None:
+            return jsonify({
+                'status': 'success',
+                'campaigns': campaigns
+            })
+        else:
+            return jsonify({
+                'status': 'error',
+                'message': error or 'Failed to get campaigns'
+            }), 500
+            
+    except Exception as e:
+        logger.error(f"Error getting campaigns: {str(e)}", exc_info=True)
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+
+@app.route('/api/email-sequences/process', methods=['POST'])
+@login_required
+def process_email_sequences_manual():
+    """Manually trigger email sequence follow-up processing."""
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    try:
+        from email_sequence_manager import email_sequence_manager
+        
+        if not email_sequence_manager:
+            return jsonify({
+                'status': 'error',
+                'message': 'Email sequence manager not available'
+            }), 500
+        
+        stats = email_sequence_manager.process_follow_ups()
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Email sequences processed',
+            'stats': stats
+        })
+        
+    except Exception as e:
+        logger.error(f"Error processing email sequences: {str(e)}", exc_info=True)
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+
+@app.route('/api/email-sequences/mark-replied', methods=['POST'])
+@login_required
+def mark_email_replied():
+    """Mark a contact as replied (stops email sequence)."""
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    try:
+        data = request.get_json()
+        email = data.get('email', '').strip().lower()
+        
+        if not email:
+            return jsonify({
+                'status': 'error',
+                'message': 'Email address required'
+            }), 400
+        
+        from email_sequence_manager import email_sequence_manager
+        
+        if not email_sequence_manager:
+            return jsonify({
+                'status': 'error',
+                'message': 'Email sequence manager not available'
+            }), 500
+        
+        success = email_sequence_manager.mark_contact_replied(email)
+        
+        if success:
+            return jsonify({
+                'status': 'success',
+                'message': f'Contact {email} marked as replied - sequence stopped'
+            })
+        else:
+            return jsonify({
+                'status': 'info',
+                'message': 'Contact not found or already marked as replied'
+            })
+        
+    except Exception as e:
+        logger.error(f"Error marking contact as replied: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+
+@app.route('/api/email-sequences/stats', methods=['GET'])
+@login_required
+def get_email_sequence_stats():
+    """Get email sequence statistics."""
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    try:
+        conn = db._get_connection()
+        cursor = conn.cursor()
+        
+        try:
+            if db.db_type == 'postgresql':
+                cursor.execute("""
+                    SELECT 
+                        COUNT(*) FILTER (WHERE email_sequence_status = 'in_progress') as in_progress,
+                        COUNT(*) FILTER (WHERE email_sequence_status = 'completed') as completed,
+                        COUNT(*) FILTER (WHERE email_replied = TRUE) as replied,
+                        COUNT(*) FILTER (WHERE email_opened = TRUE) as opened,
+                        COUNT(*) FILTER (WHERE email_clicked = TRUE) as clicked,
+                        COUNT(*) FILTER (WHERE email_sequence_step = 1) as step1,
+                        COUNT(*) FILTER (WHERE email_sequence_step = 2) as step2,
+                        COUNT(*) FILTER (WHERE email_sequence_step = 3) as step3
+                    FROM contacts
+                    WHERE email IS NOT NULL AND email != ''
+                """)
+            else:
+                cursor.execute("""
+                    SELECT 
+                        SUM(CASE WHEN email_sequence_status = 'in_progress' THEN 1 ELSE 0 END) as in_progress,
+                        SUM(CASE WHEN email_sequence_status = 'completed' THEN 1 ELSE 0 END) as completed,
+                        SUM(CASE WHEN email_replied = 1 THEN 1 ELSE 0 END) as replied,
+                        SUM(CASE WHEN email_opened = 1 THEN 1 ELSE 0 END) as opened,
+                        SUM(CASE WHEN email_clicked = 1 THEN 1 ELSE 0 END) as clicked,
+                        SUM(CASE WHEN email_sequence_step = 1 THEN 1 ELSE 0 END) as step1,
+                        SUM(CASE WHEN email_sequence_step = 2 THEN 1 ELSE 0 END) as step2,
+                        SUM(CASE WHEN email_sequence_step = 3 THEN 1 ELSE 0 END) as step3
+                    FROM contacts
+                    WHERE email IS NOT NULL AND email != ''
+                """)
+            
+            row = cursor.fetchone()
+            
+            if db.db_type == 'postgresql':
+                stats = {
+                    'in_progress': row['in_progress'] or 0,
+                    'completed': row['completed'] or 0,
+                    'replied': row['replied'] or 0,
+                    'opened': row['opened'] or 0,
+                    'clicked': row['clicked'] or 0,
+                    'step1': row['step1'] or 0,
+                    'step2': row['step2'] or 0,
+                    'step3': row['step3'] or 0
+                }
+            else:
+                stats = {
+                    'in_progress': row[0] or 0,
+                    'completed': row[1] or 0,
+                    'replied': row[2] or 0,
+                    'opened': row[3] or 0,
+                    'clicked': row[4] or 0,
+                    'step1': row[5] or 0,
+                    'step2': row[6] or 0,
+                    'step3': row[7] or 0
+                }
+            
+            return jsonify({
+                'status': 'success',
+                'stats': stats
+            })
+            
+        finally:
+            conn.close()
+            
+    except Exception as e:
+        logger.error(f"Error getting email sequence stats: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+
 if __name__ == '__main__':
     print("\n" + "="*70)
-    print("🚢 MARINECO AI EXIM CONTACT FINDER - SECURE VERSION")
+    print("🚢 MARINECO AI LABS - SECURE VERSION")
     print("="*70)
     print("\n📍 Login: http://127.0.0.1:5000/login")
     print("   Username: admin")

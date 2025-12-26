@@ -2371,6 +2371,13 @@ def dashboard():
         days = request.args.get('days', 90, type=int)
         logger.info(f"📊 Loading dashboard for last {days} days")
         
+        # CRITICAL: Test get_stats() directly first to verify it works
+        try:
+            direct_stats = db.get_stats()
+            logger.info(f"🔍 DIRECT get_stats() test: companies={direct_stats.get('total_companies', 0)}, contacts={direct_stats.get('total_contacts', 0)}")
+        except Exception as e:
+            logger.error(f"❌ DIRECT get_stats() test FAILED: {str(e)}", exc_info=True)
+        
         stats = db.get_statistics(days=days)
         recent_jobs = db.get_processing_history(limit=10)
         
@@ -2384,6 +2391,17 @@ def dashboard():
             stats['database_companies'] = 0
         if 'database_contacts' not in stats:
             stats['database_contacts'] = 0
+        
+        # CRITICAL: If still 0, try one more time with get_stats()
+        if stats.get('database_companies', 0) == 0 and stats.get('database_contacts', 0) == 0:
+            logger.warning(f"⚠️  Dashboard stats are 0, trying get_stats() one more time...")
+            try:
+                fallback_stats = db.get_stats()
+                stats['database_companies'] = int(fallback_stats.get('total_companies', 0) or 0)
+                stats['database_contacts'] = int(fallback_stats.get('total_contacts', 0) or 0)
+                logger.info(f"✅ Fallback get_stats() SUCCESS: companies={stats['database_companies']}, contacts={stats['database_contacts']}")
+            except Exception as e:
+                logger.error(f"❌ Fallback get_stats() also FAILED: {str(e)}", exc_info=True)
         
         return render_template('dashboard.html',
                              stats=stats,
