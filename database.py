@@ -1987,34 +1987,44 @@ class ContactDatabase:
             
             # Get total companies and contacts in database
             try:
-                cursor.execute("SELECT COUNT(*) FROM companies")
-                total_companies_row = cursor.fetchone()
-                if total_companies_row:
-                    if self.db_type == 'postgresql' and isinstance(total_companies_row, dict):
-                        # PostgreSQL returns dict like {'count': 151}
-                        total_companies = total_companies_row.get('count', 0) or 0
+                if self.db_type == 'postgresql':
+                    cursor.execute("SELECT COUNT(*) as count FROM companies")
+                    total_companies_row = cursor.fetchone()
+                    if total_companies_row:
+                        # PostgreSQL RealDictCursor returns dict
+                        if isinstance(total_companies_row, dict):
+                            total_companies = total_companies_row.get('count', 0) or 0
+                        else:
+                            # Fallback if not dict
+                            total_companies = total_companies_row[0] if total_companies_row else 0
                     else:
-                        # SQLite returns tuple like (151,)
-                        total_companies = total_companies_row[0] if total_companies_row else 0
+                        total_companies = 0
                 else:
-                    total_companies = 0
+                    cursor.execute("SELECT COUNT(*) FROM companies")
+                    total_companies_row = cursor.fetchone()
+                    total_companies = total_companies_row[0] if total_companies_row else 0
                 logger.info(f"📊 Total companies in database: {total_companies}")
             except Exception as e:
                 logger.warning(f"Error counting companies: {str(e)}")
                 total_companies = 0
             
             try:
-                cursor.execute("SELECT COUNT(*) FROM contacts")
-                total_contacts_row = cursor.fetchone()
-                if total_contacts_row:
-                    if self.db_type == 'postgresql' and isinstance(total_contacts_row, dict):
-                        # PostgreSQL returns dict like {'count': 567}
-                        total_contacts_db = total_contacts_row.get('count', 0) or 0
+                if self.db_type == 'postgresql':
+                    cursor.execute("SELECT COUNT(*) as count FROM contacts")
+                    total_contacts_row = cursor.fetchone()
+                    if total_contacts_row:
+                        # PostgreSQL RealDictCursor returns dict
+                        if isinstance(total_contacts_row, dict):
+                            total_contacts_db = total_contacts_row.get('count', 0) or 0
+                        else:
+                            # Fallback if not dict
+                            total_contacts_db = total_contacts_row[0] if total_contacts_row else 0
                     else:
-                        # SQLite returns tuple like (567,)
-                        total_contacts_db = total_contacts_row[0] if total_contacts_row else 0
+                        total_contacts_db = 0
                 else:
-                    total_contacts_db = 0
+                    cursor.execute("SELECT COUNT(*) FROM contacts")
+                    total_contacts_row = cursor.fetchone()
+                    total_contacts_db = total_contacts_row[0] if total_contacts_row else 0
                 logger.info(f"📊 Total contacts in database: {total_contacts_db}")
             except Exception as e:
                 logger.warning(f"Error counting contacts: {str(e)}")
