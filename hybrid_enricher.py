@@ -267,14 +267,59 @@ class HybridEnricher:
         if self.serpapi:
             logger.info(f"[4/7] 🔍 Calling SerpAPI ONCE for: {company_name} (will share results with Gemini & ChatGPT)")
             # Log SerpAPI key prefix to verify new key is being used
-            serpapi_key = os.getenv('SERPAPI_API_KEY')
+            serpapi_key = os.getenv('SERPAPI_API_KEY') or self.serpapi_key
             if serpapi_key:
                 logger.info(f"   🔑 Using SerpAPI key: {serpapi_key[:10]}... (first 10 chars)")
             try:
-                # Use ChatGPT's internal method to get search results text (same format)
-                from chatgpt_enricher import ChatGPTEnricher
-                temp_chatgpt = ChatGPTEnricher()
-                serpapi_search_results = temp_chatgpt._search_with_serpapi(company_name, address)
+                # Use SerpApiEnricher to get search results - call the API directly
+                # Build search query
+                if address:
+                    query = f"{company_name} {address} India phone contact email"
+                else:
+                    query = f"{company_name} India phone contact email"
+                
+                # Call SerpAPI directly to get raw search results
+                import requests
+                params = {
+                    'q': query,
+                    'api_key': self.serpapi_key,
+                    'engine': 'google',
+                    'gl': 'in',  # India
+                    'hl': 'en',
+                    'num': 10
+                }
+                
+                logger.info(f"   🌐 Making SerpAPI call: {query[:50]}...")
+                response = requests.get("https://serpapi.com/search", params=params, timeout=30)
+                response.raise_for_status()
+                data = response.json()
+                
+                # Format search results as text (same format as ChatGPT expects)
+                results_text = []
+                
+                # Extract from knowledge graph
+                if 'knowledge_graph' in data:
+                    kg = data['knowledge_graph']
+                    kg_text = f"Business: {kg.get('title', '')} - {kg.get('type', '')}\n"
+                    if 'address' in kg: kg_text += f"Address: {kg['address']}\n"
+                    if 'phone' in kg: kg_text += f"Phone: {kg['phone']}\n"
+                    if 'website' in kg: kg_text += f"Website: {kg['website']}\n"
+                    results_text.append(kg_text)
+                
+                # Extract from organic results
+                if 'organic_results' in data:
+                    for res in data['organic_results']:
+                        results_text.append(f"Title: {res.get('title', '')}\nSnippet: {res.get('snippet', '')}\nLink: {res.get('link', '')}")
+                
+                # Extract from local results
+                if 'local_results' in data and isinstance(data.get('local_results'), list):
+                    for local in data.get('local_results', [])[:3]:
+                        local_text = f"Business: {local.get('title', '')}\n"
+                        if 'phone' in local: local_text += f"Phone: {local['phone']}\n"
+                        if 'address' in local: local_text += f"Address: {local['address']}\n"
+                        results_text.append(local_text)
+                
+                serpapi_search_results = '\n---\n'.join(results_text[:15])  # Limit to top 15 results
                 if serpapi_search_results and serpapi_search_results != "No search results found":
                     serpapi_used = True  # Mark that SerpAPI was successfully used
                     logger.info(f"✅ Got {len(serpapi_search_results)} chars from SerpAPI (1 call - will be shared)")
@@ -284,9 +329,12 @@ class HybridEnricher:
                     serpapi_search_results = ""
             except Exception as e:
                 logger.error(f"❌ SerpAPI error: {str(e)}")
+                logger.exception(e)  # Full traceback for debugging
                 serpapi_search_results = ""
         else:
             logger.warning(f"⚠️  SerpAPI not available (key missing or not initialized)")
+            logger.warning(f"   🔍 Check: SERPAPI_API_KEY env var = {bool(os.getenv('SERPAPI_API_KEY'))}")
+            logger.warning(f"   🔍 Check: self.serpapi_key = {bool(self.serpapi_key)}")
         
         # Step 4b: Try Gemini AI (with SerpAPI results as context if available)
         if self.gemini:
