@@ -2376,6 +2376,14 @@ def dashboard():
         
         # Log statistics for debugging
         logger.info(f"📊 Dashboard stats: companies={stats.get('database_companies', 0)}, contacts={stats.get('database_contacts', 0)}, jobs={stats.get('total_jobs', 0)}")
+        logger.info(f"📊 Full stats dict keys: {list(stats.keys())}")
+        logger.info(f"📊 Stats values: {stats}")
+        
+        # Ensure database counts are always present
+        if 'database_companies' not in stats:
+            stats['database_companies'] = 0
+        if 'database_contacts' not in stats:
+            stats['database_contacts'] = 0
         
         return render_template('dashboard.html',
                              stats=stats,
@@ -3177,7 +3185,7 @@ def get_email_sequence_stats():
 
 if __name__ == '__main__':
     print("\n" + "="*70)
-    print("🚢 MARINECO AI EXIM CONTACT FINDER - SECURE VERSION")
+    print("🚢 MARINECO AI LABS - SECURE VERSION")
     print("="*70)
     print("\n📍 Login: http://127.0.0.1:5000/login")
     print("   Username: admin")

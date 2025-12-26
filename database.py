@@ -1910,80 +1910,59 @@ class ContactDatabase:
                 """)
                 table_exists = cursor.fetchone() is not None
             
-            if not table_exists:
-                # Table doesn't exist, return empty stats
-                logger.warning("⚠️  processing_jobs table does not exist, returning empty statistics")
-                try:
-                    cursor.execute("SELECT COUNT(*) FROM companies")
-                    total_companies_row = cursor.fetchone()
-                    total_companies = total_companies_row[0] if total_companies_row else 0
-                except:
-                    total_companies = 0
-                
-                try:
-                    cursor.execute("SELECT COUNT(*) FROM contacts")
-                    total_contacts_row = cursor.fetchone()
-                    total_contacts_db = total_contacts_row[0] if total_contacts_row else 0
-                except:
-                    total_contacts_db = 0
-                
-                return {
-                    'total_jobs': 0,
-                    'completed_jobs': 0,
-                    'failed_jobs': 0,
-                    'processing_jobs': 0,
-                    'total_contacts': 0,
-                    'total_duplicates': 0,
-                    'total_new_companies': 0,
-                    'total_api_calls': 0,
-                    'avg_processing_time': 0,
-                    'database_companies': total_companies or 0,
-                    'database_contacts': total_contacts_db or 0,
-                    'contacts_by_date': []
-                }
+            # Initialize job_stats to zeros (will be updated if table exists)
+            job_stats = (0, 0, 0, 0, 0, 0, 0, 0, 0)
             
-            if self.db_type == 'postgresql':
-                date_filter = f"uploaded_at >= NOW() - INTERVAL '{days} days'"
+            # Only query processing_jobs if table exists
+            if table_exists:
+                try:
+                    if self.db_type == 'postgresql':
+                        date_filter = f"uploaded_at >= NOW() - INTERVAL '{days} days'"
+                    else:
+                        date_filter = f"uploaded_at >= datetime('now', '-{days} days')"
+                    
+                    # Get job statistics
+                    cursor.execute(f"""
+                        SELECT 
+                            COUNT(*) as total_jobs,
+                            SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed_jobs,
+                            SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed_jobs,
+                            SUM(CASE WHEN status = 'processing' THEN 1 ELSE 0 END) as processing_jobs,
+                            COALESCE(SUM(contacts_found), 0) as total_contacts,
+                            COALESCE(SUM(duplicates_removed), 0) as total_duplicates,
+                            COALESCE(SUM(new_companies), 0) as total_new_companies,
+                            COALESCE(SUM(api_calls_used), 0) as total_api_calls,
+                            COALESCE(AVG(processing_time), 0) as avg_processing_time
+                        FROM processing_jobs
+                        WHERE {date_filter}
+                    """)
+                    
+                    job_stats = cursor.fetchone()
+                    
+                    # Handle case where job_stats is None or empty
+                    if not job_stats:
+                        job_stats = (0, 0, 0, 0, 0, 0, 0, 0, 0)
+                    
+                    # Convert PostgreSQL dict result to tuple if needed
+                    if self.db_type == 'postgresql' and isinstance(job_stats, dict):
+                        job_stats = (
+                            job_stats.get('total_jobs', 0) or 0,
+                            job_stats.get('completed_jobs', 0) or 0,
+                            job_stats.get('failed_jobs', 0) or 0,
+                            job_stats.get('processing_jobs', 0) or 0,
+                            job_stats.get('total_contacts', 0) or 0,
+                            job_stats.get('total_duplicates', 0) or 0,
+                            job_stats.get('total_new_companies', 0) or 0,
+                            job_stats.get('total_api_calls', 0) or 0,
+                            job_stats.get('avg_processing_time', 0) or 0
+                        )
+                    elif not job_stats:
+                        job_stats = (0, 0, 0, 0, 0, 0, 0, 0, 0)
+                except Exception as e:
+                    logger.warning(f"Error fetching job stats from processing_jobs: {str(e)}")
+                    job_stats = (0, 0, 0, 0, 0, 0, 0, 0, 0)
             else:
-                date_filter = f"uploaded_at >= datetime('now', '-{days} days')"
-            
-            # Get job statistics
-            cursor.execute(f"""
-                SELECT 
-                    COUNT(*) as total_jobs,
-                    SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed_jobs,
-                    SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed_jobs,
-                    SUM(CASE WHEN status = 'processing' THEN 1 ELSE 0 END) as processing_jobs,
-                    COALESCE(SUM(contacts_found), 0) as total_contacts,
-                    COALESCE(SUM(duplicates_removed), 0) as total_duplicates,
-                    COALESCE(SUM(new_companies), 0) as total_new_companies,
-                    COALESCE(SUM(api_calls_used), 0) as total_api_calls,
-                    COALESCE(AVG(processing_time), 0) as avg_processing_time
-                FROM processing_jobs
-                WHERE {date_filter}
-            """)
-            
-            job_stats = cursor.fetchone()
-            
-            # Handle case where job_stats is None or empty
-            if not job_stats:
-                job_stats = (0, 0, 0, 0, 0, 0, 0, 0, 0)
-            
-            # Convert PostgreSQL dict result to tuple if needed
-            if self.db_type == 'postgresql' and isinstance(job_stats, dict):
-                job_stats = (
-                    job_stats.get('total_jobs', 0) or 0,
-                    job_stats.get('completed_jobs', 0) or 0,
-                    job_stats.get('failed_jobs', 0) or 0,
-                    job_stats.get('processing_jobs', 0) or 0,
-                    job_stats.get('total_contacts', 0) or 0,
-                    job_stats.get('total_duplicates', 0) or 0,
-                    job_stats.get('total_new_companies', 0) or 0,
-                    job_stats.get('total_api_calls', 0) or 0,
-                    job_stats.get('avg_processing_time', 0) or 0
-                )
-            elif not job_stats:
-                job_stats = (0, 0, 0, 0, 0, 0, 0, 0, 0)
+                logger.info("ℹ️  processing_jobs table does not exist, using default zeros for job stats")
             
             # Get total companies and contacts in database
             try:
