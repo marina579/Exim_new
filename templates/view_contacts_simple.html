@@ -76,16 +76,6 @@
                     </form>
                 </div>
 
-                <!-- Fix Contacts Section -->
-                <div class="alert alert-info mb-4">
-                    <h5 class="mb-3"><i class="fas fa-compress-alt me-2"></i>Merge Duplicate Contacts</h5>
-                    <p class="mb-2">Re-merge existing contacts with improved logic to combine phone-only and email-only contacts.</p>
-                    <button type="button" class="btn btn-info" id="fixContactsBtn" onclick="fixContacts()">
-                        <i class="fas fa-magic me-1"></i>Fix & Merge Contacts
-                    </button>
-                    <div id="fixContactsResult" class="mt-3" style="display: none;"></div>
-                </div>
-
                 <!-- Zoho Export Section -->
                 <div class="zoho-section">
                     <h4 class="mb-3"><i class="fas fa-cloud me-2"></i>Zoho CRM Integration</h4>
@@ -357,59 +347,6 @@
             setTimeout(() => {
                 toast.remove();
             }, 5000);
-        }
-        
-        // Fix contacts function
-        function fixContacts() {
-            const btn = document.getElementById('fixContactsBtn');
-            const resultDiv = document.getElementById('fixContactsResult');
-            
-            // Disable button and show loading
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Processing...';
-            resultDiv.style.display = 'block';
-            resultDiv.innerHTML = '<div class="alert alert-info"><i class="fas fa-spinner fa-spin me-2"></i>Re-merging contacts... This may take a few moments.</div>';
-            
-            // Call API
-            fetch('/api/fix_contacts', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    resultDiv.innerHTML = `
-                        <div class="alert alert-success">
-                            <h6><i class="fas fa-check-circle me-2"></i>Success!</h6>
-                            <p><strong>${data.companies_processed}</strong> companies processed</p>
-                            <p><strong>${data.total_before}</strong> contacts → <strong>${data.total_after}</strong> contacts</p>
-                            <p><strong>${data.contacts_merged}</strong> contacts merged</p>
-                            <p class="mb-0"><a href="${window.location.href}" class="btn btn-sm btn-success mt-2">Refresh Page</a></p>
-                        </div>
-                    `;
-                } else {
-                    resultDiv.innerHTML = `
-                        <div class="alert alert-danger">
-                            <h6><i class="fas fa-exclamation-circle me-2"></i>Error</h6>
-                            <p>${data.message}</p>
-                        </div>
-                    `;
-                }
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-magic me-1"></i>Fix & Merge Contacts';
-            })
-            .catch(error => {
-                resultDiv.innerHTML = `
-                    <div class="alert alert-danger">
-                        <h6><i class="fas fa-exclamation-circle me-2"></i>Error</h6>
-                        <p>${error.message}</p>
-                    </div>
-                `;
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-magic me-1"></i>Fix & Merge Contacts';
-            });
         }
     </script>
 </body>

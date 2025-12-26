@@ -2142,10 +2142,14 @@ def push_to_zoho():
         if error:
             logger.error(f"❌ Zoho connection failed: {error}")
             
-            # Provide helpful error message
-            if "invalid_code" in error.lower() or "invalid refresh token" in error.lower():
+            # Provide helpful error message based on error type
+            if "invalid_code" in error.lower() or "invalid refresh token" in error.lower() or "invalid_grant" in error.lower():
                 flash('Your Zoho refresh token is invalid or expired. Please generate a new one.', 'error')
                 flash('Run: ./venv/bin/python generate_zoho_token.py', 'info')
+            elif "invalid_client" in error.lower():
+                flash('Invalid Client ID or Client Secret. Please check your Zoho credentials.', 'error')
+            elif "general_error" in error.lower():
+                flash(f'Zoho API error: {error}. Please check your credentials and API permissions.', 'error')
             else:
                 flash(f'Zoho CRM connection failed: {error}', 'error')
             

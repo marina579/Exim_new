@@ -122,14 +122,36 @@ class ZohoCRMService:
             
             # Check for errors in response
             if 'error' in data:
-                error_msg = f"Zoho error: {data.get('error')} - {data.get('error_description', 'No description')}"
+                error_code = data.get('error', 'unknown_error')
+                error_description = data.get('error_description', '')
+                
+                # Build detailed error message
+                if error_description:
+                    error_msg = f"Zoho error: {error_code} - {error_description}"
+                else:
+                    # Try to get more details from response
+                    error_details = data.get('error_description') or data.get('message') or data.get('details') or response.text
+                    if error_details and error_details != response.text:
+                        error_msg = f"Zoho error: {error_code} - {error_details}"
+                    else:
+                        error_msg = f"Zoho error: {error_code}"
+                
                 logger.error(f"❌ {error_msg}")
+                logger.error(f"❌ Full Zoho response: {data}")
                 
                 # Provide helpful error messages
-                if data.get('error') == 'invalid_code':
+                if error_code == 'invalid_code' or 'invalid_code' in str(error_code).lower():
                     error_msg = "Invalid refresh token. Please generate a new one from Zoho API Console."
-                elif data.get('error') == 'invalid_client':
+                elif error_code == 'invalid_client' or 'invalid_client' in str(error_code).lower():
                     error_msg = "Invalid Client ID or Client Secret. Please check your credentials."
+                elif error_code == 'invalid_grant':
+                    error_msg = "Invalid refresh token or token expired. Please generate a new refresh token."
+                elif error_code == 'general_error':
+                    # Try to extract more details
+                    if error_description:
+                        error_msg = f"Zoho API error: {error_description}"
+                    else:
+                        error_msg = "Zoho API returned a general error. Please check your credentials and API permissions."
                 
                 return None, error_msg
             
@@ -357,15 +379,33 @@ class ZohoCRMService:
                 error_msg = f"Zoho API error {response.status_code}"
                 try:
                     error_data = response.json()
+                    logger.error(f"❌ Zoho API error response: {error_data}")
+                    
                     if isinstance(error_data, dict):
-                        msg = error_data.get('message', response.text)
-                        code = error_data.get('code', '')
+                        # Try multiple fields for error message
+                        msg = (error_data.get('message') or 
+                               error_data.get('error_description') or 
+                               error_data.get('error') or 
+                               error_data.get('details', {}).get('message') if isinstance(error_data.get('details'), dict) else None or
+                               response.text)
+                        
+                        code = error_data.get('code') or error_data.get('error', '')
+                        
+                        # Check for nested error structure
+                        if 'data' in error_data and isinstance(error_data['data'], list) and len(error_data['data']) > 0:
+                            first_item = error_data['data'][0]
+                            if isinstance(first_item, dict):
+                                msg = first_item.get('message', msg)
+                                code = first_item.get('code', code)
+                        
                         if code:
                             error_msg = f"Zoho API error {response.status_code}: {code}: {msg}"
                         else:
                             error_msg = f"Zoho API error {response.status_code}: {msg}"
-                except:
-                    error_msg = f"Zoho API error {response.status_code}: {response.text}"
+                except Exception as parse_error:
+                    logger.error(f"❌ Failed to parse Zoho error response: {parse_error}")
+                    error_msg = f"Zoho API error {response.status_code}: {response.text[:200]}"
+                
                 logger.error(f"❌ {error_msg}")
                 return False, error_msg, None
                 
