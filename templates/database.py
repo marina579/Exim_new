@@ -2043,9 +2043,23 @@ class ContactDatabase:
                 avg_processing_time = round(float(job_stats[8] or 0), 2) if job_stats and len(job_stats) > 8 else 0
             
             # Ensure database counts are always returned (even if 0)
-            # Force convert to int to ensure no None values
-            database_companies_val = int(total_companies) if total_companies is not None else 0
-            database_contacts_val = int(total_contacts_db) if total_contacts_db is not None else 0
+            # Force convert to int to ensure no None values - CRITICAL FIX
+            database_companies_val = int(total_companies) if total_companies is not None and total_companies != 0 else (int(total_companies) if total_companies else 0)
+            database_contacts_val = int(total_contacts_db) if total_contacts_db is not None and total_contacts_db != 0 else (int(total_contacts_db) if total_contacts_db else 0)
+            
+            # DOUBLE CHECK - if still 0, try get_stats() as fallback
+            if database_companies_val == 0 or database_contacts_val == 0:
+                try:
+                    logger.warning(f"⚠️  Direct query returned 0, trying get_stats() fallback...")
+                    stats_fallback = self.get_stats()
+                    if stats_fallback.get('total_companies', 0) > 0:
+                        database_companies_val = int(stats_fallback.get('total_companies', 0))
+                        logger.info(f"✅ get_stats() fallback: companies={database_companies_val}")
+                    if stats_fallback.get('total_contacts', 0) > 0:
+                        database_contacts_val = int(stats_fallback.get('total_contacts', 0))
+                        logger.info(f"✅ get_stats() fallback: contacts={database_contacts_val}")
+                except Exception as e:
+                    logger.error(f"❌ get_stats() fallback also failed: {str(e)}")
             
             final_stats = {
                 'total_jobs': int(total_jobs or 0),
@@ -2065,9 +2079,9 @@ class ContactDatabase:
                 ]
             }
             
-            logger.info(f"📊 Final stats being returned: companies={final_stats['database_companies']}, contacts={final_stats['database_contacts']}")
-            logger.info(f"📊 Raw values: total_companies={total_companies} (type: {type(total_companies)}), total_contacts_db={total_contacts_db} (type: {type(total_contacts_db)})")
-            logger.info(f"📊 Full stats dict keys: {list(final_stats.keys())}")
+            # CRITICAL: Log before returning to debug
+            logger.info(f"📊 FINAL RETURN - database_companies={final_stats['database_companies']}, database_contacts={final_stats['database_contacts']}")
+            logger.info(f"📊 Final stats dict keys: {list(final_stats.keys())}")
             return final_stats
         except Exception as e:
             logger.error(f"Error in get_statistics: {str(e)}", exc_info=True)
