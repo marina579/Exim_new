@@ -92,12 +92,35 @@
             border-radius: 15px;
             padding: 25px;
             margin-bottom: 20px;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            box-shadow: 0 8px 30px rgba(0,0,0,0.25);
+            border: 2px solid rgba(255,255,255,0.3);
+        }
+        
+        .nav-pills {
+            background: rgba(255,255,255,0.1);
+            padding: 5px;
+            border-radius: 30px;
         }
         
         .nav-pills .nav-link {
             border-radius: 25px;
-            margin-right: 10px;
+            margin-right: 5px;
+            font-weight: 600;
+            padding: 10px 20px;
+            transition: all 0.3s ease;
+            color: #2c3e50;
+            background: transparent;
+        }
+        
+        .nav-pills .nav-link.active {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.4);
+        }
+        
+        .nav-pills .nav-link:hover:not(.active) {
+            background: rgba(255,255,255,0.2);
+            color: #2c3e50;
         }
         
         .step-indicator {
@@ -105,17 +128,22 @@
             justify-content: space-between;
             margin-bottom: 2rem;
             gap: 1rem;
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.25);
+            border: 2px solid rgba(255,255,255,0.3);
         }
         
         .step {
             flex: 1;
             text-align: center;
             padding: 1.5rem;
-            background: #ffffff;
-            border: 2px solid #d1dce5;
-            border-radius: 10px;
+            background: #f8f9fa;
+            border: 2px solid #e0e0e0;
+            border-radius: 15px;
             transition: all 0.3s ease;
-            color: #7f8c8d;
+            color: #2c3e50;
         }
         
         .step.active {
@@ -123,7 +151,7 @@
             border: 2px solid #2980b9;
             color: white;
             transform: scale(1.02);
-            box-shadow: 0 6px 20px rgba(52, 152, 219, 0.3);
+            box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4);
         }
         
         .step-number {
@@ -340,16 +368,16 @@
         
         <!-- Step Indicator (only for manual tab) -->
         {% if tab == 'manual' %}
-        <div class="step-indicator">
-            <div class="step {% if step == 1 %}active{% endif %}">
-                <div class="step-number">1</div>
-                <strong>Clean & Deduplicate</strong>
-                <p class="mb-0 small">Standardize company data</p>
+        <div class="step-indicator" style="background: white; border-radius: 15px; padding: 30px; box-shadow: 0 8px 30px rgba(0,0,0,0.25); margin-bottom: 20px; border: 2px solid rgba(255,255,255,0.3);">
+            <div class="step {% if step == 1 %}active{% endif %}" style="background: {% if step == 1 %}linear-gradient(135deg, #3498db 0%, #2980b9 100%){% else %}#f8f9fa{% endif %}; border-radius: 15px; padding: 25px; text-align: center; color: {% if step == 1 %}white{% else %}#2c3e50{% endif %}; box-shadow: {% if step == 1 %}0 4px 15px rgba(52, 152, 219, 0.4){% else %}0 2px 8px rgba(0,0,0,0.1){% endif %}; transition: all 0.3s ease;">
+                <div class="step-number" style="font-size: 3rem; font-weight: 700; margin-bottom: 10px;">1</div>
+                <strong style="font-size: 1.2rem; display: block; margin-bottom: 5px;">Clean & Deduplicate</strong>
+                <p class="mb-0 small" style="opacity: 0.9;">Standardize company data</p>
             </div>
-            <div class="step {% if step == 2 %}active{% endif %}">
-                <div class="step-number">2</div>
-                <strong>Enrich Contacts</strong>
-                <p class="mb-0 small">Find phone, email, WhatsApp</p>
+            <div class="step {% if step == 2 %}active{% endif %}" style="background: {% if step == 2 %}linear-gradient(135deg, #3498db 0%, #2980b9 100%){% else %}#f8f9fa{% endif %}; border-radius: 15px; padding: 25px; text-align: center; color: {% if step == 2 %}white{% else %}#2c3e50{% endif %}; box-shadow: {% if step == 2 %}0 4px 15px rgba(52, 152, 219, 0.4){% else %}0 2px 8px rgba(0,0,0,0.1){% endif %}; transition: all 0.3s ease;">
+                <div class="step-number" style="font-size: 3rem; font-weight: 700; margin-bottom: 10px;">2</div>
+                <strong style="font-size: 1.2rem; display: block; margin-bottom: 5px;">Enrich Contacts</strong>
+                <p class="mb-0 small" style="opacity: 0.9;">Find phone, email, WhatsApp</p>
             </div>
         </div>
         {% endif %}
