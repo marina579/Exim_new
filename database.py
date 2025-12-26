@@ -359,8 +359,9 @@ class ContactDatabase:
     
     def _merge_duplicate_contacts(self, contacts: List[Dict]) -> List[Dict]:
         """
-        Merge contacts with same name or email into single records.
+        Merge contacts with same name, email, or phone into single records.
         Combines multiple phone numbers/emails for same person.
+        Also merges contacts with complementary data (phone + email) from same source.
         
         Args:
             contacts: List of contact dictionaries
@@ -371,23 +372,41 @@ class ContactDatabase:
         if not contacts:
             return []
         
-        # Group contacts by name or email
+        # Group contacts by name, email, or phone
         contact_groups = {}
         
         for contact in contacts:
-            # Create a unique key based on name or email
+            # Create a unique key based on name, email, or phone
             name = contact.get('contact_name', '').strip().lower()
             email = contact.get('email', '').strip().lower()
+            phone = contact.get('phone', '').strip()
+            whatsapp = contact.get('whatsapp', '').strip()
             first_name = contact.get('first_name', '').strip().lower()
             last_name = contact.get('last_name', '').strip().lower()
+            
+            # Normalize phone numbers (remove spaces, dashes, country codes for comparison)
+            def normalize_phone(p):
+                if not p:
+                    return ''
+                # Remove common prefixes and non-digits
+                p = p.replace('+91', '').replace('+1', '').replace('-', '').replace(' ', '').replace('(', '').replace(')', '')
+                # Keep only last 10 digits (Indian mobile numbers)
+                if len(p) >= 10:
+                    return p[-10:]
+                return p
+            
+            phone_normalized = normalize_phone(phone) or normalize_phone(whatsapp)
             
             # Try to find a matching key
             key = None
             
-            # If we have an email, use that as primary key
+            # Priority 1: If we have an email, use that as primary key
             if email and '@' in email:
                 key = f"email:{email}"
-            # If we have a full name, use that
+            # Priority 2: If we have a phone number, use that as key
+            elif phone_normalized:
+                key = f"phone:{phone_normalized}"
+            # Priority 3: If we have a full name, use that
             elif name:
                 key = f"name:{name}"
             elif first_name or last_name:
@@ -402,6 +421,11 @@ class ContactDatabase:
             for existing_key, existing_contacts in list(contact_groups.items()):
                 # Check if email matches
                 if email and email in existing_key:
+                    contact_groups[existing_key].append(contact)
+                    merged = True
+                    break
+                # Check if phone matches
+                elif phone_normalized and phone_normalized in existing_key:
                     contact_groups[existing_key].append(contact)
                     merged = True
                     break
@@ -483,9 +507,24 @@ class ContactDatabase:
                 all_methods = list(set([m for m in all_methods if m]))
                 
                 # Take the first/best value for single fields
-                merged['phone'] = all_phones[0] if all_phones else ''
+                # Prefer phone over whatsapp if both exist
+                if all_phones:
+                    merged['phone'] = all_phones[0]
+                    # If whatsapp is same as phone, don't duplicate
+                    if all_whatsapps and all_whatsapps[0] == all_phones[0]:
+                        merged['whatsapp'] = all_phones[0]
+                    elif all_whatsapps:
+                        merged['whatsapp'] = all_whatsapps[0]
+                    else:
+                        merged['whatsapp'] = all_phones[0]  # Use phone as WhatsApp if no separate WhatsApp
+                elif all_whatsapps:
+                    merged['phone'] = all_whatsapps[0]
+                    merged['whatsapp'] = all_whatsapps[0]
+                else:
+                    merged['phone'] = ''
+                    merged['whatsapp'] = ''
+                
                 merged['email'] = all_emails[0] if all_emails else ''
-                merged['whatsapp'] = all_whatsapps[0] if all_whatsapps else ''
                 merged['source_url'] = all_sources[0] if all_sources else ''
                 merged['method'] = ', '.join(all_methods[:3]) if all_methods else ''
                 

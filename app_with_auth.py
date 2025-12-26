@@ -1,5 +1,5 @@
 """
-Marineco AI EXIM Contact Finder
+Marineco AI Chatbot
 Advanced contact enrichment system with AI chatbot and duplicate detection.
 """
 

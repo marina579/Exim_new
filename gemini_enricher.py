@@ -81,10 +81,12 @@ class GeminiEnricher:
         
         try:
             # Build ENHANCED prompt with better instructions
-            # If search_results provided, include them in the prompt (SerpAPI results)
+            # If search_results provided, use ONLY those results (don't make new searches!)
             serpapi_context = ""
+            use_google_search = True  # Default: enable Google Search
             if search_results and search_results != "No search results found":
-                serpapi_context = f"\n\nADDITIONAL SEARCH RESULTS FROM SERPAPI:\n{search_results}\n\nUse these search results along with your own web search to find the most accurate contact information."
+                serpapi_context = f"\n\nSEARCH RESULTS (USE THESE ONLY - DO NOT SEARCH THE WEB):\n{search_results}\n\nExtract contact information from the search results above. DO NOT search the web - use only the provided search results."
+                use_google_search = False  # Disable Google Search if we have SerpAPI results
             
             if address:
                 prompt = f"""You are an expert at finding contact information for Indian businesses. Search the web and find accurate contact details for "{company_name}" located at "{address}" in India.{serpapi_context}
@@ -154,19 +156,25 @@ IMPORTANT INSTRUCTIONS:
 Company: {company_name}
 """
             
-            # Call Gemini API with Google Search Grounding enabled
-            logger.info(f"🤖 Calling Gemini API for {company_name}...")
+            # Call Gemini API - only enable Google Search if we don't have SerpAPI results
+            if use_google_search:
+                logger.info(f"🤖 Calling Gemini API for {company_name} (with Google Search)...")
+            else:
+                logger.info(f"🤖 Calling Gemini API for {company_name} (using provided SerpAPI results - NO web search)...")
+            
             logger.debug(f"API Key present: {bool(self.api_key)}")
             logger.debug(f"API Key prefix: {self.api_key[:10] if self.api_key else 'N/A'}...")
             
-            # Using gemini-2.5-flash (latest stable model with Google Search)
+            # Using gemini-2.5-flash
+            # Only enable Google Search if we don't have SerpAPI results
+            config = types.GenerateContentConfig(temperature=0.1)
+            if use_google_search:
+                config.tools = [types.Tool(google_search=types.GoogleSearch())]  # Enable web search only if needed
+            
             response = self.client.models.generate_content(
                 model='models/gemini-2.5-flash',  # Latest stable model!
                 contents=prompt,
-                config=types.GenerateContentConfig(
-                    temperature=0.1,
-                    tools=[types.Tool(google_search=types.GoogleSearch())]  # Enable web search!
-                )
+                config=config
             )
             
             result_text = response.text.strip()

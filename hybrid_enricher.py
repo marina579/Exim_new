@@ -480,37 +480,13 @@ class HybridEnricher:
         
         logger.info(f"🔍 Collecting ALL contacts for: {company_name}")
         
-        # Try ALL methods and collect results
-        # NEW ORDER: Gemini + ChatGPT (BOTH TRIED) → Other methods
-        methods = []
-        
-        # Method 1: Gemini (Always try)
-        if self.gemini:
-            methods.append(('Gemini AI', lambda: self.gemini.find_contact(company_name, address)))
-        
-        # Method 2: ChatGPT (Always try - not fallback, both are tried!)
-        if self.chatgpt:
-            methods.append(('ChatGPT', lambda: self.chatgpt.find_contact(company_name, address)))
-        
-        # Method 3: WhatsApp Detective
-        if self.whatsapp_detective:
-            methods.append(('WhatsApp Detective', lambda: self.whatsapp_detective.find_whatsapp(company_name, address)))
-        
-        # Method 4: WhatsApp Hunter
-        if self.whatsapp_hunter:
-            methods.append(('WhatsApp Hunter', lambda: self.whatsapp_hunter.find_contacts(company_name, address)))
-        
-        # Method 5: Google Places
-        if self.google_places and address:
-            methods.append(('Google Places', lambda: self.google_places.find_contact(company_name, address)))
-        
-        # Method 6: SerpApi - Extract ALL contacts from single API call FIRST
-        # This ensures we get multiple contacts efficiently (1 API call = multiple contacts)
+        # STEP 1: Make ONE SerpAPI call FIRST and extract ALL contacts
+        serpapi_search_results = ""
         if self.serpapi:
             try:
-                logger.info(f"   [SerpAPI] Extracting ALL contacts from single API call...")
+                logger.info(f"   [1/6] 🔍 Making ONE SerpAPI call to extract ALL contacts...")
                 all_serpapi_contacts = self.serpapi.find_all_contacts(company_name, address)
-                logger.info(f"   [SerpAPI] Found {len(all_serpapi_contacts)} contacts from SerpAPI")
+                logger.info(f"   [SerpAPI] Found {len(all_serpapi_contacts)} contacts from SerpAPI (1 API call)")
                 
                 # Add each SerpAPI contact separately to all_contacts list
                 for serpapi_contact in all_serpapi_contacts:
@@ -540,14 +516,48 @@ class HybridEnricher:
                         }
                         all_contacts.append(contact)
                         logger.info(f"      ✅ SerpAPI: Found contact (phone={phone[:15] if phone else 'N/A'}, email={email[:25] if email else 'N/A'})")
+                
+                # Get search results text to share with AI methods (to avoid duplicate SerpAPI calls)
+                # Build search query
+                if address:
+                    query = f"{company_name} {address} India phone contact email"
+                else:
+                    query = f"{company_name} India phone contact email"
+                
+                # Format search results from the data we already have
+                results_text = []
+                for serpapi_contact in all_serpapi_contacts:
+                    if serpapi_contact.get('source_url'):
+                        results_text.append(f"Source: {serpapi_contact.get('source_url', '')}\nPhone: {serpapi_contact.get('phone', '')}\nEmail: {serpapi_contact.get('email', '')}")
+                serpapi_search_results = '\n---\n'.join(results_text[:15]) if results_text else ""
+                
             except Exception as e:
                 logger.error(f"      ❌ SerpAPI find_all_contacts error: {str(e)[:50]}")
-            
-            # Also add to methods list for compatibility (returns first contact only)
-            def serpapi_single():
-                all_serpapi = self.serpapi.find_all_contacts(company_name, address)
-                return all_serpapi[0] if all_serpapi else {}
-            methods.append(('SerpApi', serpapi_single))
+        
+        # STEP 2: Try other methods that DON'T use SerpAPI (to avoid duplicate calls)
+        # Only use free methods or methods that accept cached SerpAPI data
+        methods = []
+        
+        # Method 1: Gemini (with shared SerpAPI results - DISABLES its own Google Search)
+        if self.gemini:
+            methods.append(('Gemini AI', lambda: self.gemini.find_contact(company_name, address, search_results=serpapi_search_results if serpapi_search_results else None)))
+        
+        # Method 2: ChatGPT (with shared SerpAPI results - uses only provided results)
+        if self.chatgpt:
+            methods.append(('ChatGPT', lambda: self.chatgpt.find_contact(company_name, address, search_results=serpapi_search_results if serpapi_search_results else None)))
+        
+        # Method 3: Google Places - SKIP if we already have good SerpAPI results
+        # (SerpAPI already includes Google Business listings, so this is redundant)
+        if self.google_places and address and not serpapi_search_results:
+            # Only use Google Places if we don't have SerpAPI results
+            methods.append(('Google Places', lambda: self.google_places.find_contact(company_name, address)))
+        elif self.google_places and address:
+            logger.info(f"   [SKIP] Google Places (SerpAPI already includes Google Business listings)")
+        
+        # SKIP WhatsApp Detective, WhatsApp Hunter, and Email Enhancer
+        # They make additional SerpAPI calls (2-3 calls each), which we want to avoid
+        # We already have SerpAPI contacts from Step 1, so we don't need these expensive methods
+        logger.info(f"   [SKIP] WhatsApp Detective, WhatsApp Hunter, Email Enhancer (would make additional SerpAPI calls)")
         
         # Method 7: IndiaMART
         if HAS_INDIAMART and self.enable_indiamart:
