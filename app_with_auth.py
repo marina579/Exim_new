@@ -3277,25 +3277,47 @@ def get_email_sequence_stats():
 # Initialize Zoho token on startup (n8n-style automatic refresh)
 def _initialize_zoho_token_on_startup():
     """Initialize Zoho token on app startup, exactly like n8n does."""
+    import logging
+    _logger = logging.getLogger(__name__)
+    
     try:
+        import time
         from zoho_crm_service import ZohoCRMService
         
         # Check if Zoho credentials are configured
         if os.getenv('ZOHO_CLIENT_ID') and os.getenv('ZOHO_REFRESH_TOKEN'):
-            logger.info("🔄 Initializing Zoho token on startup (n8n-style)...")
+            # Add delay to avoid rate limits (multiple services may initialize)
+            time.sleep(2)
+            
+            _logger.info("🔄 Initializing Zoho token on startup (n8n-style)...")
             zoho_service = ZohoCRMService()
             
             # Get access token (this will cache it for future use)
-            access_token, error = zoho_service.get_access_token()
-            
-            if access_token:
-                logger.info("✅ Zoho token initialized successfully (ready for use)")
-            else:
-                logger.warning(f"⚠️  Zoho token initialization failed: {error}")
+            # Use retry logic to handle rate limits gracefully
+            max_retries = 3
+            for attempt in range(max_retries):
+                access_token, error = zoho_service.get_access_token()
+                
+                if access_token:
+                    _logger.info("✅ Zoho token initialized successfully (ready for use)")
+                    break
+                elif error and "too many requests" in error.lower():
+                    if attempt < max_retries - 1:
+                        wait_time = (attempt + 1) * 5  # 5s, 10s, 15s
+                        _logger.warning(f"⚠️  Zoho rate limit hit, waiting {wait_time}s before retry...")
+                        time.sleep(wait_time)
+                    else:
+                        _logger.warning(f"⚠️  Zoho token initialization failed after {max_retries} attempts: {error}")
+                        _logger.info("ℹ️  App will continue - token will be fetched on first use")
+                else:
+                    _logger.warning(f"⚠️  Zoho token initialization failed: {error}")
+                    _logger.info("ℹ️  App will continue - token will be fetched on first use")
+                    break
         else:
-            logger.info("ℹ️  Zoho credentials not configured, skipping token initialization")
+            _logger.info("ℹ️  Zoho credentials not configured, skipping token initialization")
     except Exception as e:
-        logger.warning(f"⚠️  Could not initialize Zoho token on startup: {str(e)}")
+        _logger.warning(f"⚠️  Could not initialize Zoho token on startup: {str(e)}")
+        _logger.info("ℹ️  App will continue - token will be fetched on first use")
 
 # Initialize on startup
 _initialize_zoho_token_on_startup()
