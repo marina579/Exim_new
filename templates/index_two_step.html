@@ -327,22 +327,22 @@
         </div>
         
         <!-- Navigation Buttons -->
-        <div class="d-flex justify-content-center gap-2 align-items-center flex-wrap mb-4">
+        <div class="d-flex justify-content-center gap-2 align-items-center flex-wrap mb-4" style="flex-wrap: wrap; gap: 0.5rem;">
             {% if session.get('is_admin') %}
-            <a href="{{ url_for('admin_users') }}" class="btn btn-light btn-custom">
+            <a href="{{ url_for('admin_users') }}" class="btn btn-light btn-custom" style="white-space: nowrap; min-width: fit-content;">
                 <i class="fas fa-users-cog me-1"></i>Admin Panel
             </a>
             {% endif %}
-            <a href="{{ url_for('dashboard') }}" class="btn btn-light btn-custom">
+            <a href="{{ url_for('dashboard') }}" class="btn btn-light btn-custom" style="white-space: nowrap; min-width: fit-content;">
                 <i class="fas fa-chart-line me-1"></i>Dashboard
             </a>
-            <a href="{{ url_for('view_contacts') }}" class="btn btn-info btn-custom">
+            <a href="{{ url_for('view_contacts') }}" class="btn btn-info btn-custom" style="white-space: nowrap; min-width: fit-content;">
                 <i class="fas fa-users me-1"></i>Contacts
             </a>
-            <a href="{{ url_for('campaigns_page') }}" class="btn btn-warning btn-custom">
+            <a href="{{ url_for('campaigns_page') }}" class="btn btn-warning btn-custom" style="white-space: nowrap; min-width: fit-content;">
                 <i class="fas fa-envelope me-1"></i>Email Campaigns
             </a>
-            <a href="{{ url_for('chatbot') }}" class="btn btn-success btn-custom">
+            <a href="{{ url_for('chatbot') }}" class="btn btn-success btn-custom" style="white-space: nowrap; min-width: fit-content;">
                 <i class="fas fa-comments me-1"></i>Chatbot
             </a>
         </div>
@@ -357,6 +357,7 @@
         
         <!-- Tab Navigation - Auto Upload / Manual Process (Half and Half) -->
         <div class="row mb-4">
+            {% if tab != 'manual' %}
             <div class="col-md-6">
                 <a href="{{ url_for('index', tab='auto') }}" class="card text-decoration-none" style="background: #1e3a5f; border-radius: 12px; padding: 40px; text-align: center; box-shadow: {% if tab == 'auto' %}0 8px 25px rgba(30, 58, 95, 0.3), 0 3px 10px rgba(0,0,0,0.15){% else %}0 4px 15px rgba(0,0,0,0.1){% endif %}; border: none; transition: all 0.3s ease; height: 100%; transform: {% if tab == 'auto' %}translateY(-3px){% else %}translateY(0){% endif %}; opacity: {% if tab == 'auto' %}1{% else %}0.85{% endif %};">
                     <div style="font-size: 3.5rem; margin-bottom: 20px; color: white;">
@@ -366,7 +367,8 @@
                     <p style="color: rgba(255,255,255,0.9); margin: 0; font-size: 0.95rem; font-weight: 400;">Fully Automated Processing</p>
                 </a>
             </div>
-            <div class="col-md-6">
+            {% endif %}
+            <div class="{% if tab == 'manual' %}col-md-12{% else %}col-md-6{% endif %}">
                 <a href="{{ url_for('index', tab='manual', step=1) }}" class="card text-decoration-none" style="background: #1e3a5f; border-radius: 12px; padding: 40px; text-align: center; box-shadow: {% if tab == 'manual' %}0 8px 25px rgba(30, 58, 95, 0.3), 0 3px 10px rgba(0,0,0,0.15){% else %}0 4px 15px rgba(0,0,0,0.1){% endif %}; border: none; transition: all 0.3s ease; height: 100%; transform: {% if tab == 'manual' %}translateY(-3px){% else %}translateY(0){% endif %}; opacity: {% if tab == 'manual' %}1{% else %}0.85{% endif %};">
                     <div style="font-size: 3.5rem; margin-bottom: 20px; color: white;">
                         <i class="fas fa-cogs"></i>
