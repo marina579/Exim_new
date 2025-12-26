@@ -55,7 +55,7 @@ MAX_RECORDS_TO_PROCESS = None  # Process ALL records
 # PAID_MODE: Includes SerpAPI + all other methods
 USE_FREE_MODE = False  # Set to False to enable SerpAPI (NEW KEY PROVIDED!)
 
-COLLECT_ALL_CONTACTS = False  # Use waterfall approach - only ONE API per company (stops after first success)
+COLLECT_ALL_CONTACTS = True  # Collect ALL contacts from ALL methods (multiple contacts per company)
 USE_GEMINI = bool(os.getenv('GEMINI_API_KEY') and os.getenv('GEMINI_API_KEY') != 'YOUR_GEMINI_API_KEY_HERE')  # Auto-enable if key is set
 
 # ⚡ SPEED OPTIMIZATION (for FREE MODE)
@@ -1017,7 +1017,15 @@ def process_company():
         openai_key = os.getenv('OPENAI_API_KEY')
         gemini_key = os.getenv('GEMINI_API_KEY') if USE_GEMINI else None
         
+        # Log API key status for debugging
+        logger.info(f"🔑 API Keys Status:")
+        logger.info(f"   SerpAPI: {'✅ Set' if serpapi_key else '❌ Missing'} ({serpapi_key[:10] + '...' if serpapi_key else 'N/A'})")
+        logger.info(f"   OpenAI: {'✅ Set' if openai_key else '❌ Missing'}")
+        logger.info(f"   Gemini: {'✅ Set' if gemini_key else '❌ Missing'}")
+        logger.info(f"   USE_FREE_MODE: {USE_FREE_MODE}")
+        
         if USE_FREE_MODE:
+            logger.warning("⚠️  FREE MODE: SerpAPI disabled")
             enricher = HybridEnricher(
                 serpapi_key=None,
                 openai_key=openai_key,
@@ -1025,12 +1033,19 @@ def process_company():
                 collect_all=COLLECT_ALL_CONTACTS
             )
         else:
+            logger.info("✅ PAID MODE: SerpAPI enabled")
             enricher = HybridEnricher(
                 serpapi_key=serpapi_key,
                 openai_key=openai_key,
                 gemini_key=gemini_key,
                 collect_all=COLLECT_ALL_CONTACTS
             )
+        
+        # Verify SerpAPI is initialized
+        if enricher.serpapi:
+            logger.info("✅ SerpAPI enricher initialized successfully")
+        else:
+            logger.warning("⚠️  SerpAPI enricher NOT initialized - check SERPAPI_API_KEY")
         
         # Process company
         if COLLECT_ALL_CONTACTS:

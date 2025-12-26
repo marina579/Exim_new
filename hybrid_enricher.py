@@ -11,6 +11,7 @@ Target: 80-90% total success rate
 
 import os
 import logging
+import requests
 from typing import Dict, Optional
 from serpapi_enricher import SerpApiEnricher
 
@@ -279,7 +280,6 @@ class HybridEnricher:
                     query = f"{company_name} India phone contact email"
                 
                 # Call SerpAPI directly to get raw search results
-                import requests
                 params = {
                     'q': query,
                     'api_key': self.serpapi_key,
@@ -291,8 +291,17 @@ class HybridEnricher:
                 
                 logger.info(f"   🌐 Making SerpAPI call: {query[:50]}...")
                 response = requests.get("https://serpapi.com/search", params=params, timeout=30)
-                response.raise_for_status()
-                data = response.json()
+                
+                # Handle rate limiting gracefully
+                if response.status_code == 429:
+                    logger.warning(f"⚠️  SerpAPI rate limit exceeded (429) - quota exhausted")
+                    logger.warning(f"   💡 Continuing without SerpAPI - will use Gemini + ChatGPT only")
+                    logger.warning(f"   💡 To fix: Wait for quota reset OR upgrade SerpAPI plan")
+                    serpapi_search_results = ""
+                    serpapi_used = False
+                else:
+                    response.raise_for_status()
+                    data = response.json()
                 
                 # Format search results as text (same format as ChatGPT expects)
                 results_text = []
@@ -495,9 +504,50 @@ class HybridEnricher:
         if self.google_places and address:
             methods.append(('Google Places', lambda: self.google_places.find_contact(company_name, address)))
         
-        # Method 6: SerpApi
+        # Method 6: SerpApi - Extract ALL contacts from single API call FIRST
+        # This ensures we get multiple contacts efficiently (1 API call = multiple contacts)
         if self.serpapi:
-            methods.append(('SerpApi', lambda: self.serpapi.find_contact(company_name, address)))
+            try:
+                logger.info(f"   [SerpAPI] Extracting ALL contacts from single API call...")
+                all_serpapi_contacts = self.serpapi.find_all_contacts(company_name, address)
+                logger.info(f"   [SerpAPI] Found {len(all_serpapi_contacts)} contacts from SerpAPI")
+                
+                # Add each SerpAPI contact separately to all_contacts list
+                for serpapi_contact in all_serpapi_contacts:
+                    phone = serpapi_contact.get('phone', '').strip()
+                    email = serpapi_contact.get('email', '').strip()
+                    whatsapp = serpapi_contact.get('whatsapp', '').strip() or phone
+                    contact_name = serpapi_contact.get('contact_name', '').strip()
+                    source_url = serpapi_contact.get('source_url', '')
+                    
+                    # Check if this is a new contact (not duplicate)
+                    is_new = False
+                    if phone and phone not in seen_phones:
+                        seen_phones.add(phone)
+                        is_new = True
+                    if email and email not in seen_emails:
+                        seen_emails.add(email)
+                        is_new = True
+                    
+                    if is_new and (phone or email):
+                        contact = {
+                            'phone': phone,
+                            'email': email,
+                            'whatsapp': whatsapp,
+                            'contact_name': contact_name,
+                            'source_url': source_url,
+                            'method': 'serpapi'
+                        }
+                        all_contacts.append(contact)
+                        logger.info(f"      ✅ SerpAPI: Found contact (phone={phone[:15] if phone else 'N/A'}, email={email[:25] if email else 'N/A'})")
+            except Exception as e:
+                logger.error(f"      ❌ SerpAPI find_all_contacts error: {str(e)[:50]}")
+            
+            # Also add to methods list for compatibility (returns first contact only)
+            def serpapi_single():
+                all_serpapi = self.serpapi.find_all_contacts(company_name, address)
+                return all_serpapi[0] if all_serpapi else {}
+            methods.append(('SerpApi', serpapi_single))
         
         # Method 7: IndiaMART
         if HAS_INDIAMART and self.enable_indiamart:
