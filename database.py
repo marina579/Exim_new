@@ -2044,8 +2044,8 @@ class ContactDatabase:
             
             # Ensure database counts are always returned (even if 0)
             # Force convert to int to ensure no None values
-            database_companies_val = int(total_companies) if total_companies else 0
-            database_contacts_val = int(total_contacts_db) if total_contacts_db else 0
+            database_companies_val = int(total_companies) if total_companies is not None else 0
+            database_contacts_val = int(total_contacts_db) if total_contacts_db is not None else 0
             
             final_stats = {
                 'total_jobs': int(total_jobs or 0),
@@ -2066,8 +2066,8 @@ class ContactDatabase:
             }
             
             logger.info(f"📊 Final stats being returned: companies={final_stats['database_companies']}, contacts={final_stats['database_contacts']}")
-            logger.info(f"📊 Raw values: total_companies={total_companies}, total_contacts_db={total_contacts_db}")
-            logger.info(f"📊 Full stats dict: {final_stats}")
+            logger.info(f"📊 Raw values: total_companies={total_companies} (type: {type(total_companies)}), total_contacts_db={total_contacts_db} (type: {type(total_contacts_db)})")
+            logger.info(f"📊 Full stats dict keys: {list(final_stats.keys())}")
             return final_stats
         except Exception as e:
             logger.error(f"Error in get_statistics: {str(e)}", exc_info=True)
