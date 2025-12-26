@@ -1964,61 +1964,46 @@ class ContactDatabase:
             else:
                 logger.info("ℹ️  processing_jobs table does not exist, using default zeros for job stats")
             
-            # Get total companies and contacts in database
+            # Get total companies and contacts in database - FIXED WITH ALIAS
+            total_companies = 0
+            total_contacts_db = 0
+            
             try:
                 if self.db_type == 'postgresql':
-                    # Use explicit alias for PostgreSQL RealDictCursor
-                    cursor.execute("SELECT COUNT(*) as total FROM companies")
-                    total_companies_row = cursor.fetchone()
-                    if total_companies_row:
-                        # PostgreSQL RealDictCursor returns dict
-                        if isinstance(total_companies_row, dict):
-                            # RealDictCursor uses the alias 'total' as the key
-                            total_companies = int(total_companies_row.get('total', 0) or 0)
-                        else:
-                            # Fallback if tuple
-                            total_companies = int(total_companies_row[0] if total_companies_row else 0)
+                    # Use alias 'count' for RealDictCursor compatibility
+                    cursor.execute("SELECT COUNT(*) as count FROM companies")
+                    result = cursor.fetchone()
+                    if result:
+                        # RealDictCursor returns dict with 'count' as key
+                        total_companies = int(result.get('count', 0) or 0)
                     else:
                         total_companies = 0
                 else:
                     cursor.execute("SELECT COUNT(*) FROM companies")
-                    total_companies_row = cursor.fetchone()
-                    total_companies = int(total_companies_row[0] if total_companies_row else 0)
+                    result = cursor.fetchone()
+                    total_companies = int(result[0] or 0) if result else 0
                 logger.info(f"📊 Total companies in database: {total_companies}")
             except Exception as e:
-                logger.error(f"Error counting companies: {str(e)}", exc_info=True)
+                logger.error(f"❌ Error counting companies: {str(e)}", exc_info=True)
                 total_companies = 0
             
             try:
                 if self.db_type == 'postgresql':
-                    # Use explicit alias for PostgreSQL RealDictCursor
-                    cursor.execute("SELECT COUNT(*) as total FROM contacts")
-                    total_contacts_row = cursor.fetchone()
-                    logger.info(f"🔍 Contacts query result: type={type(total_contacts_row)}, value={total_contacts_row}, keys={list(total_contacts_row.keys()) if isinstance(total_contacts_row, dict) else 'N/A'}")
-                    if total_contacts_row:
-                        # PostgreSQL RealDictCursor returns dict
-                        if isinstance(total_contacts_row, dict):
-                            # Try all possible keys
-                            total_contacts_db = int(
-                                total_contacts_row.get('total') or 
-                                total_contacts_row.get('count') or 
-                                (list(total_contacts_row.values())[0] if total_contacts_row.values() else 0)
-                            )
-                            logger.info(f"✅ Extracted contacts count from dict: {total_contacts_db}")
-                        else:
-                            # Fallback if tuple
-                            total_contacts_db = int(total_contacts_row[0] if total_contacts_row else 0)
-                            logger.info(f"✅ Extracted contacts count from tuple: {total_contacts_db}")
+                    # Use alias 'count' for RealDictCursor compatibility
+                    cursor.execute("SELECT COUNT(*) as count FROM contacts")
+                    result = cursor.fetchone()
+                    if result:
+                        # RealDictCursor returns dict with 'count' as key
+                        total_contacts_db = int(result.get('count', 0) or 0)
                     else:
                         total_contacts_db = 0
-                        logger.warning("⚠️  Contacts query returned None/empty")
                 else:
                     cursor.execute("SELECT COUNT(*) FROM contacts")
-                    total_contacts_row = cursor.fetchone()
-                    total_contacts_db = int(total_contacts_row[0] if total_contacts_row else 0)
+                    result = cursor.fetchone()
+                    total_contacts_db = int(result[0] or 0) if result else 0
                 logger.info(f"📊 Total contacts in database: {total_contacts_db}")
             except Exception as e:
-                logger.error(f"Error counting contacts: {str(e)}", exc_info=True)
+                logger.error(f"❌ Error counting contacts: {str(e)}", exc_info=True)
                 total_contacts_db = 0
             
             # Get contacts by date
