@@ -1941,9 +1941,11 @@ class ContactDatabase:
                     SELECT EXISTS (
                         SELECT FROM information_schema.tables 
                         WHERE table_name = 'processing_jobs'
-                    )
+                    ) as exists
                 """)
-                table_exists = cursor.fetchone()[0]
+                result = cursor.fetchone()
+                # RealDictCursor returns a dict, so access by key
+                table_exists = result['exists'] if isinstance(result, dict) else result[0]
             else:
                 cursor.execute("""
                     SELECT name FROM sqlite_master 
