@@ -3308,6 +3308,41 @@ try:
 except Exception as e:
     logger.warning(f"⚠️  Could not register n8n webhooks: {str(e)}")
 
+# Railway webhook endpoint (for deployment events)
+@app.route('/webhook/railway/deployment', methods=['POST'])
+def railway_deployment_webhook():
+    """
+    Receive Railway deployment webhook events.
+    Can be configured in Railway → Project Settings → Webhooks
+    """
+    try:
+        data = request.get_json()
+        event_type = data.get('event') or data.get('type', 'unknown')
+        
+        logger.info(f"📡 Received Railway webhook: {event_type}")
+        
+        if event_type in ['deployment.succeeded', 'deployment.success']:
+            logger.info("✅ Deployment succeeded - Railway webhook received")
+            # Optional: Trigger actions on successful deployment
+            # e.g., send notification, update status, etc.
+            
+        elif event_type in ['deployment.failed', 'deployment.failure']:
+            logger.error("❌ Deployment failed - Railway webhook received")
+            # Optional: Send alerts, notifications, etc.
+        
+        return jsonify({
+            'status': 'received',
+            'event': event_type,
+            'message': 'Webhook processed successfully'
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error processing Railway webhook: {str(e)}", exc_info=True)
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
 # Initialize Zoho token on startup (with rate limit protection)
 _initialize_zoho_token_on_startup()
 
