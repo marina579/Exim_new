@@ -87,6 +87,10 @@ If not found, use empty string "".
         
         try:
             # Call ChatGPT API to parse search results
+            logger.info(f"🤖 Calling OpenAI API for {company_name}...")
+            logger.debug(f"API Key present: {bool(self.api_key)}")
+            logger.debug(f"API Key prefix: {self.api_key[:10] if self.api_key else 'N/A'}...")
+            
             response = self.client.chat.completions.create(
                 model="gpt-4o-mini",  # Faster and cheaper model
                 messages=[
@@ -105,7 +109,7 @@ If not found, use empty string "".
             
             # Extract response
             result_text = response.choices[0].message.content.strip()
-            logger.info(f"ChatGPT response for {company_name}: {result_text[:100]}")
+            logger.info(f"✅ ChatGPT response for {company_name}: {result_text[:100]}")
             
             # Try to parse JSON response
             try:
@@ -136,7 +140,22 @@ If not found, use empty string "".
             return {'contact_name': '', 'phone': '', 'email': '', 'whatsapp': ''}
             
         except Exception as e:
-            logger.error(f"Error finding contact for {company_name}: {str(e)}")
+            error_type = type(e).__name__
+            error_msg = str(e)
+            logger.error(f"❌ ChatGPT error for {company_name}: {error_type}: {error_msg}")
+            
+            # Log specific error types for debugging
+            if "401" in error_msg or "Unauthorized" in error_msg:
+                logger.error("🔑 API Key issue: Invalid or expired OpenAI API key")
+            elif "429" in error_msg or "rate limit" in error_msg.lower():
+                logger.error("⏱️  Rate limit exceeded: Too many requests to OpenAI")
+            elif "timeout" in error_msg.lower():
+                logger.error("⏰ Timeout: OpenAI API request timed out")
+            elif "network" in error_msg.lower() or "connection" in error_msg.lower():
+                logger.error("🌐 Network issue: Cannot connect to OpenAI API")
+            else:
+                logger.error(f"❓ Unknown error: {error_type}")
+            
             return {'contact_name': '', 'phone': '', 'email': '', 'whatsapp': ''}
     
     def _extract_phone_from_text(self, text: str) -> str:

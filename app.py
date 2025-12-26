@@ -406,6 +406,87 @@ def process_file_background(file_id, file_path, output_path):
         progress_data[file_id]['message'] = f'Error: {str(e)}'
 
 
+@app.route('/test-chatgpt')
+def test_chatgpt():
+    """Test endpoint to verify ChatGPT/OpenAI API is working."""
+    try:
+        from chatgpt_enricher import ChatGPTEnricher
+        
+        # Check if API key is set
+        api_key = os.getenv('OPENAI_API_KEY')
+        if not api_key:
+            return jsonify({
+                'status': 'error',
+                'message': 'OPENAI_API_KEY not found in environment variables',
+                'key_present': False
+            }), 500
+        
+        # Initialize enricher
+        try:
+            enricher = ChatGPTEnricher(api_key=api_key)
+        except Exception as e:
+            return jsonify({
+                'status': 'error',
+                'message': f'Failed to initialize ChatGPTEnricher: {str(e)}',
+                'error_type': type(e).__name__
+            }), 500
+        
+        # Test with a simple company
+        test_company = "Tata Consultancy Services"
+        test_address = "Mumbai, India"
+        
+        logger.info(f"🧪 Testing ChatGPT with: {test_company}")
+        
+        try:
+            result = enricher.find_contact(test_company, test_address)
+            
+            return jsonify({
+                'status': 'success',
+                'message': 'ChatGPT API is working!',
+                'test_company': test_company,
+                'result': result,
+                'api_key_prefix': api_key[:15] + '...' if api_key else 'N/A',
+                'has_phone': bool(result.get('phone')),
+                'has_email': bool(result.get('email')),
+                'has_whatsapp': bool(result.get('whatsapp')),
+                'has_contact_name': bool(result.get('contact_name'))
+            })
+        except Exception as e:
+            error_type = type(e).__name__
+            error_msg = str(e)
+            
+            # Check for specific error types
+            error_details = {
+                'error_type': error_type,
+                'error_message': error_msg,
+                'api_key_prefix': api_key[:15] + '...' if api_key else 'N/A'
+            }
+            
+            if "401" in error_msg or "Unauthorized" in error_msg:
+                error_details['diagnosis'] = 'Invalid or expired API key'
+            elif "429" in error_msg or "rate limit" in error_msg.lower():
+                error_details['diagnosis'] = 'Rate limit exceeded'
+            elif "timeout" in error_msg.lower():
+                error_details['diagnosis'] = 'Request timeout'
+            elif "network" in error_msg.lower() or "connection" in error_msg.lower():
+                error_details['diagnosis'] = 'Network connectivity issue'
+            else:
+                error_details['diagnosis'] = 'Unknown error - check logs'
+            
+            return jsonify({
+                'status': 'error',
+                'message': 'ChatGPT API call failed',
+                **error_details
+            }), 500
+            
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': f'Test endpoint error: {str(e)}',
+            'error_type': type(e).__name__
+        }), 500
+
+
 @app.route('/')
 def index():
     """Home page with upload form."""
