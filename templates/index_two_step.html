@@ -399,17 +399,11 @@
         </div>
         {% endif %}
 
+        {% if tab == 'auto' or not tab or tab == '' %}
         <div class="card">
             <div class="card-header text-center">
                 <h1 class="mb-0">
-                    <i class="fas fa-{% if tab == 'auto' %}rocket{% elif step == 1 %}broom{% else %}star{% endif %} me-2"></i>
-                    {% if tab == 'auto' %}
-                        Automated Upload
-                    {% elif step == 1 %}
-                        Step 1: Clean & Deduplicate
-                    {% else %}
-                        Step 2: Enrich Contacts
-                    {% endif %}
+                    <i class="fas fa-rocket me-2"></i>Automated Upload
                 </h1>
             </div>
             <div class="card-body p-4">
@@ -424,10 +418,10 @@
                     {% endif %}
                 {% endwith %}
 
-                {% if tab == 'auto' %}
+                {% if tab == 'auto' or not tab or tab == '' %}
                     <!-- AUTO UPLOAD TAB -->
                     <div class="text-center mb-4">
-                        <i class="fas fa-cloud-upload-alt" style="font-size: 4rem; color: #3498db;"></i>
+                        <i class="fas fa-cloud-upload-alt" style="font-size: 4rem; color: #1e3a5f;"></i>
                         <h3 class="mt-3">Fully Automated Processing</h3>
                         <p class="text-muted">Just upload and we'll handle everything in the background</p>
                     </div>
@@ -521,7 +515,36 @@
                         </div>
                     </div>
 
-                {% elif step == 1 %}
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        {% if tab == 'manual' %}
+        <div class="card">
+            <div class="card-header text-center">
+                <h1 class="mb-0">
+                    <i class="fas fa-{% if step == 1 %}broom{% else %}star{% endif %} me-2"></i>
+                    {% if step == 1 %}
+                        Step 1: Clean & Deduplicate
+                    {% else %}
+                        Step 2: Enrich Contacts
+                    {% endif %}
+                </h1>
+            </div>
+            <div class="card-body p-4">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ 'danger' if category == 'error' else 'info' }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                {% if step == 1 %}
                     <!-- Step 1: Clean & Deduplicate -->
                     <div class="alert alert-info">
                         <i class="fas fa-info-circle me-2"></i>
@@ -821,6 +844,230 @@
                     }
                 }, 3000);
             }
+        }
+    </script>
+
+    <!-- Marina Chatbot Interface -->
+    <div id="marinaChatbot" style="position: fixed; bottom: 0; right: 0; width: 400px; max-width: 100%; z-index: 1000; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+        <!-- Chatbot Toggle Button -->
+        <div id="marinaToggle" style="position: absolute; bottom: 0; right: 20px; width: 60px; height: 60px; background: linear-gradient(135deg, #1e3a5f 0%, #152d4a 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.3); transition: all 0.3s ease;">
+            <i class="fas fa-comments" style="color: white; font-size: 1.5rem;"></i>
+        </div>
+        
+        <!-- Chatbot Window -->
+        <div id="marinaWindow" style="display: none; background: white; border-radius: 15px 15px 0 0; box-shadow: 0 -5px 25px rgba(0,0,0,0.2); height: 500px; display: flex; flex-direction: column;">
+            <!-- Chatbot Header -->
+            <div style="background: linear-gradient(135deg, #1e3a5f 0%, #152d4a 100%); color: white; padding: 1rem 1.5rem; border-radius: 15px 15px 0 0; display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <div style="width: 40px; height: 40px; background: rgba(255,255,255,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                        <i class="fas fa-robot" style="font-size: 1.2rem;"></i>
+                    </div>
+                    <div>
+                        <div style="font-weight: 600; font-size: 1.1rem;">Marina</div>
+                        <div style="font-size: 0.85rem; opacity: 0.9;">AI Assistant</div>
+                    </div>
+                </div>
+                <button id="marinaClose" style="background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; padding: 0; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <!-- Chat Messages -->
+            <div id="marinaMessages" style="flex: 1; overflow-y: auto; padding: 1.5rem; background: #f8f9fa;">
+                <div class="marina-message" style="margin-bottom: 1rem; display: flex; align-items: flex-start; gap: 0.75rem;">
+                    <div style="width: 35px; height: 35px; background: linear-gradient(135deg, #1e3a5f 0%, #152d4a 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                        <i class="fas fa-robot" style="color: white; font-size: 0.9rem;"></i>
+                    </div>
+                    <div style="background: white; padding: 1rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); max-width: 80%;">
+                        <div style="font-weight: 600; color: #1e3a5f; margin-bottom: 0.5rem;">Hi, I am Marina 👋</div>
+                        <div style="color: #2c3e50; line-height: 1.6;">
+                            I'm your AI assistant. I can help you with:
+                            <ul style="margin: 0.5rem 0 0 1.2rem; padding: 0;">
+                                <li>Viewing and managing <strong>Contacts</strong></li>
+                                <li>Creating and tracking <strong>Email Campaigns</strong></li>
+                                <li>Searching for company contacts</li>
+                                <li>Answering questions about the system</li>
+                            </ul>
+                            <div style="margin-top: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                                <button class="marina-quick-action" data-action="contacts" style="background: #1e3a5f; color: white; border: none; padding: 0.5rem 1rem; border-radius: 20px; font-size: 0.85rem; cursor: pointer; font-weight: 500;">📇 Contacts</button>
+                                <button class="marina-quick-action" data-action="campaigns" style="background: #1e3a5f; color: white; border: none; padding: 0.5rem 1rem; border-radius: 20px; font-size: 0.85rem; cursor: pointer; font-weight: 500;">📧 Email Campaigns</button>
+                                <button class="marina-quick-action" data-action="search" style="background: #1e3a5f; color: white; border: none; padding: 0.5rem 1rem; border-radius: 20px; font-size: 0.85rem; cursor: pointer; font-weight: 500;">🔍 Search Contacts</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Chat Input -->
+            <div style="padding: 1rem; background: white; border-top: 1px solid #e9ecef; border-radius: 0 0 15px 15px;">
+                <div style="display: flex; gap: 0.5rem;">
+                    <input type="text" id="marinaInput" placeholder="Type your message..." style="flex: 1; padding: 0.75rem 1rem; border: 2px solid #e9ecef; border-radius: 25px; font-size: 0.95rem; outline: none; transition: all 0.3s;" onkeypress="if(event.key === 'Enter') sendMarinaMessage()">
+                    <button id="marinaSend" onclick="sendMarinaMessage()" style="width: 45px; height: 45px; background: linear-gradient(135deg, #1e3a5f 0%, #152d4a 100%); color: white; border: none; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.3s;">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        #marinaChatbot {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        #marinaToggle:hover {
+            transform: scale(1.1);
+        }
+        
+        #marinaWindow {
+            animation: slideUp 0.3s ease-out;
+        }
+        
+        @keyframes slideUp {
+            from {
+                transform: translateY(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        
+        .marina-message {
+            animation: fadeIn 0.3s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .marina-quick-action:hover {
+            background: #152d4a !important;
+            transform: translateY(-2px);
+        }
+        
+        #marinaInput:focus {
+            border-color: #1e3a5f !important;
+        }
+        
+        #marinaSend:hover {
+            transform: scale(1.1);
+        }
+        
+        #marinaMessages::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        #marinaMessages::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        
+        #marinaMessages::-webkit-scrollbar-thumb {
+            background: #1e3a5f;
+            border-radius: 3px;
+        }
+    </style>
+
+    <script>
+        let marinaOpen = false;
+        
+        document.getElementById('marinaToggle').addEventListener('click', function() {
+            const window = document.getElementById('marinaWindow');
+            const toggle = document.getElementById('marinaToggle');
+            if (marinaOpen) {
+                window.style.display = 'none';
+                toggle.style.display = 'flex';
+                marinaOpen = false;
+            } else {
+                window.style.display = 'flex';
+                toggle.style.display = 'none';
+                marinaOpen = true;
+                document.getElementById('marinaMessages').scrollTop = document.getElementById('marinaMessages').scrollHeight;
+            }
+        });
+        
+        document.getElementById('marinaClose').addEventListener('click', function() {
+            document.getElementById('marinaWindow').style.display = 'none';
+            document.getElementById('marinaToggle').style.display = 'flex';
+            marinaOpen = false;
+        });
+        
+        document.querySelectorAll('.marina-quick-action').forEach(button => {
+            button.addEventListener('click', function() {
+                const action = this.getAttribute('data-action');
+                if (action === 'contacts') {
+                    window.location.href = "{{ url_for('view_contacts') }}";
+                } else if (action === 'campaigns') {
+                    window.location.href = "{{ url_for('campaigns_page') }}";
+                } else if (action === 'search') {
+                    addMarinaMessage('user', 'I want to search for contacts');
+                    setTimeout(() => {
+                        addMarinaMessage('bot', 'I can help you search for contacts! You can use the chatbot page for advanced contact searches. Would you like me to take you there?');
+                    }, 500);
+                }
+            });
+        });
+        
+        function sendMarinaMessage() {
+            const input = document.getElementById('marinaInput');
+            const message = input.value.trim();
+            if (!message) return;
+            
+            addMarinaMessage('user', message);
+            input.value = '';
+            
+            // Simulate AI response
+            setTimeout(() => {
+                let response = '';
+                const lowerMessage = message.toLowerCase();
+                
+                if (lowerMessage.includes('contact') || lowerMessage.includes('contact')) {
+                    response = 'I can help you with contacts! You can view all contacts, search for specific companies, or manage your contact database. Would you like to <a href="{{ url_for("view_contacts") }}" style="color: #1e3a5f; font-weight: 600;">view contacts</a>?';
+                } else if (lowerMessage.includes('campaign') || lowerMessage.includes('email')) {
+                    response = 'I can help you with email campaigns! You can create campaigns, schedule them, and track their performance. Would you like to <a href="{{ url_for("campaigns_page") }}" style="color: #1e3a5f; font-weight: 600;">manage campaigns</a>?';
+                } else if (lowerMessage.includes('search') || lowerMessage.includes('find')) {
+                    response = 'I can help you search for contacts! For advanced contact searches, you can use the <a href="{{ url_for("chatbot") }}" style="color: #1e3a5f; font-weight: 600;">chatbot page</a> where you can search by company name and get enriched contact information.';
+                } else if (lowerMessage.includes('help') || lowerMessage.includes('what can you do')) {
+                    response = 'I\'m Marina, your AI assistant! I can help you with:\n\n• Viewing and managing Contacts\n• Creating and tracking Email Campaigns\n• Searching for company contacts\n• Answering questions about the system\n\nJust ask me anything!';
+                } else {
+                    response = 'I understand you\'re asking about "' + message + '". I can help you with contacts, email campaigns, or contact searches. What would you like to do?';
+                }
+                
+                addMarinaMessage('bot', response);
+            }, 500);
+        }
+        
+        function addMarinaMessage(type, content) {
+            const messagesDiv = document.getElementById('marinaMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'marina-message';
+            
+            if (type === 'user') {
+                messageDiv.style.cssText = 'margin-bottom: 1rem; display: flex; align-items: flex-start; gap: 0.75rem; flex-direction: row-reverse;';
+                messageDiv.innerHTML = `
+                    <div style="width: 35px; height: 35px; background: #6c757d; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                        <i class="fas fa-user" style="color: white; font-size: 0.9rem;"></i>
+                    </div>
+                    <div style="background: linear-gradient(135deg, #1e3a5f 0%, #152d4a 100%); color: white; padding: 1rem; border-radius: 12px; max-width: 80%;">
+                        ${content}
+                    </div>
+                `;
+            } else {
+                messageDiv.style.cssText = 'margin-bottom: 1rem; display: flex; align-items: flex-start; gap: 0.75rem;';
+                messageDiv.innerHTML = `
+                    <div style="width: 35px; height: 35px; background: linear-gradient(135deg, #1e3a5f 0%, #152d4a 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                        <i class="fas fa-robot" style="color: white; font-size: 0.9rem;"></i>
+                    </div>
+                    <div style="background: white; padding: 1rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); max-width: 80%; color: #2c3e50; line-height: 1.6; white-space: pre-wrap;">
+                        ${content}
+                    </div>
+                `;
+            }
+            
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
         }
     </script>
 </body>
