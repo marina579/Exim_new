@@ -257,15 +257,35 @@ class HybridEnricher:
             except Exception as e:
                 logger.error(f"Error with Google Places: {str(e)}")
         
-        # STEP 4: Try BOTH Gemini AND ChatGPT (Always try both, merge results!)
+        # STEP 4: Call SerpAPI ONCE, then use results for BOTH Gemini and ChatGPT
         gemini_result = {}
         chatgpt_result = {}
+        serpapi_search_results = ""
         
-        # Try Gemini AI (Has built-in Google Search!)
-        if self.gemini:
-            logger.info(f"[4/7] 🥇 Trying Gemini AI for: {company_name}")
+        # Step 4a: Get search results from SerpAPI ONCE (if available)
+        if self.serpapi:
+            logger.info(f"[4/7] 🔍 Calling SerpAPI ONCE for: {company_name} (will share results with Gemini & ChatGPT)")
             try:
-                gemini_result = self.gemini.find_contact(company_name, address)
+                # Use ChatGPT's internal method to get search results text (same format)
+                from chatgpt_enricher import ChatGPTEnricher
+                temp_chatgpt = ChatGPTEnricher()
+                serpapi_search_results = temp_chatgpt._search_with_serpapi(company_name, address)
+                if serpapi_search_results and serpapi_search_results != "No search results found":
+                    logger.info(f"✅ Got {len(serpapi_search_results)} chars from SerpAPI (1 call - will be shared)")
+                else:
+                    logger.warning(f"⚠️  SerpAPI returned no results")
+                    serpapi_search_results = ""
+            except Exception as e:
+                logger.error(f"❌ SerpAPI error: {str(e)}")
+                serpapi_search_results = ""
+        
+        # Step 4b: Try Gemini AI (with SerpAPI results as context if available)
+        if self.gemini:
+            logger.info(f"[4b/7] 🥇 Trying Gemini AI for: {company_name}")
+            try:
+                # Pass SerpAPI results to Gemini as additional context (Gemini will also do its own search)
+                gemini_result = self.gemini.find_contact(company_name, address, search_results=serpapi_search_results if serpapi_search_results else None)
+                
                 if gemini_result.get('phone') or gemini_result.get('email'):
                     logger.info(f"✅ Gemini found: phone={gemini_result.get('phone', 'N/A')}, email={gemini_result.get('email', 'N/A')}")
                 else:
@@ -273,11 +293,13 @@ class HybridEnricher:
             except Exception as e:
                 logger.error(f"❌ Gemini error: {str(e)}")
         
-        # Try ChatGPT AI (Uses SerpAPI or Gemini internally)
+        # Step 4c: Try ChatGPT AI (with SerpAPI results - skip SerpAPI call in ChatGPT)
         if self.chatgpt:
-            logger.info(f"[5/7] 🥈 Trying ChatGPT AI for: {company_name}")
+            logger.info(f"[4c/7] 🥈 Trying ChatGPT AI for: {company_name}")
             try:
-                chatgpt_result = self.chatgpt.find_contact(company_name, address)
+                # Pass SerpAPI results directly to ChatGPT (skips SerpAPI call inside ChatGPT)
+                chatgpt_result = self.chatgpt.find_contact(company_name, address, search_results=serpapi_search_results if serpapi_search_results else None)
+                
                 if chatgpt_result.get('phone') or chatgpt_result.get('email'):
                     logger.info(f"✅ ChatGPT found: phone={chatgpt_result.get('phone', 'N/A')}, email={chatgpt_result.get('email', 'N/A')}")
                 else:

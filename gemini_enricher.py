@@ -60,7 +60,7 @@ class GeminiEnricher:
         
         logger.info("✅ Gemini enricher initialized")
     
-    def find_contact(self, company_name: str, address: str = "") -> Dict[str, str]:
+    def find_contact(self, company_name: str, address: str = "", search_results: str = None) -> Dict[str, str]:
         """
         Use Gemini with Google Search to find phone number and email for a company.
         This uses Google Search Grounding - Gemini searches the web itself!
@@ -81,8 +81,13 @@ class GeminiEnricher:
         
         try:
             # Build ENHANCED prompt with better instructions
+            # If search_results provided, include them in the prompt (SerpAPI results)
+            serpapi_context = ""
+            if search_results and search_results != "No search results found":
+                serpapi_context = f"\n\nADDITIONAL SEARCH RESULTS FROM SERPAPI:\n{search_results}\n\nUse these search results along with your own web search to find the most accurate contact information."
+            
             if address:
-                prompt = f"""You are an expert at finding contact information for Indian businesses. Search the web and find accurate contact details for "{company_name}" located at "{address}" in India.
+                prompt = f"""You are an expert at finding contact information for Indian businesses. Search the web and find accurate contact details for "{company_name}" located at "{address}" in India.{serpapi_context}
 
 IMPORTANT INSTRUCTIONS:
 1. Search for the company on:
@@ -119,7 +124,7 @@ Company: {company_name}
 Address: {address}
 """
             else:
-                prompt = f"""You are an expert at finding contact information for Indian businesses. Search the web and find accurate contact details for "{company_name}" in India.
+                prompt = f"""You are an expert at finding contact information for Indian businesses. Search the web and find accurate contact details for "{company_name}" in India.{serpapi_context}{serpapi_context}
 
 IMPORTANT INSTRUCTIONS:
 1. Search for the company on:

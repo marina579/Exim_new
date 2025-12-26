@@ -44,7 +44,7 @@ class ChatGPTEnricher:
         self.client = OpenAI(api_key=self.api_key)
         logger.info("✅ ChatGPT enricher initialized")
     
-    def find_contact(self, company_name: str, address: str = "") -> Dict[str, str]:
+    def find_contact(self, company_name: str, address: str = "", search_results: str = None) -> Dict[str, str]:
         """
         Use ChatGPT to find phone number and email for a company.
         
@@ -58,8 +58,9 @@ class ChatGPTEnricher:
         # Since ChatGPT API doesn't have web search, we use SerpApi to get search data
         # then use ChatGPT to extract contacts from the structured results
         
-        # Step 1: Get search results from SerpApi
-        search_results = self._search_with_serpapi(company_name, address)
+        # Step 1: Get search results from SerpApi (or use provided results)
+        if search_results is None:
+            search_results = self._search_with_serpapi(company_name, address)
         
         if not search_results or search_results == "No search results found":
             logger.warning(f"⚠️  No search results from SerpAPI for {company_name}.")
