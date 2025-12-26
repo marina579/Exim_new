@@ -220,7 +220,7 @@
                     <i class="fas fa-comments me-1"></i>Chatbot
                 </a>
                 <a href="{{ url_for('view_contacts') }}">
-                    <i class="fas fa-database me-1"></i>Database
+                    <i class="fas fa-users me-1"></i>Contacts
                 </a>
                 {% if session.get('is_admin') %}
                 <a href="{{ url_for('admin_users') }}">
@@ -242,7 +242,7 @@
                             👋 Hello! I'm your AI assistant. Type a company name to search for contact information.
                         </p>
                         <p class="mb-0 mt-2">
-                            💾 If the company is in our database, I'll show you the contacts instantly.<br>
+                            💾 If the company is in our contacts, I'll show you the contacts instantly.<br>
                             🤖 If not, I can run AI analysis to find their contacts for you!
                         </p>
                     </div>
@@ -304,7 +304,7 @@
         }
         
         function formatContacts(contacts, source) {
-            let html = `<p class="mb-2">✅ Found ${contacts.length} contact${contacts.length > 1 ? 's' : ''} ${source === 'database' ? '(from database)' : '(from AI analysis)'}</p>`;
+            let html = `<p class="mb-2">✅ Found ${contacts.length} contact${contacts.length > 1 ? 's' : ''} ${source === 'database' ? '(from contacts)' : '(from AI analysis)'}</p>`;
             
             contacts.forEach((contact, idx) => {
                 html += `
@@ -347,12 +347,12 @@
                 hideTyping();
                 
                 if (data.status === 'found') {
-                    // Found in database
+                    // Found in contacts
                     addMessage(formatContacts(data.contacts, data.source));
                 } else if (data.status === 'not_found') {
                     // Not found - offer to process
                     addMessage(`
-                        <p class="mb-2">❌ "${companyName}" not found in database.</p>
+                        <p class="mb-2">❌ "${companyName}" not found in contacts.</p>
                         <p class="mb-3">Would you like me to run AI analysis to find their contacts?</p>
                         <button class="btn btn-analyze" onclick="runAnalysis('${companyName}')">
                             <i class="fas fa-robot me-2"></i>Run AI Analysis
@@ -395,7 +395,7 @@
                 
                 if (data.status === 'success') {
                     addMessage(formatContacts(data.contacts, data.source));
-                    addMessage(`<p class="mb-0">💾 Contacts saved to database for future quick access!</p>`);
+                    addMessage(`<p class="mb-0">💾 Contacts saved for future quick access!</p>`);
                     
                     // Show Zoho sync status if available
                     if (data.zoho_sync) {
