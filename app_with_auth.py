@@ -3274,6 +3274,19 @@ def get_email_sequence_stats():
         }), 500
 
 
+# Initialize Zoho token refresh service on startup
+try:
+    import logging
+    _logger = logging.getLogger(__name__)
+    from zoho_token_refresh_service import token_refresh_service
+    # Start background token refresh to prevent daily expiry
+    token_refresh_service.start_background_refresh()
+    _logger.info("✅ Zoho token refresh service started")
+except Exception as e:
+    import logging
+    _logger = logging.getLogger(__name__)
+    _logger.warning(f"⚠️  Could not start Zoho token refresh service: {str(e)}")
+
 if __name__ == '__main__':
     print("\n" + "="*70)
     print("🚢 MARINECO AI LABS - SECURE VERSION")
