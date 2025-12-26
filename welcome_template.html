@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to Marineco</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.7;
+            color: #2c3e50;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+        }
+        .email-wrapper {
+            max-width: 650px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+        }
+        .header-banner {
+            background: linear-gradient(135deg, #2980b9 0%, #3498db 100%);
+            padding: 40px 40px 30px;
+            text-align: center;
+            color: white;
+        }
+        .header-banner h1 {
+            font-size: 36px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        .header-banner .tagline {
+            font-size: 18px;
+            opacity: 0.95;
+            font-weight: 300;
+        }
+        .email-container {
+            padding: 40px;
+            background: #ffffff;
+        }
+        .greeting {
+            font-size: 20px;
+            color: #2980b9;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+        p {
+            margin-bottom: 18px;
+            color: #34495e;
+            font-size: 16px;
+        }
+        .highlight {
+            color: #2980b9;
+            font-weight: 600;
+            background: linear-gradient(120deg, #a8edea 0%, #fed6e3 100%);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        .intro-section {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            padding: 25px;
+            border-radius: 10px;
+            margin: 25px 0;
+            border-left: 4px solid #2980b9;
+        }
+        .intro-section p {
+            font-size: 17px;
+            line-height: 1.8;
+            color: #2c3e50;
+        }
+        h2 {
+            color: #2980b9;
+            font-size: 24px;
+            margin: 30px 0 20px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #3498db;
+        }
+        .features {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 25px;
+            border-radius: 10px;
+            margin: 25px 0;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .features ul {
+            list-style: none;
+            padding-left: 0;
+        }
+        .features li {
+            padding: 12px 0;
+            border-bottom: 1px solid #dee2e6;
+            font-size: 16px;
+            color: #495057;
+            transition: transform 0.2s;
+        }
+        .features li:last-child {
+            border-bottom: none;
+        }
+        .features li:before {
+            content: "✅ ";
+            margin-right: 12px;
+            font-size: 18px;
+        }
+        .features li:hover {
+            transform: translateX(5px);
+            color: #2980b9;
+        }
+        .brochure-container {
+            text-align: center;
+            margin: 35px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+        .brochure-container h3 {
+            color: #2980b9;
+            margin-bottom: 20px;
+            font-size: 22px;
+        }
+        .brochure-image {
+            max-width: 100%;
+            height: auto;
+            border: 3px solid #3498db;
+            border-radius: 8px;
+            margin: 15px 0;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+            transition: transform 0.3s;
+        }
+        .brochure-image:hover {
+            transform: scale(1.02);
+        }
+        .cta-section {
+            text-align: center;
+            margin: 40px 0;
+            padding: 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 10px;
+        }
+        .cta-button {
+            display: inline-block;
+            background: #ffffff;
+            color: #2980b9;
+            padding: 16px 40px;
+            text-decoration: none;
+            border-radius: 50px;
+            font-weight: 700;
+            font-size: 18px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .cta-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+            background: #f8f9fa;
+        }
+        .signature {
+            margin-top: 50px;
+            padding-top: 30px;
+            border-top: 3px solid #e9ecef;
+        }
+        .signature-name {
+            font-weight: 700;
+            font-size: 20px;
+            color: #2c3e50;
+            margin-bottom: 8px;
+        }
+        .signature-title {
+            color: #7f8c8d;
+            font-size: 16px;
+            margin-bottom: 15px;
+            font-weight: 500;
+        }
+        .signature-contact {
+            color: #555;
+            font-size: 15px;
+            line-height: 2;
+        }
+        .signature-contact a {
+            color: #2980b9;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .signature-contact a:hover {
+            text-decoration: underline;
+        }
+        .company-info {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            padding: 25px;
+            border-radius: 10px;
+            margin: 30px 0;
+            text-align: center;
+            color: white;
+        }
+        .company-name {
+            font-weight: 700;
+            font-size: 20px;
+            margin-bottom: 15px;
+            color: #ffffff;
+        }
+        .company-tagline {
+            font-size: 16px;
+            margin-bottom: 20px;
+            opacity: 0.9;
+        }
+        .company-address {
+            font-size: 13px;
+            opacity: 0.8;
+            margin-bottom: 15px;
+            line-height: 1.6;
+        }
+        .locations {
+            font-size: 14px;
+            opacity: 0.9;
+            line-height: 1.8;
+            font-weight: 500;
+        }
+        .footer {
+            margin-top: 40px;
+            padding-top: 25px;
+            border-top: 2px solid #e9ecef;
+            text-align: center;
+            color: #7f8c8d;
+            font-size: 14px;
+            line-height: 1.8;
+        }
+        .footer p {
+            margin-bottom: 12px;
+        }
+        .footer strong {
+            color: #2c3e50;
+        }
+        @media only screen and (max-width: 600px) {
+            .email-container {
+                padding: 25px;
+            }
+            .header-banner {
+                padding: 30px 25px 20px;
+            }
+            .header-banner h1 {
+                font-size: 28px;
+            }
+            h2 {
+                font-size: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-wrapper">
+        <div class="header-banner">
+            <h1>🌊 MARINECO</h1>
+            <p class="tagline">Your Trusted Global Logistics Partner</p>
+        </div>
+
+        <div class="email-container">
+            <div class="greeting">Hi {{firstName}},</div>
+
+            <p>I hope this message finds you well.</p>
+
+            <div class="intro-section">
+                <p>I'm reaching out to introduce <span class="highlight">Marineco Private Limited</span> — a trusted name in global freight forwarding and integrated logistics.</p>
+                <p>Whether you're managing international shipments, sourcing across continents, or scaling e-commerce operations, <span class="highlight">Marineco simplifies logistics</span> so you can focus on growth, not bottlenecks.</p>
+            </div>
+
+            <p>We're proud to announce that Marineco is partnering with leading organizations throughout Africa, delivering reliable, scalable logistics solutions — and we'd be honored to support <span class="highlight">{{companyName}}</span> next.</p>
+
+            <h2>🚀 Here's what we support you with:</h2>
+
+            <div class="features">
+                <ul>
+                    <li><strong>Air & Sea Freight</strong> – from routine shipping to urgent cargo</li>
+                    <li><strong>Consolidated Shipments</strong> – cost-effective multi-client logistics</li>
+                    <li><strong>Cross-Trade & E-Commerce Fulfillment</strong> – global reach made simple</li>
+                    <li><strong>RO-RO, Break Bulk, and Special Equipment Handling</strong> – including JCBs, boom lifters, trucks, and more</li>
+                    <li><strong>Door-to-Door Solutions</strong> – including customs clearance, inland transport, warehousing</li>
+                    <li><strong>Petroleum & Industrial Logistics</strong> – with full regulatory compliance</li>
+                </ul>
+            </div>
+
+            <p>From <strong>aerospace components and drilling equipment</strong> to <strong>petroleum-based goods and high-value industrial cargo</strong>, we move it all — from anywhere, to everywhere.</p>
+
+            <h2>📦 We also offer:</h2>
+
+            <div class="features">
+                <ul>
+                    <li>Import/Export Consolidation</li>
+                    <li>Professional Packing & Crating</li>
+                    <li>Custom Clearance & Documentation</li>
+                    <li>Domestic & International Delivery</li>
+                    <li>Hazardous Goods Handling</li>
+                </ul>
+            </div>
+
+            <p>At Marineco, we combine deep industry knowledge with agile execution to deliver transparency, reliability, and scale — all from a <span class="highlight">single logistics partner</span>.</p>
+
+            <!-- Brochure Images Embedded in Body -->
+            <div class="brochure-container">
+                <h3>📄 Our Services Brochures</h3>
+                <img src="{{brochure1_url}}" alt="Marineco Services Brochure 1" class="brochure-image" />
+                <img src="{{brochure2_url}}" alt="Marineco Services Brochure 2" class="brochure-image" />
+            </div>
+
+            <div class="cta-section">
+                <p style="color: white; font-size: 18px; margin-bottom: 20px;">Would it make sense to schedule a quick 15-minute call to explore how we can support <strong>{{companyName}}</strong>'s logistics needs?</p>
+                <a href="mailto:sarita@marineco.co?subject=Schedule%20a%20Call%20with%20Marineco&body=Hi%20Sarita%2C%0A%0AI%27d%20like%20to%20schedule%20a%20call%20to%20discuss%20logistics%20solutions%20for%20{{companyName}}.%0A%0ABest%20regards%2C%0A{{firstName}}" class="cta-button">Schedule a Call</a>
+            </div>
+
+            <p style="margin-top: 30px;">Looking forward to connecting!</p>
+
+            <p>Warm regards,</p>
+
+            <div class="signature">
+                <div class="signature-name">Sarita Reddy D</div>
+                <div class="signature-title">Chief Executive Officer</div>
+                <div class="signature-contact">
+                    <strong>Email:</strong> <a href="mailto:sarita@marineco.co">sarita@marineco.co</a><br>
+                    <strong>T:</strong> +91 040 40021325<br>
+                    <strong>M:</strong> +91 9014234830<br>
+                    <strong>Website:</strong> <a href="https://www.marineco.co" target="_blank">www.marineco.co</a>
+                </div>
+            </div>
+
+            <div class="company-info">
+                <div class="company-name">MARINECO PRIVATE LIMITED</div>
+                <div class="company-tagline">Your Trusted Global Freight Forwarding & Logistics Partner</div>
+                <div class="company-address">
+                    FLAT 301 | 3RD FLOOR | STREET NO 5 | PRAKASH NAGAR | BEGUMPET | HYDERABAD | INDIA
+                </div>
+                <div class="locations">
+                    🌍 INDIA || ZAMBIA || TANZANIA || UGANDA || SOUTH AFRICA || U.A.E || HONG KONG || CHINA
+                </div>
+            </div>
+
+            <div class="footer">
+                <p>At Marineco, we simplify the complexity of global trade by combining deep industry expertise with cutting-edge operational processes. Whether you're a multinational, a growing exporter, or an e-commerce brand, we tailor logistics solutions to move your cargo safely and efficiently — every time.</p>
+                <p><strong>Let Marineco be your single-window logistics partner — reliable, responsive, and ready to scale with you.</strong></p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

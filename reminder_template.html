@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Follow-up: Marineco Logistics Solutions</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.7;
+            color: #2c3e50;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            padding: 20px;
+        }
+        .email-wrapper {
+            max-width: 650px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+        }
+        .header-banner {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            padding: 30px 40px;
+            text-align: center;
+            color: white;
+        }
+        .header-banner h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+        .email-container {
+            padding: 40px;
+            background: #ffffff;
+        }
+        .greeting {
+            font-size: 20px;
+            color: #e74c3c;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+        p {
+            margin-bottom: 18px;
+            color: #34495e;
+            font-size: 16px;
+        }
+        .reminder-box {
+            background: linear-gradient(135deg, #fff5f5 0%, #ffe0e0 100%);
+            padding: 25px;
+            border-radius: 10px;
+            margin: 25px 0;
+            border-left: 4px solid #e74c3c;
+        }
+        .cta-section {
+            text-align: center;
+            margin: 40px 0;
+            padding: 30px;
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            border-radius: 10px;
+        }
+        .cta-button {
+            display: inline-block;
+            background: #ffffff;
+            color: #e74c3c;
+            padding: 16px 40px;
+            text-decoration: none;
+            border-radius: 50px;
+            font-weight: 700;
+            font-size: 18px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+        }
+        .signature {
+            margin-top: 40px;
+            padding-top: 30px;
+            border-top: 3px solid #e9ecef;
+        }
+        .signature-name {
+            font-weight: 700;
+            font-size: 20px;
+            color: #2c3e50;
+            margin-bottom: 8px;
+        }
+        .signature-contact {
+            color: #555;
+            font-size: 15px;
+            line-height: 2;
+        }
+        .signature-contact a {
+            color: #e74c3c;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="email-wrapper">
+        <div class="header-banner">
+            <h1>🔔 Quick Reminder: Marineco Logistics</h1>
+        </div>
+
+        <div class="email-container">
+            <div class="greeting">Hi {{firstName}},</div>
+
+            <p>I wanted to follow up on my previous email about how Marineco can support <strong>{{companyName}}</strong>'s logistics needs.</p>
+
+            <div class="reminder-box">
+                <p style="font-size: 18px; font-weight: 600; color: #e74c3c; margin-bottom: 15px;">I know you're busy, but I wanted to make sure this didn't get lost in your inbox.</p>
+                <p>We've helped companies like yours streamline their international shipping, reduce costs, and scale operations across Africa and beyond.</p>
+            </div>
+
+            <p>If you're open to a quick 15-minute conversation, I'd love to show you how we can:</p>
+            <ul style="margin-left: 20px; margin-bottom: 20px; color: #34495e;">
+                <li>Simplify your logistics operations</li>
+                <li>Reduce shipping costs through consolidation</li>
+                <li>Provide door-to-door solutions with customs clearance</li>
+                <li>Scale with you as your business grows</li>
+            </ul>
+
+            <div class="cta-section">
+                <p style="color: white; font-size: 18px; margin-bottom: 20px;">Would you be available for a brief call this week?</p>
+                <a href="mailto:sarita@marineco.co?subject=Re:%20Marineco%20Logistics%20Solutions&body=Hi%20Sarita%2C%0A%0AYes%2C%20I%27d%20like%20to%20learn%20more%20about%20how%20Marineco%20can%20help%20{{companyName}}.%0A%0ABest%20regards%2C%0A{{firstName}}" class="cta-button">Reply to Schedule</a>
+            </div>
+
+            <p>If now's not the right time, no worries — I'll check back in a few weeks.</p>
+
+            <p>Best regards,</p>
+
+            <div class="signature">
+                <div class="signature-name">Sarita Reddy D</div>
+                <div style="color: #7f8c8d; font-size: 16px; margin-bottom: 15px;">Chief Executive Officer</div>
+                <div class="signature-contact">
+                    <strong>Email:</strong> <a href="mailto:sarita@marineco.co">sarita@marineco.co</a><br>
+                    <strong>T:</strong> +91 040 40021325 | <strong>M:</strong> +91 9014234830<br>
+                    <strong>Website:</strong> <a href="https://www.marineco.co" target="_blank">www.marineco.co</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+

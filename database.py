@@ -107,6 +107,13 @@ class ContactDatabase:
                     zoho_lead_id VARCHAR(100),
                     zoho_pushed_at TIMESTAMP,
                     zoho_error TEXT,
+                    email_sequence_status VARCHAR(50) DEFAULT 'not_started',
+                    email_sequence_step INTEGER DEFAULT 0,
+                    email_last_sent_at TIMESTAMP,
+                    email_replied BOOLEAN DEFAULT FALSE,
+                    email_replied_at TIMESTAMP,
+                    email_opened BOOLEAN DEFAULT FALSE,
+                    email_clicked BOOLEAN DEFAULT FALSE,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
@@ -155,6 +162,33 @@ class ContactDatabase:
                     processing_time INTEGER,
                     error_message TEXT,
                     output_file VARCHAR(255),
+                    user_id INTEGER REFERENCES users(id)
+                )
+            """)
+            
+            # Scheduled campaigns table for email marketing
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS scheduled_campaigns (
+                    id SERIAL PRIMARY KEY,
+                    name VARCHAR(255) NOT NULL,
+                    list_key VARCHAR(255) NOT NULL,
+                    template_key VARCHAR(255) NOT NULL,
+                    subject VARCHAR(500) NOT NULL,
+                    from_email VARCHAR(255) NOT NULL,
+                    from_name VARCHAR(255),
+                    schedule_type VARCHAR(50) NOT NULL,
+                    schedule_time VARCHAR(10) NOT NULL,
+                    schedule_day INTEGER,
+                    start_date DATE,
+                    end_date DATE,
+                    enabled BOOLEAN DEFAULT TRUE,
+                    auto_sync_contacts BOOLEAN DEFAULT TRUE,
+                    last_sent_at TIMESTAMP,
+                    last_campaign_id VARCHAR(255),
+                    status VARCHAR(50) DEFAULT 'pending',
+                    error_message TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     user_id INTEGER REFERENCES users(id)
                 )
             """)
@@ -248,6 +282,34 @@ class ContactDatabase:
                 pass
             try:
                 cursor.execute("ALTER TABLE contacts ADD COLUMN zoho_error TEXT")
+            except:
+                pass
+            try:
+                cursor.execute("ALTER TABLE contacts ADD COLUMN email_sequence_status TEXT DEFAULT 'not_started'")
+            except:
+                pass
+            try:
+                cursor.execute("ALTER TABLE contacts ADD COLUMN email_sequence_step INTEGER DEFAULT 0")
+            except:
+                pass
+            try:
+                cursor.execute("ALTER TABLE contacts ADD COLUMN email_last_sent_at TIMESTAMP")
+            except:
+                pass
+            try:
+                cursor.execute("ALTER TABLE contacts ADD COLUMN email_replied INTEGER DEFAULT 0")
+            except:
+                pass
+            try:
+                cursor.execute("ALTER TABLE contacts ADD COLUMN email_replied_at TIMESTAMP")
+            except:
+                pass
+            try:
+                cursor.execute("ALTER TABLE contacts ADD COLUMN email_opened INTEGER DEFAULT 0")
+            except:
+                pass
+            try:
+                cursor.execute("ALTER TABLE contacts ADD COLUMN email_clicked INTEGER DEFAULT 0")
             except:
                 pass
             
@@ -2042,6 +2104,233 @@ class ContactDatabase:
                 'database_contacts': 0,
                 'contacts_by_date': []
             }
+        finally:
+            conn.close()
+
+
+    def save_scheduled_campaign(self, campaign_config: Dict) -> Optional[int]:
+        """Save a scheduled campaign to database."""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        
+        try:
+            if self.db_type == 'postgresql':
+                cursor.execute("""
+                    INSERT INTO scheduled_campaigns 
+                    (name, list_key, template_key, subject, from_email, from_name,
+                     schedule_type, schedule_time, schedule_day, start_date, end_date,
+                     enabled, auto_sync_contacts, user_id)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    RETURNING id
+                """, (
+                    campaign_config.get('name'),
+                    campaign_config.get('list_key'),
+                    campaign_config.get('template_key'),
+                    campaign_config.get('subject'),
+                    campaign_config.get('from_email'),
+                    campaign_config.get('from_name'),
+                    campaign_config.get('schedule_type'),
+                    campaign_config.get('schedule_time'),
+                    campaign_config.get('schedule_day'),
+                    campaign_config.get('start_date'),
+                    campaign_config.get('end_date'),
+                    campaign_config.get('enabled', True),
+                    campaign_config.get('auto_sync_contacts', True),
+                    campaign_config.get('user_id')
+                ))
+                result = cursor.fetchone()
+                campaign_id = result['id'] if result else None
+            else:
+                cursor.execute("""
+                    INSERT INTO scheduled_campaigns 
+                    (name, list_key, template_key, subject, from_email, from_name,
+                     schedule_type, schedule_time, schedule_day, start_date, end_date,
+                     enabled, auto_sync_contacts, user_id)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    campaign_config.get('name'),
+                    campaign_config.get('list_key'),
+                    campaign_config.get('template_key'),
+                    campaign_config.get('subject'),
+                    campaign_config.get('from_email'),
+                    campaign_config.get('from_name'),
+                    campaign_config.get('schedule_type'),
+                    campaign_config.get('schedule_time'),
+                    campaign_config.get('schedule_day'),
+                    campaign_config.get('start_date'),
+                    campaign_config.get('end_date'),
+                    1 if campaign_config.get('enabled', True) else 0,
+                    1 if campaign_config.get('auto_sync_contacts', True) else 0,
+                    campaign_config.get('user_id')
+                ))
+                campaign_id = cursor.lastrowid
+            
+            conn.commit()
+            logger.info(f"✅ Saved scheduled campaign: {campaign_id}")
+            return campaign_id
+            
+        except Exception as e:
+            logger.error(f"❌ Error saving scheduled campaign: {str(e)}")
+            conn.rollback()
+            return None
+        finally:
+            conn.close()
+    
+    def get_scheduled_campaign(self, schedule_id: int) -> Optional[Dict]:
+        """Get a scheduled campaign by ID."""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        
+        try:
+            if self.db_type == 'postgresql':
+                cursor.execute("SELECT * FROM scheduled_campaigns WHERE id = %s", (schedule_id,))
+                row = cursor.fetchone()
+                if row:
+                    return dict(row)
+            else:
+                cursor.execute("SELECT * FROM scheduled_campaigns WHERE id = ?", (schedule_id,))
+                row = cursor.fetchone()
+                if row:
+                    return {
+                        'id': row[0], 'name': row[1], 'list_key': row[2], 'template_key': row[3],
+                        'subject': row[4], 'from_email': row[5], 'from_name': row[6],
+                        'schedule_type': row[7], 'schedule_time': row[8], 'schedule_day': row[9],
+                        'start_date': row[10], 'end_date': row[11], 'enabled': bool(row[12]),
+                        'auto_sync_contacts': bool(row[13]), 'last_sent_at': row[14],
+                        'last_campaign_id': row[15], 'status': row[16], 'error_message': row[17],
+                        'created_at': row[18], 'updated_at': row[19], 'user_id': row[20]
+                    }
+            return None
+        except Exception as e:
+            logger.error(f"❌ Error getting scheduled campaign: {str(e)}")
+            return None
+        finally:
+            conn.close()
+    
+    def get_all_scheduled_campaigns(self) -> List[Dict]:
+        """Get all scheduled campaigns."""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        
+        try:
+            cursor.execute("SELECT * FROM scheduled_campaigns ORDER BY created_at DESC")
+            rows = cursor.fetchall()
+            
+            if self.db_type == 'postgresql':
+                return [dict(row) for row in rows]
+            else:
+                return [{
+                    'id': row[0], 'name': row[1], 'list_key': row[2], 'template_key': row[3],
+                    'subject': row[4], 'from_email': row[5], 'from_name': row[6],
+                    'schedule_type': row[7], 'schedule_time': row[8], 'schedule_day': row[9],
+                    'start_date': row[10], 'end_date': row[11], 'enabled': bool(row[12]),
+                    'auto_sync_contacts': bool(row[13]), 'last_sent_at': row[14],
+                    'last_campaign_id': row[15], 'status': row[16], 'error_message': row[17],
+                    'created_at': row[18], 'updated_at': row[19], 'user_id': row[20]
+                } for row in rows]
+        except Exception as e:
+            logger.error(f"❌ Error getting scheduled campaigns: {str(e)}")
+            return []
+        finally:
+            conn.close()
+    
+    def update_scheduled_campaign(self, schedule_id: int, updates: Dict) -> bool:
+        """Update a scheduled campaign."""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        
+        try:
+            update_fields = []
+            values = []
+            
+            for key, value in updates.items():
+                if key in ['enabled', 'auto_sync_contacts']:
+                    value = 1 if value else 0 if self.db_type == 'sqlite' else value
+                update_fields.append(f"{key} = {'?' if self.db_type == 'sqlite' else '%s'}")
+                values.append(value)
+            
+            update_fields.append(f"updated_at = CURRENT_TIMESTAMP")
+            
+            if self.db_type == 'postgresql':
+                query = f"UPDATE scheduled_campaigns SET {', '.join(update_fields)} WHERE id = %s"
+            else:
+                query = f"UPDATE scheduled_campaigns SET {', '.join(update_fields)} WHERE id = ?"
+            
+            values.append(schedule_id)
+            cursor.execute(query, values)
+            conn.commit()
+            return True
+        except Exception as e:
+            logger.error(f"❌ Error updating scheduled campaign: {str(e)}")
+            conn.rollback()
+            return False
+        finally:
+            conn.close()
+    
+    def update_scheduled_campaign_status(self, schedule_id: int, status: str, 
+                                        campaign_id: str = None, error_message: str = None):
+        """Update campaign status after sending."""
+        updates = {
+            'status': status,
+            'last_sent_at': datetime.now().isoformat() if status == 'sent' else None
+        }
+        if campaign_id:
+            updates['last_campaign_id'] = campaign_id
+        if error_message:
+            updates['error_message'] = error_message
+        self.update_scheduled_campaign(schedule_id, updates)
+    
+    def delete_scheduled_campaign(self, schedule_id: int) -> bool:
+        """Delete a scheduled campaign."""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        
+        try:
+            if self.db_type == 'postgresql':
+                cursor.execute("DELETE FROM scheduled_campaigns WHERE id = %s", (schedule_id,))
+            else:
+                cursor.execute("DELETE FROM scheduled_campaigns WHERE id = ?", (schedule_id,))
+            conn.commit()
+            return cursor.rowcount > 0
+        except Exception as e:
+            logger.error(f"❌ Error deleting scheduled campaign: {str(e)}")
+            conn.rollback()
+            return False
+        finally:
+            conn.close()
+    
+    def get_all_contacts_for_campaign(self) -> List[Dict]:
+        """Get all contacts from database for campaign syncing."""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        
+        try:
+            if self.db_type == 'postgresql':
+                cursor.execute("""
+                    SELECT c.contact_name, c.first_name, c.last_name, c.email, c.phone, c.whatsapp, co.name as company
+                    FROM contacts c
+                    JOIN companies co ON c.company_id = co.id
+                    WHERE c.email IS NOT NULL AND c.email != ''
+                    ORDER BY c.created_at DESC
+                """)
+                rows = cursor.fetchall()
+                return [dict(row) for row in rows]
+            else:
+                cursor.execute("""
+                    SELECT c.contact_name, c.first_name, c.last_name, c.email, c.phone, c.whatsapp, co.name as company
+                    FROM contacts c
+                    JOIN companies co ON c.company_id = co.id
+                    WHERE c.email IS NOT NULL AND c.email != ''
+                    ORDER BY c.created_at DESC
+                """)
+                rows = cursor.fetchall()
+                return [{
+                    'contact_name': row[0], 'first_name': row[1], 'last_name': row[2],
+                    'email': row[3], 'phone': row[4], 'whatsapp': row[5], 'company': row[6]
+                } for row in rows]
+        except Exception as e:
+            logger.error(f"❌ Error getting contacts for campaign: {str(e)}")
+            return []
         finally:
             conn.close()
 

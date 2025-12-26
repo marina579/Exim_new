@@ -18,6 +18,7 @@ from dotenv import load_dotenv
 from hybrid_enricher import HybridEnricher
 from database import db
 from zoho_crm_service import ZohoCRMService
+from campaign_scheduler import campaign_scheduler
 
 # Auto-push to Zoho configuration
 AUTO_PUSH_TO_ZOHO = os.getenv('AUTO_PUSH_TO_ZOHO', 'true').lower() == 'true'
@@ -689,6 +690,13 @@ def _auto_push_contacts_to_zoho(company_id: int, company_name: str, contacts: li
         else:
             logger.warning(f"⚠️  Auto-push to Zoho: All {total_failed} contacts failed for {company_name}")
         
+        # Auto-send welcome email if enabled and contacts were pushed
+        if total_pushed > 0 and campaign_scheduler:
+            try:
+                _trigger_welcome_email_campaign(company_name, contacts)
+            except Exception as e:
+                logger.warning(f"⚠️  Auto-welcome email failed: {str(e)}")
+        
         return sync_summary
             
     except ImportError:
@@ -698,6 +706,124 @@ def _auto_push_contacts_to_zoho(company_id: int, company_name: str, contacts: li
         logger.error(f"❌ Error in auto-push to Zoho for {company_name}: {str(e)}", exc_info=True)
         # Don't raise - auto-push failures shouldn't break the main process
         return None
+
+
+def _trigger_welcome_email_campaign(company_name: str, contacts: list):
+    """
+    Automatically trigger welcome email campaign for new contacts.
+    Checks if auto-welcome email is enabled and sends immediately.
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    if not campaign_scheduler:
+        return
+    
+    # Check if auto-welcome email is enabled
+    auto_welcome_enabled = os.getenv('AUTO_WELCOME_EMAIL', 'false').lower() == 'true'
+    if not auto_welcome_enabled:
+        logger.debug("⏭️  Auto-welcome email disabled")
+        return
+    
+    # Get welcome email campaign config
+    welcome_list_key = os.getenv('ZOHO_CAMPAIGNS_WELCOME_LIST', 'marketing_list')
+    welcome_template_key = os.getenv('ZOHO_CAMPAIGNS_WELCOME_TEMPLATE', '')
+    
+    if not welcome_template_key:
+        logger.warning("⚠️  Welcome email template not configured (ZOHO_CAMPAIGNS_WELCOME_TEMPLATE)")
+        return
+    
+    try:
+        # Get campaigns service
+        from zoho_crm_service import ZohoCRMService
+        crm_service = ZohoCRMService()
+        access_token, error = crm_service.get_access_token()
+        
+        if error or not access_token:
+            logger.warning(f"⚠️  Cannot get access token for welcome email: {error}")
+            return
+        
+        from zoho_campaigns_service import ZohoCampaignsService
+        campaigns_service = ZohoCampaignsService(access_token=access_token)
+        
+        # Sync new contacts to welcome list
+        logger.info(f"📧 Auto-sending welcome email for {len(contacts)} new contacts from {company_name}")
+        success, count = campaigns_service.add_contacts_to_list(welcome_list_key, contacts)
+        
+        if success and count > 0:
+            # Send welcome email immediately
+            from_email = os.getenv('ZOHO_CAMPAIGNS_FROM_EMAIL', '')
+            from_name = os.getenv('ZOHO_CAMPAIGNS_FROM_NAME', 'Marineco AI')
+            subject = os.getenv('ZOHO_CAMPAIGNS_WELCOME_SUBJECT', 'Welcome to Marineco!')
+            
+            # Note: Brochures are embedded in email body (not attachments)
+            # The template includes {{brochure1_url}} and {{brochure2_url}} placeholders
+            # These should be replaced with actual Zoho Campaigns file URLs
+            
+            send_success, campaign_id, message = campaigns_service.send_campaign(
+                list_key=welcome_list_key,
+                template_key=welcome_template_key,
+                subject=subject,
+                from_email=from_email,
+                from_name=from_name
+            )
+            
+            if send_success:
+                logger.info(f"✅ Welcome email sent successfully: {campaign_id}")
+                
+                # Start email sequence for this contact
+                try:
+                    from email_sequence_manager import email_sequence_manager
+                    # Get contact ID from database
+                    conn = db._get_connection()
+                    cursor = conn.cursor()
+                    try:
+                        if db.db_type == 'postgresql':
+                            cursor.execute("""
+                                SELECT id, email, first_name, contact_name 
+                                FROM contacts 
+                                WHERE email = %s 
+                                ORDER BY id DESC 
+                                LIMIT 1
+                            """, (contacts[0].get('email', '').lower(),))
+                        else:
+                            cursor.execute("""
+                                SELECT id, email, first_name, contact_name 
+                                FROM contacts 
+                                WHERE email = ? 
+                                ORDER BY id DESC 
+                                LIMIT 1
+                            """, (contacts[0].get('email', '').lower(),))
+                        
+                        row = cursor.fetchone()
+                        if row:
+                            if db.db_type == 'postgresql':
+                                contact_id = row['id']
+                                email = row['email']
+                                first_name = row['first_name'] or row['contact_name'] or ''
+                            else:
+                                contact_id = row[0]
+                                email = row[1]
+                                first_name = row[2] or row[3] or ''
+                            
+                            # Start email sequence
+                            email_sequence_manager.start_sequence_for_contact(
+                                contact_id=contact_id,
+                                contact_email=email,
+                                first_name=first_name,
+                                company_name=company_name
+                            )
+                    finally:
+                        conn.close()
+                except Exception as e:
+                    logger.warning(f"⚠️  Failed to start email sequence: {str(e)}")
+            else:
+                logger.warning(f"⚠️  Welcome email failed: {message}")
+        else:
+            logger.warning(f"⚠️  Failed to sync contacts for welcome email")
+            
+    except Exception as e:
+        logger.error(f"❌ Error sending welcome email: {str(e)}", exc_info=True)
 
 
 def enrich_contacts(file_path, file_id):
@@ -1501,6 +1627,13 @@ def process_company():
                         logger.info(f"✅ Zoho sync complete: {pushed} pushed, {skipped} skipped, {failed} failed")
                     finally:
                         conn.close()
+                    
+                    # Auto-send welcome email if enabled and contacts were pushed
+                    if pushed > 0 and campaign_scheduler:
+                        try:
+                            _trigger_welcome_email_campaign(company_name, contacts)
+                        except Exception as e:
+                            logger.warning(f"⚠️  Auto-welcome email failed: {str(e)}")
                 except Exception as e:
                     logger.warning(f"⚠️  Auto-sync to Zoho failed for {company_name}: {str(e)}")
                     zoho_sync_status = {
@@ -2781,6 +2914,265 @@ def migrate_database_route():
         flash(f'❌ Migration error: {str(e)}', 'error')
         logger.error(f"Migration error: {str(e)}", exc_info=True)
         return redirect(url_for('view_contacts'))
+
+
+# ==================== EMAIL CAMPAIGNS & TRACKING ====================
+
+@app.route('/campaigns')
+@login_required
+def campaigns_page():
+    """Campaign management page with email tracking."""
+    return render_template('campaigns.html')
+
+
+@app.route('/api/campaigns/reports/<campaign_id>', methods=['GET'])
+@login_required
+def get_campaign_report(campaign_id):
+    """Get campaign tracking report."""
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    try:
+        # Get access token
+        from zoho_crm_service import ZohoCRMService
+        crm_service = ZohoCRMService()
+        access_token, error = crm_service.get_access_token()
+        
+        if error or not access_token:
+            return jsonify({
+                'status': 'error',
+                'message': f'Cannot get access token: {error}'
+            }), 500
+        
+        # Get campaign report
+        from zoho_campaigns_service import ZohoCampaignsService
+        campaigns_service = ZohoCampaignsService(access_token=access_token)
+        
+        report, error = campaigns_service.get_campaign_reports(campaign_id)
+        
+        if report:
+            return jsonify({
+                'status': 'success',
+                'report': report
+            })
+        else:
+            return jsonify({
+                'status': 'error',
+                'message': error or 'Failed to get campaign report'
+            }), 500
+            
+    except Exception as e:
+        logger.error(f"Error getting campaign report: {str(e)}", exc_info=True)
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+
+@app.route('/api/campaigns/all', methods=['GET'])
+@login_required
+def get_all_campaigns():
+    """Get all campaigns from Zoho Campaigns."""
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    try:
+        limit = request.args.get('limit', 50, type=int)
+        
+        # Get access token
+        from zoho_crm_service import ZohoCRMService
+        crm_service = ZohoCRMService()
+        access_token, error = crm_service.get_access_token()
+        
+        if error or not access_token:
+            return jsonify({
+                'status': 'error',
+                'message': f'Cannot get access token: {error}'
+            }), 500
+        
+        # Get campaigns
+        from zoho_campaigns_service import ZohoCampaignsService
+        campaigns_service = ZohoCampaignsService(access_token=access_token)
+        
+        campaigns, error = campaigns_service.get_all_campaigns(limit=limit)
+        
+        if campaigns is not None:
+            return jsonify({
+                'status': 'success',
+                'campaigns': campaigns
+            })
+        else:
+            return jsonify({
+                'status': 'error',
+                'message': error or 'Failed to get campaigns'
+            }), 500
+            
+    except Exception as e:
+        logger.error(f"Error getting campaigns: {str(e)}", exc_info=True)
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+
+@app.route('/api/email-sequences/process', methods=['POST'])
+@login_required
+def process_email_sequences_manual():
+    """Manually trigger email sequence follow-up processing."""
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    try:
+        from email_sequence_manager import email_sequence_manager
+        
+        if not email_sequence_manager:
+            return jsonify({
+                'status': 'error',
+                'message': 'Email sequence manager not available'
+            }), 500
+        
+        stats = email_sequence_manager.process_follow_ups()
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Email sequences processed',
+            'stats': stats
+        })
+        
+    except Exception as e:
+        logger.error(f"Error processing email sequences: {str(e)}", exc_info=True)
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+
+@app.route('/api/email-sequences/mark-replied', methods=['POST'])
+@login_required
+def mark_email_replied():
+    """Mark a contact as replied (stops email sequence)."""
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    try:
+        data = request.get_json()
+        email = data.get('email', '').strip().lower()
+        
+        if not email:
+            return jsonify({
+                'status': 'error',
+                'message': 'Email address required'
+            }), 400
+        
+        from email_sequence_manager import email_sequence_manager
+        
+        if not email_sequence_manager:
+            return jsonify({
+                'status': 'error',
+                'message': 'Email sequence manager not available'
+            }), 500
+        
+        success = email_sequence_manager.mark_contact_replied(email)
+        
+        if success:
+            return jsonify({
+                'status': 'success',
+                'message': f'Contact {email} marked as replied - sequence stopped'
+            })
+        else:
+            return jsonify({
+                'status': 'info',
+                'message': 'Contact not found or already marked as replied'
+            })
+        
+    except Exception as e:
+        logger.error(f"Error marking contact as replied: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+
+@app.route('/api/email-sequences/stats', methods=['GET'])
+@login_required
+def get_email_sequence_stats():
+    """Get email sequence statistics."""
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    try:
+        conn = db._get_connection()
+        cursor = conn.cursor()
+        
+        try:
+            if db.db_type == 'postgresql':
+                cursor.execute("""
+                    SELECT 
+                        COUNT(*) FILTER (WHERE email_sequence_status = 'in_progress') as in_progress,
+                        COUNT(*) FILTER (WHERE email_sequence_status = 'completed') as completed,
+                        COUNT(*) FILTER (WHERE email_replied = TRUE) as replied,
+                        COUNT(*) FILTER (WHERE email_opened = TRUE) as opened,
+                        COUNT(*) FILTER (WHERE email_clicked = TRUE) as clicked,
+                        COUNT(*) FILTER (WHERE email_sequence_step = 1) as step1,
+                        COUNT(*) FILTER (WHERE email_sequence_step = 2) as step2,
+                        COUNT(*) FILTER (WHERE email_sequence_step = 3) as step3
+                    FROM contacts
+                    WHERE email IS NOT NULL AND email != ''
+                """)
+            else:
+                cursor.execute("""
+                    SELECT 
+                        SUM(CASE WHEN email_sequence_status = 'in_progress' THEN 1 ELSE 0 END) as in_progress,
+                        SUM(CASE WHEN email_sequence_status = 'completed' THEN 1 ELSE 0 END) as completed,
+                        SUM(CASE WHEN email_replied = 1 THEN 1 ELSE 0 END) as replied,
+                        SUM(CASE WHEN email_opened = 1 THEN 1 ELSE 0 END) as opened,
+                        SUM(CASE WHEN email_clicked = 1 THEN 1 ELSE 0 END) as clicked,
+                        SUM(CASE WHEN email_sequence_step = 1 THEN 1 ELSE 0 END) as step1,
+                        SUM(CASE WHEN email_sequence_step = 2 THEN 1 ELSE 0 END) as step2,
+                        SUM(CASE WHEN email_sequence_step = 3 THEN 1 ELSE 0 END) as step3
+                    FROM contacts
+                    WHERE email IS NOT NULL AND email != ''
+                """)
+            
+            row = cursor.fetchone()
+            
+            if db.db_type == 'postgresql':
+                stats = {
+                    'in_progress': row['in_progress'] or 0,
+                    'completed': row['completed'] or 0,
+                    'replied': row['replied'] or 0,
+                    'opened': row['opened'] or 0,
+                    'clicked': row['clicked'] or 0,
+                    'step1': row['step1'] or 0,
+                    'step2': row['step2'] or 0,
+                    'step3': row['step3'] or 0
+                }
+            else:
+                stats = {
+                    'in_progress': row[0] or 0,
+                    'completed': row[1] or 0,
+                    'replied': row[2] or 0,
+                    'opened': row[3] or 0,
+                    'clicked': row[4] or 0,
+                    'step1': row[5] or 0,
+                    'step2': row[6] or 0,
+                    'step3': row[7] or 0
+                }
+            
+            return jsonify({
+                'status': 'success',
+                'stats': stats
+            })
+            
+        finally:
+            conn.close()
+            
+    except Exception as e:
+        logger.error(f"Error getting email sequence stats: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
 
 
 if __name__ == '__main__':
