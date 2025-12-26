@@ -19,6 +19,10 @@ from hybrid_enricher import HybridEnricher
 from database import db
 from zoho_crm_service import ZohoCRMService
 from campaign_scheduler import campaign_scheduler
+from n8n_webhooks import n8n_webhooks
+
+# Register n8n webhooks blueprint
+app.register_blueprint(n8n_webhooks, url_prefix='')
 
 # Auto-push to Zoho configuration
 AUTO_PUSH_TO_ZOHO = os.getenv('AUTO_PUSH_TO_ZOHO', 'true').lower() == 'true'
@@ -3274,18 +3278,40 @@ def get_email_sequence_stats():
         }), 500
 
 
+# Initialize Zoho token on startup (n8n-style automatic refresh)
+def _initialize_zoho_token_on_startup():
+    """Initialize Zoho token on app startup, exactly like n8n does."""
+    try:
+        from zoho_crm_service import ZohoCRMService
+        
+        # Check if Zoho credentials are configured
+        if os.getenv('ZOHO_CLIENT_ID') and os.getenv('ZOHO_REFRESH_TOKEN'):
+            logger.info("🔄 Initializing Zoho token on startup (n8n-style)...")
+            zoho_service = ZohoCRMService()
+            
+            # Get access token (this will cache it for future use)
+            access_token, error = zoho_service.get_access_token()
+            
+            if access_token:
+                logger.info("✅ Zoho token initialized successfully (ready for use)")
+            else:
+                logger.warning(f"⚠️  Zoho token initialization failed: {error}")
+        else:
+            logger.info("ℹ️  Zoho credentials not configured, skipping token initialization")
+    except Exception as e:
+        logger.warning(f"⚠️  Could not initialize Zoho token on startup: {str(e)}")
+
+# Initialize on startup
+_initialize_zoho_token_on_startup()
+
 # Initialize Zoho token refresh service on startup
 try:
-    import logging
-    _logger = logging.getLogger(__name__)
     from zoho_token_refresh_service import token_refresh_service
     # Start background token refresh to prevent daily expiry
     token_refresh_service.start_background_refresh()
-    _logger.info("✅ Zoho token refresh service started")
+    logger.info("✅ Zoho token refresh service started")
 except Exception as e:
-    import logging
-    _logger = logging.getLogger(__name__)
-    _logger.warning(f"⚠️  Could not start Zoho token refresh service: {str(e)}")
+    logger.warning(f"⚠️  Could not start Zoho token refresh service: {str(e)}")
 
 if __name__ == '__main__':
     print("\n" + "="*70)
