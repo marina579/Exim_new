@@ -1988,46 +1988,50 @@ class ContactDatabase:
             # Get total companies and contacts in database
             try:
                 if self.db_type == 'postgresql':
-                    cursor.execute("SELECT COUNT(*) as count FROM companies")
+                    # Use explicit alias for PostgreSQL RealDictCursor
+                    cursor.execute("SELECT COUNT(*) as total FROM companies")
                     total_companies_row = cursor.fetchone()
                     if total_companies_row:
                         # PostgreSQL RealDictCursor returns dict
                         if isinstance(total_companies_row, dict):
-                            total_companies = total_companies_row.get('count', 0) or 0
+                            # RealDictCursor uses the alias 'total' as the key
+                            total_companies = int(total_companies_row.get('total', 0) or 0)
                         else:
-                            # Fallback if not dict
-                            total_companies = total_companies_row[0] if total_companies_row else 0
+                            # Fallback if tuple
+                            total_companies = int(total_companies_row[0] if total_companies_row else 0)
                     else:
                         total_companies = 0
                 else:
                     cursor.execute("SELECT COUNT(*) FROM companies")
                     total_companies_row = cursor.fetchone()
-                    total_companies = total_companies_row[0] if total_companies_row else 0
+                    total_companies = int(total_companies_row[0] if total_companies_row else 0)
                 logger.info(f"📊 Total companies in database: {total_companies}")
             except Exception as e:
-                logger.warning(f"Error counting companies: {str(e)}")
+                logger.error(f"Error counting companies: {str(e)}", exc_info=True)
                 total_companies = 0
             
             try:
                 if self.db_type == 'postgresql':
-                    cursor.execute("SELECT COUNT(*) as count FROM contacts")
+                    # Use explicit alias for PostgreSQL RealDictCursor
+                    cursor.execute("SELECT COUNT(*) as total FROM contacts")
                     total_contacts_row = cursor.fetchone()
                     if total_contacts_row:
                         # PostgreSQL RealDictCursor returns dict
                         if isinstance(total_contacts_row, dict):
-                            total_contacts_db = total_contacts_row.get('count', 0) or 0
+                            # RealDictCursor uses the alias 'total' as the key
+                            total_contacts_db = int(total_contacts_row.get('total', 0) or 0)
                         else:
-                            # Fallback if not dict
-                            total_contacts_db = total_contacts_row[0] if total_contacts_row else 0
+                            # Fallback if tuple
+                            total_contacts_db = int(total_contacts_row[0] if total_contacts_row else 0)
                     else:
                         total_contacts_db = 0
                 else:
                     cursor.execute("SELECT COUNT(*) FROM contacts")
                     total_contacts_row = cursor.fetchone()
-                    total_contacts_db = total_contacts_row[0] if total_contacts_row else 0
+                    total_contacts_db = int(total_contacts_row[0] if total_contacts_row else 0)
                 logger.info(f"📊 Total contacts in database: {total_contacts_db}")
             except Exception as e:
-                logger.warning(f"Error counting contacts: {str(e)}")
+                logger.error(f"Error counting contacts: {str(e)}", exc_info=True)
                 total_contacts_db = 0
             
             # Get contacts by date
@@ -2080,23 +2084,27 @@ class ContactDatabase:
                 total_api_calls = job_stats[7] if job_stats and len(job_stats) > 7 else 0
                 avg_processing_time = round(float(job_stats[8] or 0), 2) if job_stats and len(job_stats) > 8 else 0
             
-            return {
-                'total_jobs': total_jobs or 0,
-                'completed_jobs': completed_jobs or 0,
-                'failed_jobs': failed_jobs or 0,
-                'processing_jobs': processing_jobs or 0,
-                'total_contacts': total_contacts or 0,
-                'total_duplicates': total_duplicates or 0,
-                'total_new_companies': total_new_companies or 0,
-                'total_api_calls': total_api_calls or 0,
-                'avg_processing_time': avg_processing_time,
-                'database_companies': total_companies or 0,
-                'database_contacts': total_contacts_db or 0,
+            # Ensure database counts are always returned (even if 0)
+            final_stats = {
+                'total_jobs': int(total_jobs or 0),
+                'completed_jobs': int(completed_jobs or 0),
+                'failed_jobs': int(failed_jobs or 0),
+                'processing_jobs': int(processing_jobs or 0),
+                'total_contacts': int(total_contacts or 0),
+                'total_duplicates': int(total_duplicates or 0),
+                'total_new_companies': int(total_new_companies or 0),
+                'total_api_calls': int(total_api_calls or 0),
+                'avg_processing_time': float(avg_processing_time or 0),
+                'database_companies': int(total_companies or 0),
+                'database_contacts': int(total_contacts_db or 0),
                 'contacts_by_date': [
                     {'date': str(row[0]), 'count': row[1]} 
                     for row in contacts_by_date
                 ]
             }
+            
+            logger.info(f"📊 Final stats being returned: companies={final_stats['database_companies']}, contacts={final_stats['database_contacts']}")
+            return final_stats
         except Exception as e:
             logger.error(f"Error in get_statistics: {str(e)}", exc_info=True)
             # Return safe defaults

@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marineco AI Labs - Indian Businesses Only</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 2rem 0;
+        }
+        .container {
+            max-width: 800px;
+        }
+        .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .card-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px 15px 0 0 !important;
+            padding: 1.5rem;
+        }
+        .upload-area {
+            border: 2px dashed #667eea;
+            border-radius: 10px;
+            padding: 3rem;
+            text-align: center;
+            background: #f8f9fa;
+            transition: all 0.3s;
+        }
+        .upload-area:hover {
+            background: #e9ecef;
+            border-color: #764ba2;
+        }
+        .upload-area.dragover {
+            background: #e7f3ff;
+            border-color: #667eea;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            padding: 0.75rem 2rem;
+            border-radius: 25px;
+            font-weight: 600;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        .alert {
+            border-radius: 10px;
+        }
+        .info-box {
+            background: #e7f3ff;
+            border-left: 4px solid #667eea;
+            padding: 1rem;
+            border-radius: 5px;
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="card-header text-center">
+                <h1 class="mb-0"><i class="fas fa-file-excel me-2"></i>Marineco AI Labs</h1>
+                <p class="mb-0 mt-2">Indian Businesses Only</p>
+                <div class="mt-3">
+                    <a href="{{ url_for('dashboard') }}" class="btn btn-light btn-sm me-2">
+                        <i class="fas fa-chart-bar me-1"></i>Dashboard
+                    </a>
+                    <a href="{{ url_for('view_contacts') }}" class="btn btn-info btn-sm me-2">
+                        <i class="fas fa-users me-1"></i>Contacts
+                    </a>
+                    <a href="{{ url_for('campaigns_page') }}" class="btn btn-warning btn-sm me-2">
+                        <i class="fas fa-envelope me-1"></i>Email Campaigns
+                    </a>
+                    <a href="{{ url_for('chatbot') }}" class="btn btn-success btn-sm me-2">
+                        <i class="fas fa-comments me-1"></i>Chatbot
+                    </a>
+                    <a href="{{ url_for('logout') }}" class="btn btn-danger btn-sm">
+                        <i class="fas fa-sign-out-alt me-1"></i>Logout
+                    </a>
+                </div>
+            </div>
+            <div class="card-body p-4">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                <form action="/upload" method="post" enctype="multipart/form-data" id="uploadForm">
+                    <div class="upload-area" id="uploadArea">
+                        <i class="fas fa-cloud-upload-alt fa-3x text-primary mb-3"></i>
+                        <h4>Upload Excel File</h4>
+                        <p class="text-muted">Drag and drop your file here or click to browse</p>
+                        <input type="file" name="file" id="fileInput" accept=".xlsx,.xls" class="d-none" required>
+                        <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('fileInput').click()">
+                            <i class="fas fa-folder-open me-2"></i>Choose File
+                        </button>
+                        <div id="fileName" class="mt-3 text-muted"></div>
+                    </div>
+
+                    <div class="info-box">
+                        <h6><i class="fas fa-info-circle me-2"></i>File Requirements:</h6>
+                        <ul class="mb-0 small">
+                            <li>Excel file (.xlsx or .xls format)</li>
+                            <li>Seller Name in Column P</li>
+                            <li>Seller Address in Column O</li>
+                            <li><strong>Only Indian addresses and businesses will be processed</strong></li>
+                            <li><strong>Only Indian phone numbers will be extracted</strong></li>
+                        </ul>
+                    </div>
+
+                    <div class="text-center mt-4">
+                        <button type="submit" class="btn btn-primary btn-lg" id="submitBtn">
+                            <i class="fas fa-spinner fa-spin d-none me-2" id="spinner"></i>
+                            <i class="fas fa-play me-2" id="playIcon"></i>Process File
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-body">
+                <h5><i class="fas fa-question-circle me-2"></i>How it works (AI-First Approach):</h5>
+                <ol>
+                    <li>Upload Excel → Filter Indian businesses → Remove duplicates</li>
+                    <li>🤖 <strong>Step 1:</strong> Gemini AI (Google's best AI)</li>
+                    <li>🤖 <strong>Step 2:</strong> ChatGPT AI (OpenAI)</li>
+                    <li>🔍 <strong>Step 3:</strong> SerpApi (Google search API)</li>
+                    <li>🔍 <strong>Step 4:</strong> IndiaMART scraping</li>
+                    <li>📥 Download enriched Excel (Target: 80-90% success!)</li>
+                </ol>
+                <p class="text-muted small mb-0">
+                    <i class="fas fa-shield-alt me-2"></i>
+                    <strong>Note:</strong> This tool only processes Indian businesses and extracts Indian contact information. 
+                    Scraping is done ethically and respects robots.txt guidelines.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const uploadArea = document.getElementById('uploadArea');
+        const fileName = document.getElementById('fileName');
+        const uploadForm = document.getElementById('uploadForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const spinner = document.getElementById('spinner');
+        const playIcon = document.getElementById('playIcon');
+
+        // File input change
+        fileInput.addEventListener('change', function(e) {
+            if (e.target.files.length > 0) {
+                fileName.textContent = 'Selected: ' + e.target.files[0].name;
+                fileName.classList.remove('text-muted');
+                fileName.classList.add('text-success', 'fw-bold');
+            }
+        });
+
+        // Drag and drop
+        uploadArea.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', function(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            if (e.dataTransfer.files.length > 0) {
+                fileInput.files = e.dataTransfer.files;
+                fileName.textContent = 'Selected: ' + e.dataTransfer.files[0].name;
+                fileName.classList.remove('text-muted');
+                fileName.classList.add('text-success', 'fw-bold');
+            }
+        });
+
+        // Click to upload (but not on the button)
+        uploadArea.addEventListener('click', function(e) {
+            // Don't trigger if clicking the button itself
+            if (e.target.closest('button')) {
+                return;
+            }
+            fileInput.click();
+        });
+
+        // Form submission
+        uploadForm.addEventListener('submit', function(e) {
+            // Prevent double submission
+            if (submitBtn.disabled) {
+                e.preventDefault();
+                return false;
+            }
+            
+            submitBtn.disabled = true;
+            spinner.classList.remove('d-none');
+            playIcon.classList.add('d-none');
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing...';
+        });
+    </script>
+</body>
+</html>
+
