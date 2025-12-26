@@ -2043,23 +2043,20 @@ class ContactDatabase:
                 avg_processing_time = round(float(job_stats[8] or 0), 2) if job_stats and len(job_stats) > 8 else 0
             
             # Ensure database counts are always returned (even if 0)
-            # Force convert to int to ensure no None values - CRITICAL FIX
-            database_companies_val = int(total_companies) if total_companies is not None and total_companies != 0 else (int(total_companies) if total_companies else 0)
-            database_contacts_val = int(total_contacts_db) if total_contacts_db is not None and total_contacts_db != 0 else (int(total_contacts_db) if total_contacts_db else 0)
+            # Convert to int - SIMPLE AND DIRECT
+            database_companies_val = int(total_companies) if total_companies else 0
+            database_contacts_val = int(total_contacts_db) if total_contacts_db else 0
             
-            # DOUBLE CHECK - if still 0, try get_stats() as fallback
-            if database_companies_val == 0 or database_contacts_val == 0:
-                try:
-                    logger.warning(f"⚠️  Direct query returned 0, trying get_stats() fallback...")
-                    stats_fallback = self.get_stats()
-                    if stats_fallback.get('total_companies', 0) > 0:
-                        database_companies_val = int(stats_fallback.get('total_companies', 0))
-                        logger.info(f"✅ get_stats() fallback: companies={database_companies_val}")
-                    if stats_fallback.get('total_contacts', 0) > 0:
-                        database_contacts_val = int(stats_fallback.get('total_contacts', 0))
-                        logger.info(f"✅ get_stats() fallback: contacts={database_contacts_val}")
-                except Exception as e:
-                    logger.error(f"❌ get_stats() fallback also failed: {str(e)}")
+            # ALWAYS use get_stats() as primary source since it works (logs show 187, 641)
+            try:
+                logger.info(f"📊 Using get_stats() as primary source for database counts...")
+                stats_fallback = self.get_stats()
+                database_companies_val = int(stats_fallback.get('total_companies', 0) or 0)
+                database_contacts_val = int(stats_fallback.get('total_contacts', 0) or 0)
+                logger.info(f"✅ get_stats() returned: companies={database_companies_val}, contacts={database_contacts_val}")
+            except Exception as e:
+                logger.error(f"❌ get_stats() failed, using direct query values: {str(e)}")
+                # Keep the direct query values as fallback
             
             final_stats = {
                 'total_jobs': int(total_jobs or 0),
