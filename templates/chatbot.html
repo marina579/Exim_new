@@ -222,6 +222,9 @@
                 <a href="{{ url_for('view_contacts') }}">
                     <i class="fas fa-users me-1"></i>Contacts
                 </a>
+                <a href="{{ url_for('campaigns_page') }}">
+                    <i class="fas fa-envelope me-1"></i>Email Campaigns
+                </a>
                 {% if session.get('is_admin') %}
                 <a href="{{ url_for('admin_users') }}">
                     <i class="fas fa-users-cog me-1"></i>Admin Panel
