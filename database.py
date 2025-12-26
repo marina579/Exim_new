@@ -1890,6 +1890,20 @@ class ContactDatabase:
     
     def get_statistics(self, days: int = 90) -> Dict:
         """Get statistics for the last N days."""
+        # CRITICAL FIX: Get database counts FIRST using get_stats() (before opening main connection)
+        # This ensures we get the counts even if the main connection fails
+        total_companies = 0
+        total_contacts_db = 0
+        try:
+            stats_from_get_stats = self.get_stats()
+            total_companies = int(stats_from_get_stats.get('total_companies', 0) or 0)
+            total_contacts_db = int(stats_from_get_stats.get('total_contacts', 0) or 0)
+            logger.info(f"📊 FROM get_stats() (called FIRST) - companies: {total_companies}, contacts: {total_contacts_db}")
+        except Exception as e:
+            logger.error(f"❌ get_stats() failed in get_statistics(): {str(e)}", exc_info=True)
+            # Will try direct query as fallback below
+        
+        # Now open connection for other queries
         conn = self._get_connection()
         cursor = conn.cursor()
         
@@ -1968,17 +1982,10 @@ class ContactDatabase:
             total_companies = 0
             total_contacts_db = 0
             
-            # Get total companies and contacts - CALL get_stats() FIRST (before any connection issues)
-            # This MUST be called before we do anything else with the cursor
-            try:
-                # Use get_stats() which creates its own connection - this is the most reliable method
-                stats_from_get_stats = self.get_stats()
-                total_companies = int(stats_from_get_stats.get('total_companies', 0) or 0)
-                total_contacts_db = int(stats_from_get_stats.get('total_contacts', 0) or 0)
-                logger.info(f"📊 FROM get_stats() - companies: {total_companies}, contacts: {total_contacts_db}")
-            except Exception as e:
-                logger.error(f"❌ get_stats() failed: {str(e)}", exc_info=True)
-                # Fallback to direct query using current cursor
+            # Use the counts we got from get_stats() above (called before opening this connection)
+            # If get_stats() failed, try direct query as fallback
+            if total_companies == 0 and total_contacts_db == 0:
+                logger.warning(f"⚠️  get_stats() returned 0, trying direct query fallback...")
                 try:
                     if self.db_type == 'postgresql':
                         cursor.execute("SELECT COUNT(*) as count FROM companies")
@@ -1997,8 +2004,6 @@ class ContactDatabase:
                     logger.info(f"📊 DIRECT QUERY FALLBACK - companies: {total_companies}, contacts: {total_contacts_db}")
                 except Exception as e2:
                     logger.error(f"❌ Direct query also failed: {str(e2)}", exc_info=True)
-                    total_companies = 0
-                    total_contacts_db = 0
             
             # Get contacts by date
             contacts_by_date = []
