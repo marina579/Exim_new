@@ -1,8 +1,9 @@
 """
 Hybrid Contact Enricher - Multi-source waterfall approach.
-1. Try SerpApi first (fast, reliable, 50-60% success)
-2. If no contact found, try IndiaMART direct scraping (20-30% additional)
-3. If still nothing, use ChatGPT AI as fallback (10-20% additional)
+NEW PRIORITY ORDER:
+1. Gemini AI (TOP PRIORITY - Has built-in Google Search, no SerpAPI needed!)
+2. ChatGPT AI (FALLBACK - Uses SerpAPI or Gemini internally)
+3. WhatsApp Detective → WhatsApp Hunter → Google Places → SerpAPI → IndiaMART
 Target: 80-90% total success rate
 """
 
@@ -186,6 +187,10 @@ class HybridEnricher:
         Enrich contact using waterfall approach.
         Order: WhatsApp Detective → WhatsApp Hunter → Google Places → Gemini → ChatGPT → SerpApi → IndiaMART
         
+        NOTE: This uses waterfall approach - stops after first successful method.
+        Methods like WhatsApp Detective/Hunter may use SerpAPI internally, but since we stop
+        after first success, there's no duplication of SerpAPI calls across methods.
+        
         Args:
             company_name: Company name
             address: Company address
@@ -282,7 +287,7 @@ class HybridEnricher:
             except Exception as e:
                 logger.error(f"Error with ChatGPT: {str(e)}")
         
-        # Step 6: Try SerpApi (Google search API)
+        # STEP 6: Try SerpApi (Google search API)
         if self.serpapi:
             logger.info(f"[6/7] Trying SerpApi for: {company_name}")
             serpapi_result = self.serpapi.find_contact(company_name, address)
@@ -295,7 +300,7 @@ class HybridEnricher:
             else:
                 logger.info(f"❌ SerpApi: No contact found")
         
-        # Step 7: Try IndiaMART direct scraping (last resort)
+        # STEP 7: Try IndiaMART direct scraping (last resort)
         if HAS_INDIAMART and self.enable_indiamart:
             logger.info(f"[7/7] Trying IndiaMART for: {company_name}")
             try:
@@ -346,27 +351,28 @@ class HybridEnricher:
         logger.info(f"🔍 Collecting ALL contacts for: {company_name}")
         
         # Try ALL methods and collect results
+        # NEW ORDER: Gemini (TOP PRIORITY) → ChatGPT (FALLBACK) → Other methods
         methods = []
         
-        # Method 1: WhatsApp Detective
-        if self.whatsapp_detective:
-            methods.append(('WhatsApp Detective', lambda: self.whatsapp_detective.find_whatsapp(company_name, address)))
-        
-        # Method 2: WhatsApp Hunter
-        if self.whatsapp_hunter:
-            methods.append(('WhatsApp Hunter', lambda: self.whatsapp_hunter.find_contacts(company_name, address)))
-        
-        # Method 3: Google Places
-        if self.google_places and address:
-            methods.append(('Google Places', lambda: self.google_places.find_contact(company_name, address)))
-        
-        # Method 4: Gemini
+        # Method 1: Gemini (TOP PRIORITY)
         if self.gemini:
             methods.append(('Gemini AI', lambda: self.gemini.find_contact(company_name, address)))
         
-        # Method 5: ChatGPT
+        # Method 2: ChatGPT (FALLBACK)
         if self.chatgpt:
             methods.append(('ChatGPT', lambda: self.chatgpt.find_contact(company_name, address)))
+        
+        # Method 3: WhatsApp Detective
+        if self.whatsapp_detective:
+            methods.append(('WhatsApp Detective', lambda: self.whatsapp_detective.find_whatsapp(company_name, address)))
+        
+        # Method 4: WhatsApp Hunter
+        if self.whatsapp_hunter:
+            methods.append(('WhatsApp Hunter', lambda: self.whatsapp_hunter.find_contacts(company_name, address)))
+        
+        # Method 5: Google Places
+        if self.google_places and address:
+            methods.append(('Google Places', lambda: self.google_places.find_contact(company_name, address)))
         
         # Method 6: SerpApi
         if self.serpapi:

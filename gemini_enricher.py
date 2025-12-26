@@ -93,14 +93,20 @@ IMPORTANT INSTRUCTIONS:
    - Google Business listings
    - Export council directories (SGEPC, FIEO, etc.)
 
-2. Extract the following information:
+2. Extract the following information (CRITICAL - Phone number is HIGHEST PRIORITY):
+   - Phone number: **MOST IMPORTANT** - Search aggressively for Indian mobile numbers. Look for:
+     * Phone numbers in formats: +91-XXXXXXXXXX, 91-XXXXXXXXXX, 0XXXXXXXXXX, XXXXXXXXXX (10 digits)
+     * Numbers on IndiaMART, Justdial, TradeIndia listings
+     * Contact numbers on company websites
+     * Phone numbers in Google Business listings
+     * Any 10-digit number starting with 6, 7, 8, or 9
+     * Format as +91-XXXXXXXXXX (10 digits after +91-)
    - Contact person name: Look for "Proprietor:", "Director:", "Owner:", "Contact Person:", or "Mr./Mrs." followed by a name
-   - Phone number: Must be Indian mobile (starts with 6, 7, 8, or 9, 10 digits total). Format as +91-XXXXXXXXXX
    - Email address: Business email (not generic like info@, contact@ unless it's the only one)
    - WhatsApp number: If explicitly mentioned, otherwise same as phone if it's a mobile number
 
 3. VALIDATION RULES:
-   - Phone: Must be 10 digits, starting with 6-9 (Indian mobile)
+   - Phone: **CRITICAL** - Must extract phone number. Accept any 10-digit number starting with 6, 7, 8, or 9. Also accept landlines if mobile not found (format as +91-XXXXXXXXXX). If you see multiple numbers, prefer the first mobile number found.
    - Email: Must contain @ and valid domain
    - Contact name: Full name (First + Last), not just "Mr." or "Proprietor"
 
@@ -173,22 +179,44 @@ Company: {company_name}
                 
                 result_json = json.loads(clean_text.strip())
                 
+                # Extract values
+                phone = result_json.get('phone', '')
+                email = result_json.get('email', '')
+                contact_name = result_json.get('contact_name', '')
+                whatsapp = result_json.get('whatsapp', '')
+                
+                # FALLBACK: If phone not in JSON but present in raw text, extract with regex
+                if not phone or phone == "":
+                    logger.info("⚠️  Phone not found in JSON, trying regex extraction from response text...")
+                    phone = self._extract_phone_from_text(result_text)
+                    if phone:
+                        logger.info(f"✅ Found phone via regex fallback: {phone}")
+                
+                # FALLBACK: If email not in JSON but present in raw text, extract with regex
+                if not email or email == "":
+                    logger.info("⚠️  Email not found in JSON, trying regex extraction from response text...")
+                    email = self._extract_email_from_text(result_text)
+                    if email:
+                        logger.info(f"✅ Found email via regex fallback: {email}")
+                
                 return {
-                    'contact_name': result_json.get('contact_name', ''),
-                    'phone': result_json.get('phone', ''),
-                    'email': result_json.get('email', ''),
-                    'whatsapp': result_json.get('whatsapp', '')
+                    'contact_name': contact_name,
+                    'phone': phone,
+                    'email': email,
+                    'whatsapp': whatsapp
                 }
-            except (json.JSONDecodeError, Exception):
+            except (json.JSONDecodeError, Exception) as parse_error:
                 # JSON parsing failed - extract from text (Gemini often returns prose)
-                logger.info("Extracting from text response...")
+                logger.info(f"JSON parsing failed ({type(parse_error).__name__}), extracting from text response...")
                 contact_name = self._extract_name_from_text(result_text)
                 phone = self._extract_phone_from_text(result_text)
                 email = self._extract_email_from_text(result_text)
                 whatsapp = self._extract_whatsapp_from_text(result_text)
                 
                 if phone or email:
-                    logger.info(f"✅ Extracted: name={contact_name}, phone={phone}, email={email}")
+                    logger.info(f"✅ Extracted from text: name={contact_name}, phone={phone}, email={email}")
+                else:
+                    logger.warning(f"⚠️  No phone or email extracted from text. Full response: {result_text[:500]}")
                 
                 return {
                     'contact_name': contact_name,

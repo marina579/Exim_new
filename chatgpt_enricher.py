@@ -62,7 +62,30 @@ class ChatGPTEnricher:
         search_results = self._search_with_serpapi(company_name, address)
         
         if not search_results or search_results == "No search results found":
-            logger.warning(f"⚠️  No search results from SerpAPI for {company_name}. ChatGPT may return empty results.")
+            logger.warning(f"⚠️  No search results from SerpAPI for {company_name}.")
+            logger.warning(f"⚠️  SerpAPI quota may be exhausted or key missing. Trying Gemini fallback...")
+            
+            # FALLBACK: Use Gemini if SerpAPI fails (Gemini has built-in Google Search)
+            try:
+                from gemini_enricher import GeminiEnricher
+                gemini_key = os.getenv('GEMINI_API_KEY')
+                if gemini_key:
+                    logger.info(f"🔄 Falling back to Gemini for {company_name} (SerpAPI unavailable)")
+                    gemini = GeminiEnricher(api_key=gemini_key)
+                    gemini_result = gemini.find_contact(company_name, address)
+                    if gemini_result.get('phone') or gemini_result.get('email'):
+                        logger.info(f"✅ Gemini fallback successful: phone={gemini_result.get('phone', 'N/A')}, email={gemini_result.get('email', 'N/A')}")
+                        return gemini_result
+                    else:
+                        logger.warning(f"⚠️  Gemini fallback also returned empty results")
+                else:
+                    logger.warning(f"⚠️  GEMINI_API_KEY not available for fallback")
+            except Exception as e:
+                logger.error(f"❌ Gemini fallback failed: {str(e)}")
+            
+            # If fallback also fails, return empty
+            logger.error(f"❌ ChatGPT cannot proceed without search data. SerpAPI exhausted and Gemini fallback failed.")
+            return {'contact_name': '', 'phone': '', 'email': '', 'whatsapp': ''}
         else:
             logger.info(f"✅ Got {len(search_results)} chars of search results from SerpAPI for {company_name}")
             logger.debug(f"Search results preview: {search_results[:200]}...")
@@ -82,14 +105,20 @@ IMPORTANT INSTRUCTIONS:
    - Google Business listings
    - Export council directories (SGEPC, FIEO, etc.)
 
-2. Extract the following information with HIGH PRIORITY:
+2. Extract the following information with HIGH PRIORITY (Phone number is CRITICAL):
+   - Phone number: **MOST IMPORTANT** - Search aggressively in the search results. Look for:
+     * Phone numbers in formats: +91-XXXXXXXXXX, 91-XXXXXXXXXX, 0XXXXXXXXXX, XXXXXXXXXX (10 digits)
+     * Numbers on IndiaMART, Justdial, TradeIndia listings
+     * Contact numbers on company websites
+     * Phone numbers in Google Business listings
+     * Any 10-digit number starting with 6, 7, 8, or 9
+     * Format as +91-XXXXXXXXXX (10 digits after +91-)
    - Contact person name: Look for "Proprietor:", "Director:", "Owner:", "Contact Person:", "Mr./Mrs." followed by a full name (First + Last)
-   - Phone number: Must be Indian mobile (10 digits, starts with 6, 7, 8, or 9). Format as +91-XXXXXXXXXX
    - Email address: Business email (prefer specific emails over generic info@ or contact@)
    - WhatsApp number: If explicitly mentioned, otherwise use phone if it's a mobile number
 
-3. VALIDATION RULES (STRICT):
-   - Phone: Must be exactly 10 digits, starting with 6-9 (Indian mobile). Reject landlines.
+3. VALIDATION RULES:
+   - Phone: **CRITICAL** - Must extract phone number. Accept any 10-digit number starting with 6, 7, 8, or 9. If you see multiple numbers in the search results, extract the first mobile number found. Format as +91-XXXXXXXXXX.
    - Email: Must contain @ and valid domain (not placeholder emails)
    - Contact name: Must be a full name (First + Last), not just "Mr." or "Proprietor"
    - WhatsApp: Only if explicitly mentioned, otherwise leave empty
@@ -116,14 +145,20 @@ IMPORTANT INSTRUCTIONS:
    - Google Business listings
    - Export council directories (SGEPC, FIEO, etc.)
 
-2. Extract the following information with HIGH PRIORITY:
+2. Extract the following information with HIGH PRIORITY (Phone number is CRITICAL):
+   - Phone number: **MOST IMPORTANT** - Search aggressively in the search results. Look for:
+     * Phone numbers in formats: +91-XXXXXXXXXX, 91-XXXXXXXXXX, 0XXXXXXXXXX, XXXXXXXXXX (10 digits)
+     * Numbers on IndiaMART, Justdial, TradeIndia listings
+     * Contact numbers on company websites
+     * Phone numbers in Google Business listings
+     * Any 10-digit number starting with 6, 7, 8, or 9
+     * Format as +91-XXXXXXXXXX (10 digits after +91-)
    - Contact person name: Look for "Proprietor:", "Director:", "Owner:", "Contact Person:", "Mr./Mrs." followed by a full name (First + Last)
-   - Phone number: Must be Indian mobile (10 digits, starts with 6, 7, 8, or 9). Format as +91-XXXXXXXXXX
    - Email address: Business email (prefer specific emails over generic info@ or contact@)
    - WhatsApp number: If explicitly mentioned, otherwise use phone if it's a mobile number
 
-3. VALIDATION RULES (STRICT):
-   - Phone: Must be exactly 10 digits, starting with 6-9 (Indian mobile). Reject landlines.
+3. VALIDATION RULES:
+   - Phone: **CRITICAL** - Must extract phone number. Accept any 10-digit number starting with 6, 7, 8, or 9. If you see multiple numbers in the search results, extract the first mobile number found. Format as +91-XXXXXXXXXX.
    - Email: Must contain @ and valid domain (not placeholder emails)
    - Contact name: Must be a full name (First + Last), not just "Mr." or "Proprietor"
    - WhatsApp: Only if explicitly mentioned, otherwise leave empty
@@ -185,13 +220,34 @@ Company: {company_name}
                         clean_text = json_match.group(0)
                 
                 result_json = json.loads(clean_text.strip())
-                logger.info(f"✅ Parsed JSON: contact_name={result_json.get('contact_name', 'N/A')}, phone={result_json.get('phone', 'N/A')}, email={result_json.get('email', 'N/A')}")
+                
+                # Extract values
+                phone = result_json.get('phone', '')
+                email = result_json.get('email', '')
+                contact_name = result_json.get('contact_name', '')
+                whatsapp = result_json.get('whatsapp', '')
+                
+                # FALLBACK: If phone not in JSON but present in raw text, extract with regex
+                if not phone or phone == "":
+                    logger.info("⚠️  Phone not found in JSON, trying regex extraction from response text...")
+                    phone = self._extract_phone_from_text(result_text)
+                    if phone:
+                        logger.info(f"✅ Found phone via regex fallback: {phone}")
+                
+                # FALLBACK: If email not in JSON but present in raw text, extract with regex
+                if not email or email == "":
+                    logger.info("⚠️  Email not found in JSON, trying regex extraction from response text...")
+                    email = self._extract_email_from_text(result_text)
+                    if email:
+                        logger.info(f"✅ Found email via regex fallback: {email}")
+                
+                logger.info(f"✅ Final result: contact_name={contact_name}, phone={phone}, email={email}")
                 
                 return {
-                    'contact_name': result_json.get('contact_name', ''),
-                    'phone': result_json.get('phone', ''),
-                    'email': result_json.get('email', ''),
-                    'whatsapp': result_json.get('whatsapp', '')
+                    'contact_name': contact_name,
+                    'phone': phone,
+                    'email': email,
+                    'whatsapp': whatsapp
                 }
             except json.JSONDecodeError:
                 # If JSON parsing fails, try to extract from text
@@ -229,22 +285,32 @@ Company: {company_name}
             return {'contact_name': '', 'phone': '', 'email': '', 'whatsapp': ''}
     
     def _extract_phone_from_text(self, text: str) -> str:
-        """Extract Indian phone number from text."""
-        # Look for +91-XXXXXXXXXX or similar patterns
+        """Extract Indian phone number from text - AGGRESSIVE extraction."""
+        # More comprehensive patterns to catch various formats
         patterns = [
-            r'\+91[-.\s]?[6-9]\d{9}',
-            r'91[-.\s]?[6-9]\d{9}',
-            r'\+91[-.\s]?\d{5}[-.\s]?\d{5}',
+            r'\+91[-.\s]?[6-9]\d{9}',  # +91-XXXXXXXXXX
+            r'91[-.\s]?[6-9]\d{9}',     # 91-XXXXXXXXXX
+            r'0[6-9]\d{9}',              # 0XXXXXXXXXX (with leading 0)
+            r'\b[6-9]\d{9}\b',          # XXXXXXXXXX (10 digits)
+            r'\+91[-.\s]?\d{5}[-.\s]?\d{5}',  # +91-XXXXX-XXXXX
+            r'\([6-9]\d{2}\)[-.\s]?\d{3}[-.\s]?\d{4}',  # (XXX) XXX-XXXX
+            r'[Pp]hone[:\s]+(\+?91[-.\s]?[6-9]\d{9})',  # Phone: +91-XXXXXXXXXX
+            r'[Cc]ontact[:\s]+(\+?91[-.\s]?[6-9]\d{9})',  # Contact: +91-XXXXXXXXXX
+            r'[Mm]obile[:\s]+(\+?91[-.\s]?[6-9]\d{9})',  # Mobile: +91-XXXXXXXXXX
         ]
         
         for pattern in patterns:
-            match = re.search(pattern, text)
-            if match:
-                phone = match.group()
-                # Normalize format
+            matches = re.finditer(pattern, text)
+            for match in matches:
+                phone = match.group(1) if match.lastindex else match.group()
+                # Clean and normalize
                 digits = re.sub(r'[^\d]', '', phone)
+                # Take last 10 digits (in case of country code)
                 if len(digits) >= 10:
-                    return '+91-' + digits[-10:]
+                    last_10 = digits[-10:]
+                    # Must start with 6, 7, 8, or 9 (Indian mobile)
+                    if last_10[0] in '6789':
+                        return '+91-' + last_10
         
         return ''
     
