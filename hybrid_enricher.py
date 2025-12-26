@@ -261,23 +261,32 @@ class HybridEnricher:
         gemini_result = {}
         chatgpt_result = {}
         serpapi_search_results = ""
+        serpapi_used = False  # Track if SerpAPI was actually used
         
         # Step 4a: Get search results from SerpAPI ONCE (if available)
         if self.serpapi:
             logger.info(f"[4/7] 🔍 Calling SerpAPI ONCE for: {company_name} (will share results with Gemini & ChatGPT)")
+            # Log SerpAPI key prefix to verify new key is being used
+            serpapi_key = os.getenv('SERPAPI_API_KEY')
+            if serpapi_key:
+                logger.info(f"   🔑 Using SerpAPI key: {serpapi_key[:10]}... (first 10 chars)")
             try:
                 # Use ChatGPT's internal method to get search results text (same format)
                 from chatgpt_enricher import ChatGPTEnricher
                 temp_chatgpt = ChatGPTEnricher()
                 serpapi_search_results = temp_chatgpt._search_with_serpapi(company_name, address)
                 if serpapi_search_results and serpapi_search_results != "No search results found":
+                    serpapi_used = True  # Mark that SerpAPI was successfully used
                     logger.info(f"✅ Got {len(serpapi_search_results)} chars from SerpAPI (1 call - will be shared)")
+                    logger.info(f"   📊 SerpAPI search results preview: {serpapi_search_results[:200]}...")
                 else:
                     logger.warning(f"⚠️  SerpAPI returned no results")
                     serpapi_search_results = ""
             except Exception as e:
                 logger.error(f"❌ SerpAPI error: {str(e)}")
                 serpapi_search_results = ""
+        else:
+            logger.warning(f"⚠️  SerpAPI not available (key missing or not initialized)")
         
         # Step 4b: Try Gemini AI (with SerpAPI results as context if available)
         if self.gemini:
@@ -309,9 +318,11 @@ class HybridEnricher:
         
         # MERGE results from both Gemini and ChatGPT (prefer Gemini for conflicts)
         has_any_result = False
+        methods_used = []  # Track which methods were used
+        
         if gemini_result.get('phone') or gemini_result.get('email'):
             result.update(gemini_result)
-            result['method'] = 'gemini'
+            methods_used.append('gemini')
             has_any_result = True
             logger.info(f"📊 Merged Gemini results into final result")
         
@@ -328,12 +339,16 @@ class HybridEnricher:
             if not result.get('whatsapp') and chatgpt_result.get('whatsapp'):
                 result['whatsapp'] = chatgpt_result.get('whatsapp')
             
-            # Update method to show both were used
-            if result['method'] == 'gemini':
-                result['method'] = 'gemini+chatgpt'
-            else:
-                result['method'] = 'chatgpt'
+            methods_used.append('chatgpt')
             has_any_result = True
+        
+        # Build method name to show all sources used (including SerpAPI if it was used)
+        if methods_used:
+            method_name = '+'.join(methods_used)
+            if serpapi_used:
+                method_name = f"{method_name}+serpapi"
+            result['method'] = method_name
+            logger.info(f"📊 Final method: {method_name} (SerpAPI used: {serpapi_used})")
         
         # If we got results from either Gemini or ChatGPT, return merged result
         if has_any_result:

@@ -52,6 +52,13 @@ class ContactDatabase:
         conn = self._get_connection()
         cursor = conn.cursor()
         
+        # Log database connection info (without sensitive data)
+        if self.db_type == 'postgresql':
+            db_info = DATABASE_URL.split('@')[-1] if DATABASE_URL else 'Unknown'
+            logger.info(f"🔗 Connected to PostgreSQL: {db_info}")
+        else:
+            logger.info(f"🔗 Using SQLite database: {DB_PATH}")
+        
         if self.db_type == 'postgresql':
             # PostgreSQL syntax
             cursor.execute("""
@@ -294,6 +301,29 @@ class ContactDatabase:
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_job_uploaded ON processing_jobs(uploaded_at)")
         
         conn.commit()
+        
+        # Check existing data count AFTER creating tables (for safety verification)
+        try:
+            if self.db_type == 'postgresql':
+                cursor.execute("SELECT COUNT(*) as count FROM companies")
+                companies_count = cursor.fetchone()['count']
+                cursor.execute("SELECT COUNT(*) as count FROM contacts")
+                contacts_count = cursor.fetchone()['count']
+            else:
+                cursor.execute("SELECT COUNT(*) as count FROM companies")
+                companies_count = cursor.fetchone()[0]
+                cursor.execute("SELECT COUNT(*) as count FROM contacts")
+                contacts_count = cursor.fetchone()[0]
+            
+            logger.info(f"📊 Database status: {companies_count} companies, {contacts_count} contacts")
+            
+            if companies_count > 0 or contacts_count > 0:
+                logger.info(f"✅ Database has existing data - data preserved!")
+            else:
+                logger.info(f"📊 Database is empty (new database or no data yet)")
+        except Exception as e:
+            logger.warning(f"⚠️  Could not verify data count: {str(e)}")
+        
         conn.close()
         logger.info("✅ Database tables initialized")
         

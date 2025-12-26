@@ -370,6 +370,10 @@ Company: {company_name}
                 query = f'"{company_name}" India contact phone email IndiaMART Justdial TradeIndia'
             
             # Call SerpApi
+            # Log key prefix to verify new key is being used
+            logger.info(f"🔍 Making SerpAPI call with key: {serpapi_key[:10]}... (first 10 chars)")
+            logger.info(f"   Query: {query}")
+            
             params = {
                 'q': query,
                 'api_key': serpapi_key,
@@ -380,6 +384,7 @@ Company: {company_name}
             }
             
             response = requests.get('https://serpapi.com/search', params=params, timeout=30)
+            logger.info(f"   ✅ SerpAPI response status: {response.status_code}")
             
             if response.status_code != 200:
                 logger.warning(f"SerpApi returned {response.status_code}")
