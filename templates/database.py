@@ -1968,48 +1968,30 @@ class ContactDatabase:
             total_companies = 0
             total_contacts_db = 0
             
+            # Get total companies - USE EXACT SAME PATTERN AS get_stats() which works
             try:
                 if self.db_type == 'postgresql':
                     cursor.execute("SELECT COUNT(*) as count FROM companies")
-                    result = cursor.fetchone()
-                    logger.info(f"🔍 Companies query result: {result}, type: {type(result)}")
-                    if result and isinstance(result, dict):
-                        total_companies = int(result.get('count', 0) or 0)
-                    elif result:
-                        total_companies = int(result[0] or 0) if len(result) > 0 else 0
-                    else:
-                        total_companies = 0
+                    total_companies = int(cursor.fetchone()['count'] or 0)
                 else:
                     cursor.execute("SELECT COUNT(*) FROM companies")
-                    result = cursor.fetchone()
-                    total_companies = int(result[0] or 0) if result else 0
+                    total_companies = int(cursor.fetchone()[0] or 0)
                 logger.info(f"📊 Total companies in database: {total_companies}")
             except Exception as e:
                 logger.error(f"❌ Error counting companies: {str(e)}", exc_info=True)
-                import traceback
-                logger.error(f"❌ Traceback: {traceback.format_exc()}")
                 total_companies = 0
             
+            # Get total contacts - USE EXACT SAME PATTERN AS get_stats() which works
             try:
                 if self.db_type == 'postgresql':
                     cursor.execute("SELECT COUNT(*) as count FROM contacts")
-                    result = cursor.fetchone()
-                    logger.info(f"🔍 Contacts query result: {result}, type: {type(result)}")
-                    if result and isinstance(result, dict):
-                        total_contacts_db = int(result.get('count', 0) or 0)
-                    elif result:
-                        total_contacts_db = int(result[0] or 0) if len(result) > 0 else 0
-                    else:
-                        total_contacts_db = 0
+                    total_contacts_db = int(cursor.fetchone()['count'] or 0)
                 else:
                     cursor.execute("SELECT COUNT(*) FROM contacts")
-                    result = cursor.fetchone()
-                    total_contacts_db = int(result[0] or 0) if result else 0
+                    total_contacts_db = int(cursor.fetchone()[0] or 0)
                 logger.info(f"📊 Total contacts in database: {total_contacts_db}")
             except Exception as e:
                 logger.error(f"❌ Error counting contacts: {str(e)}", exc_info=True)
-                import traceback
-                logger.error(f"❌ Traceback: {traceback.format_exc()}")
                 total_contacts_db = 0
             
             # Get contacts by date
