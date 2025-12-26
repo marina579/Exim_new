@@ -2042,21 +2042,34 @@ class ContactDatabase:
                 total_api_calls = job_stats[7] if job_stats and len(job_stats) > 7 else 0
                 avg_processing_time = round(float(job_stats[8] or 0), 2) if job_stats and len(job_stats) > 8 else 0
             
-            # Ensure database counts are always returned (even if 0)
-            # Convert to int - SIMPLE AND DIRECT
+            # CRITICAL FIX: Use the SAME connection and cursor that's already open
+            # Don't call get_stats() which creates a new connection - use direct query with current cursor
             database_companies_val = int(total_companies) if total_companies else 0
             database_contacts_val = int(total_contacts_db) if total_contacts_db else 0
             
-            # ALWAYS use get_stats() as primary source since it works (logs show 187, 641)
-            try:
-                logger.info(f"📊 Using get_stats() as primary source for database counts...")
-                stats_fallback = self.get_stats()
-                database_companies_val = int(stats_fallback.get('total_companies', 0) or 0)
-                database_contacts_val = int(stats_fallback.get('total_contacts', 0) or 0)
-                logger.info(f"✅ get_stats() returned: companies={database_companies_val}, contacts={database_contacts_val}")
-            except Exception as e:
-                logger.error(f"❌ get_stats() failed, using direct query values: {str(e)}")
-                # Keep the direct query values as fallback
+            # If direct query returned 0, try one more time with explicit query
+            if database_companies_val == 0 or database_contacts_val == 0:
+                logger.warning(f"⚠️  Direct query returned 0, retrying with explicit query...")
+                try:
+                    if self.db_type == 'postgresql':
+                        cursor.execute("SELECT COUNT(*) as count FROM companies")
+                        result = cursor.fetchone()
+                        if result:
+                            database_companies_val = int(result.get('count', 0) or result['count'] if isinstance(result, dict) else result[0])
+                        cursor.execute("SELECT COUNT(*) as count FROM contacts")
+                        result = cursor.fetchone()
+                        if result:
+                            database_contacts_val = int(result.get('count', 0) or result['count'] if isinstance(result, dict) else result[0])
+                    else:
+                        cursor.execute("SELECT COUNT(*) FROM companies")
+                        result = cursor.fetchone()
+                        database_companies_val = int(result[0]) if result else 0
+                        cursor.execute("SELECT COUNT(*) FROM contacts")
+                        result = cursor.fetchone()
+                        database_contacts_val = int(result[0]) if result else 0
+                    logger.info(f"✅ Retry query: companies={database_companies_val}, contacts={database_contacts_val}")
+                except Exception as e:
+                    logger.error(f"❌ Retry query also failed: {str(e)}")
             
             final_stats = {
                 'total_jobs': int(total_jobs or 0),
