@@ -80,37 +80,74 @@ class GeminiEnricher:
         }
         
         try:
-            # Build prompt - let Gemini search the web itself!
+            # Build ENHANCED prompt with better instructions
             if address:
-                prompt = f"""Search the web and find the contact information for "{company_name}" located at "{address}" in India.
+                prompt = f"""You are an expert at finding contact information for Indian businesses. Search the web and find accurate contact details for "{company_name}" located at "{address}" in India.
 
-Find their:
-- Contact person name (Proprietor, Director, or Owner name)
-- Phone number (Indian mobile: +91-XXXXXXXXXX)
-- Email address
-- WhatsApp number if mentioned
+IMPORTANT INSTRUCTIONS:
+1. Search for the company on:
+   - IndiaMART (indiamart.com)
+   - Justdial (justdial.com)
+   - TradeIndia (tradeindia.com)
+   - Company's official website
+   - Google Business listings
+   - Export council directories (SGEPC, FIEO, etc.)
 
-Return ONLY this JSON format:
-{{"contact_name": "Full Name", "phone": "+91-XXXXXXXXXX", "email": "xxx@xxx.com", "whatsapp": "+91-XXXXXXXXXX"}}
+2. Extract the following information:
+   - Contact person name: Look for "Proprietor:", "Director:", "Owner:", "Contact Person:", or "Mr./Mrs." followed by a name
+   - Phone number: Must be Indian mobile (starts with 6, 7, 8, or 9, 10 digits total). Format as +91-XXXXXXXXXX
+   - Email address: Business email (not generic like info@, contact@ unless it's the only one)
+   - WhatsApp number: If explicitly mentioned, otherwise same as phone if it's a mobile number
 
-If not found, use empty string "".
+3. VALIDATION RULES:
+   - Phone: Must be 10 digits, starting with 6-9 (Indian mobile)
+   - Email: Must contain @ and valid domain
+   - Contact name: Full name (First + Last), not just "Mr." or "Proprietor"
+
+4. Return ONLY valid JSON (no explanations, no markdown):
+{{"contact_name": "Full Name", "phone": "+91-XXXXXXXXXX", "email": "email@domain.com", "whatsapp": "+91-XXXXXXXXXX"}}
+
+5. If any field is not found, use empty string "" for that field.
+
+Company: {company_name}
+Address: {address}
 """
             else:
-                prompt = f"""Search the web and find the contact information for "{company_name}" in India.
+                prompt = f"""You are an expert at finding contact information for Indian businesses. Search the web and find accurate contact details for "{company_name}" in India.
 
-Find their:
-- Contact person name (Proprietor, Director, or Owner name)
-- Phone number (Indian mobile: +91-XXXXXXXXXX)  
-- Email address
-- WhatsApp number if mentioned
+IMPORTANT INSTRUCTIONS:
+1. Search for the company on:
+   - IndiaMART (indiamart.com)
+   - Justdial (justdial.com)
+   - TradeIndia (tradeindia.com)
+   - Company's official website
+   - Google Business listings
+   - Export council directories (SGEPC, FIEO, etc.)
 
-Return ONLY this JSON format:
-{{"contact_name": "Full Name", "phone": "+91-XXXXXXXXXX", "email": "xxx@xxx.com", "whatsapp": "+91-XXXXXXXXXX"}}
+2. Extract the following information:
+   - Contact person name: Look for "Proprietor:", "Director:", "Owner:", "Contact Person:", or "Mr./Mrs." followed by a name
+   - Phone number: Must be Indian mobile (starts with 6, 7, 8, or 9, 10 digits total). Format as +91-XXXXXXXXXX
+   - Email address: Business email (not generic like info@, contact@ unless it's the only one)
+   - WhatsApp number: If explicitly mentioned, otherwise same as phone if it's a mobile number
 
-If not found, use empty string "".
+3. VALIDATION RULES:
+   - Phone: Must be 10 digits, starting with 6-9 (Indian mobile)
+   - Email: Must contain @ and valid domain
+   - Contact name: Full name (First + Last), not just "Mr." or "Proprietor"
+
+4. Return ONLY valid JSON (no explanations, no markdown):
+{{"contact_name": "Full Name", "phone": "+91-XXXXXXXXXX", "email": "email@domain.com", "whatsapp": "+91-XXXXXXXXXX"}}
+
+5. If any field is not found, use empty string "" for that field.
+
+Company: {company_name}
 """
             
             # Call Gemini API with Google Search Grounding enabled
+            logger.info(f"🤖 Calling Gemini API for {company_name}...")
+            logger.debug(f"API Key present: {bool(self.api_key)}")
+            logger.debug(f"API Key prefix: {self.api_key[:10] if self.api_key else 'N/A'}...")
+            
             # Using gemini-2.5-flash (latest stable model with Google Search)
             response = self.client.models.generate_content(
                 model='models/gemini-2.5-flash',  # Latest stable model!
@@ -123,7 +160,7 @@ If not found, use empty string "".
             
             result_text = response.text.strip()
             
-            logger.info(f"Gemini response for {company_name}: {result_text[:300]}")
+            logger.info(f"✅ Gemini response for {company_name}: {result_text[:300]}")
             
             # Try JSON parsing first
             try:
@@ -137,6 +174,7 @@ If not found, use empty string "".
                 result_json = json.loads(clean_text.strip())
                 
                 return {
+                    'contact_name': result_json.get('contact_name', ''),
                     'phone': result_json.get('phone', ''),
                     'email': result_json.get('email', ''),
                     'whatsapp': result_json.get('whatsapp', '')
@@ -144,21 +182,38 @@ If not found, use empty string "".
             except (json.JSONDecodeError, Exception):
                 # JSON parsing failed - extract from text (Gemini often returns prose)
                 logger.info("Extracting from text response...")
+                contact_name = self._extract_name_from_text(result_text)
                 phone = self._extract_phone_from_text(result_text)
                 email = self._extract_email_from_text(result_text)
                 whatsapp = self._extract_whatsapp_from_text(result_text)
                 
                 if phone or email:
-                    logger.info(f"✅ Extracted: phone={phone}, email={email}")
+                    logger.info(f"✅ Extracted: name={contact_name}, phone={phone}, email={email}")
                 
                 return {
+                    'contact_name': contact_name,
                     'phone': phone,
                     'email': email,
                     'whatsapp': whatsapp
                 }
             
         except Exception as e:
-            logger.error(f"Error finding contact for {company_name}: {str(e)}")
+            error_type = type(e).__name__
+            error_msg = str(e)
+            logger.error(f"❌ Gemini error for {company_name}: {error_type}: {error_msg}")
+            
+            # Log specific error types for debugging
+            if "401" in error_msg or "Unauthorized" in error_msg or "API key" in error_msg.lower():
+                logger.error("🔑 API Key issue: Invalid or expired Gemini API key")
+            elif "429" in error_msg or "rate limit" in error_msg.lower() or "quota" in error_msg.lower():
+                logger.error("⏱️  Rate limit/Quota: Too many requests or quota exhausted")
+            elif "timeout" in error_msg.lower():
+                logger.error("⏰ Timeout: Gemini API request timed out")
+            elif "network" in error_msg.lower() or "connection" in error_msg.lower():
+                logger.error("🌐 Network issue: Cannot connect to Gemini API")
+            else:
+                logger.error(f"❓ Unknown error: {error_type}")
+            
             return result
     
     def _search_with_serpapi(self, company_name: str, address: str = "") -> str:
@@ -233,6 +288,30 @@ If not found, use empty string "".
         except Exception as e:
             logger.error(f"Error searching with SerpApi: {str(e)}")
             return ""
+    
+    def _extract_name_from_text(self, text: str) -> str:
+        """Extract contact person name from text."""
+        # Look for common patterns like "Proprietor: Name", "Director: Name", "Owner: Name"
+        patterns = [
+            r'[Pp]roprietor[:\s]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)',
+            r'[Dd]irector[:\s]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)',
+            r'[Oo]wner[:\s]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)',
+            r'[Cc]ontact[:\s]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)',
+            r'[Cc]ontact [Pp]erson[:\s]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)',
+            r'[Mm]r\.?\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)',
+            r'[Mm]rs\.?\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)',
+            r'[Mm]s\.?\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)',
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, text)
+            if match:
+                name = match.group(1).strip()
+                # Filter out common false positives
+                if name and len(name) > 2 and name.lower() not in ['proprietor', 'director', 'owner', 'contact']:
+                    return name
+        
+        return ''
     
     def _extract_phone_from_text(self, text: str) -> str:
         """Extract Indian phone number from text."""
