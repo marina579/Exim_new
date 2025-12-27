@@ -3319,8 +3319,9 @@ def _initialize_zoho_token_on_startup():
         _logger.warning(f"⚠️  Could not initialize Zoho token on startup: {str(e)}")
         _logger.info("ℹ️  App will continue - token will be fetched on first use")
 
-# Initialize on startup
-_initialize_zoho_token_on_startup()
+# Initialize on startup - DISABLED to prevent rate limits
+# Token will be fetched lazily on first use (n8n-style)
+# _initialize_zoho_token_on_startup()  # DISABLED - causes rate limits
 
 # n8n webhooks removed - not needed (user only wants n8n-style Zoho token management)
 
@@ -3363,16 +3364,18 @@ def railway_deployment_webhook():
 # Token will be fetched lazily on first use (n8n-style)
 # _initialize_zoho_token_on_startup()  # Disabled - causes rate limits with multiple services
 
-# Initialize Zoho token refresh service on startup (with delay to avoid rate limits)
-try:
-    import time
-    time.sleep(1)  # Small delay to avoid simultaneous requests
-    from zoho_token_refresh_service import token_refresh_service
-    # Start background token refresh to prevent daily expiry
-    token_refresh_service.start_background_refresh()
-    logger.info("✅ Zoho token refresh service started")
-except Exception as e:
-    logger.warning(f"⚠️  Could not start Zoho token refresh service: {str(e)}")
+# Initialize Zoho token refresh service on startup - DISABLED to prevent rate limits
+# Token refresh will start lazily when first token is fetched
+# try:
+#     import time
+#     time.sleep(1)  # Small delay to avoid simultaneous requests
+#     from zoho_token_refresh_service import token_refresh_service
+#     # Start background token refresh to prevent daily expiry
+#     token_refresh_service.start_background_refresh()
+#     logger.info("✅ Zoho token refresh service started")
+# except Exception as e:
+#     logger.warning(f"⚠️  Could not start Zoho token refresh service: {str(e)}")
+logger.info("ℹ️  Zoho token refresh service disabled on startup (will start on first token use)")
 
 if __name__ == '__main__':
     print("\n" + "="*70)

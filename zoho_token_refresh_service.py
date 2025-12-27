@@ -59,15 +59,32 @@ class ZohoTokenRefreshService:
         logger.info("🛑 Background token refresh stopped")
     
     def _refresh_loop(self):
-        """Background loop to refresh tokens."""
-        logger.info("🔄 Token refresh loop started")
+        """Background loop to refresh tokens (only runs if token was already fetched)."""
+        logger.info("🔄 Token refresh loop started (will wait for first token use)")
+        
+        # Wait for token to be used at least once before starting refresh loop
+        # This prevents rate limits on startup
+        initial_wait = 300  # Wait 5 minutes before first check
+        logger.info(f"⏳ Waiting {initial_wait}s before first token check (to avoid startup rate limits)...")
+        time.sleep(initial_wait)
         
         while not self._stop_refresh:
             try:
+                # Get Zoho service (lazy initialization)
+                zoho_service = self._get_zoho_service()
+                
+                # Only check if token was already fetched (has expiry time)
+                # Don't fetch token if it was never used
+                if not zoho_service.token_expiry:
+                    # Token was never fetched - wait longer
+                    logger.debug("⏳ Token not yet used, waiting...")
+                    time.sleep(300)  # Wait 5 minutes
+                    continue
+                
                 # Check if token needs refresh
-                if not self.zoho_service.is_token_valid():
+                if not zoho_service.is_token_valid():
                     logger.info("🔄 Token expired or invalid, refreshing...")
-                    access_token, error = self.zoho_service.get_access_token(force_refresh=True)
+                    access_token, error = zoho_service.get_access_token(force_refresh=True)
                     
                     if error:
                         self.refresh_failures += 1
@@ -82,11 +99,11 @@ class ZohoTokenRefreshService:
                         logger.info(f"✅ Token refreshed successfully. Next refresh in {self.refresh_interval}s")
                 else:
                     # Token is still valid, but refresh proactively if close to expiry
-                    if self.zoho_service.token_expiry:
-                        time_until_expiry = self.zoho_service.token_expiry - time.time()
+                    if zoho_service.token_expiry:
+                        time_until_expiry = zoho_service.token_expiry - time.time()
                         if time_until_expiry < 600:  # Less than 10 minutes
                             logger.info("🔄 Token expires soon, refreshing proactively...")
-                            access_token, error = self.zoho_service.get_access_token(force_refresh=True)
+                            access_token, error = zoho_service.get_access_token(force_refresh=True)
                             if not error:
                                 self.last_refresh_time = datetime.now()
                                 logger.info("✅ Proactive token refresh successful")
