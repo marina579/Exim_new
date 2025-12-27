@@ -7,6 +7,7 @@ import os
 import uuid
 import threading
 import time
+import logging
 from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, flash, send_file, jsonify, session
 from werkzeug.utils import secure_filename
@@ -19,6 +20,10 @@ from hybrid_enricher import HybridEnricher
 from database import db
 from zoho_crm_service import ZohoCRMService
 from campaign_scheduler import campaign_scheduler
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Auto-push to Zoho configuration
 AUTO_PUSH_TO_ZOHO = os.getenv('AUTO_PUSH_TO_ZOHO', 'true').lower() == 'true'
