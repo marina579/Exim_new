@@ -48,20 +48,27 @@ class CampaignScheduler:
         self._init_services()
     
     def _init_services(self):
-        """Initialize Zoho services."""
+        """Initialize Zoho services (lazy loading - no token fetch on startup)."""
         try:
-            # Get access token from CRM service (can be reused)
-            crm_service = ZohoCRMService()
-            access_token, error = crm_service.get_access_token()
-            
-            if access_token and not error:
-                self.campaigns_service = ZohoCampaignsService(access_token=access_token)
-                self.crm_service = crm_service
-                logger.info("✅ Campaign scheduler services initialized")
-            else:
-                logger.warning("⚠️  Could not initialize Zoho services for scheduler")
+            # Initialize service but don't fetch token yet (lazy loading)
+            # Token will be fetched on first use to avoid rate limits
+            self.crm_service = ZohoCRMService()
+            # Don't fetch token here - will be fetched when actually needed
+            logger.info("✅ Campaign scheduler initialized (token will be fetched on first use)")
         except Exception as e:
             logger.error(f"❌ Error initializing scheduler services: {str(e)}")
+    
+    def _ensure_services_ready(self):
+        """Ensure Zoho services are ready (lazy initialization)."""
+        if not self.campaigns_service:
+            try:
+                access_token, error = self.crm_service.get_access_token()
+                if access_token and not error:
+                    self.campaigns_service = ZohoCampaignsService(access_token=access_token)
+                else:
+                    logger.warning(f"⚠️  Could not get access token: {error}")
+            except Exception as e:
+                logger.error(f"❌ Error getting access token: {str(e)}")
     
     def create_scheduled_campaign(self, campaign_config: Dict) -> Tuple[bool, Optional[str], str]:
         """
@@ -191,9 +198,8 @@ class CampaignScheduler:
                     if success:
                         logger.info(f"✅ Synced {count} contacts to Campaigns list")
             
-            # Send campaign
-            if not self.campaigns_service:
-                self._init_services()
+            # Ensure services are ready (lazy initialization)
+            self._ensure_services_ready()
             
             if self.campaigns_service:
                 success, campaign_id, message = self.campaigns_service.send_campaign(

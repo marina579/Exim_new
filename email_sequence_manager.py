@@ -45,18 +45,27 @@ class EmailSequenceManager:
         self._init_services()
     
     def _init_services(self):
-        """Initialize Zoho services."""
+        """Initialize Zoho services (lazy loading - no token fetch on startup)."""
         try:
+            # Initialize service but don't fetch token yet (lazy loading)
+            # Token will be fetched on first use to avoid rate limits
             self.crm_service = ZohoCRMService()
-            access_token, error = self.crm_service.get_access_token()
-            
-            if access_token and not error:
-                self.campaigns_service = ZohoCampaignsService(access_token=access_token)
-                logger.info("✅ Email sequence manager services initialized")
-            else:
-                logger.warning("⚠️  Could not initialize Zoho services for email sequences")
+            # Don't fetch token here - will be fetched when actually needed
+            logger.info("✅ Email sequence manager initialized (token will be fetched on first use)")
         except Exception as e:
             logger.error(f"❌ Error initializing email sequence services: {str(e)}")
+    
+    def _ensure_services_ready(self):
+        """Ensure Zoho services are ready (lazy initialization)."""
+        if not self.campaigns_service:
+            try:
+                access_token, error = self.crm_service.get_access_token()
+                if access_token and not error:
+                    self.campaigns_service = ZohoCampaignsService(access_token=access_token)
+                else:
+                    logger.warning(f"⚠️  Could not get access token: {error}")
+            except Exception as e:
+                logger.error(f"❌ Error getting access token: {str(e)}")
     
     def start_sequence_for_contact(self, contact_id: int, contact_email: str, 
                                    first_name: str, company_name: str) -> Tuple[bool, str]:
@@ -104,6 +113,11 @@ class EmailSequenceManager:
             finally:
                 conn.close()
             
+            # Ensure services are ready (lazy initialization)
+            self._ensure_services_ready()
+            if not self.campaigns_service:
+                return False, "Could not initialize Zoho services"
+            
             # Send introduction email
             success, message = self._send_sequence_email(
                 contact_id=contact_id,
@@ -136,6 +150,12 @@ class EmailSequenceManager:
         Checks all contacts in sequence and sends next email if due.
         Returns stats: {'sent': count, 'skipped': count, 'replied': count}
         """
+        # Ensure services are ready (lazy initialization)
+        self._ensure_services_ready()
+        if not self.campaigns_service:
+            logger.warning("⚠️  Zoho services not ready - skipping follow-up processing")
+            return {'sent': 0, 'skipped': 0, 'replied': 0}
+        
         stats = {'sent': 0, 'skipped': 0, 'replied': 0}
         
         try:

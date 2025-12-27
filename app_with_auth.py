@@ -3359,8 +3359,9 @@ def railway_deployment_webhook():
             'message': str(e)
         }), 500
 
-# Initialize Zoho token on startup (with rate limit protection)
-_initialize_zoho_token_on_startup()
+# Initialize Zoho token on startup (DISABLED to prevent rate limits)
+# Token will be fetched lazily on first use (n8n-style)
+# _initialize_zoho_token_on_startup()  # Disabled - causes rate limits with multiple services
 
 # Initialize Zoho token refresh service on startup (with delay to avoid rate limits)
 try:
