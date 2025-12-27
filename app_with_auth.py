@@ -3322,13 +3322,7 @@ def _initialize_zoho_token_on_startup():
 # Initialize on startup
 _initialize_zoho_token_on_startup()
 
-# Register n8n webhooks blueprint (AFTER app is created)
-try:
-    from n8n_webhooks import n8n_webhooks
-    app.register_blueprint(n8n_webhooks, url_prefix='')
-    logger.info("✅ n8n webhooks blueprint registered")
-except Exception as e:
-    logger.warning(f"⚠️  Could not register n8n webhooks: {str(e)}")
+# n8n webhooks removed - not needed (user only wants n8n-style Zoho token management)
 
 # Railway webhook endpoint (for deployment events)
 @app.route('/webhook/railway/deployment', methods=['POST'])
