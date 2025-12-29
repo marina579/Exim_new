@@ -23,19 +23,21 @@ logger = logging.getLogger(__name__)
 class SerpApiEnricher:
     """Uses SerpApi to find contact information via Google search."""
     
-    def __init__(self, api_key: str = None):
+    def __init__(self, api_key: str = None, database=None):
         """
         Initialize SerpApi enricher.
         
         Args:
             api_key: SerpApi API key. If not provided, reads from SERPAPI_API_KEY env variable.
+            database: ContactDatabase instance for 365-day caching (optional but HIGHLY recommended!)
         """
         self.api_key = api_key or os.getenv('SERPAPI_API_KEY')
         if not self.api_key:
             raise ValueError("SerpApi API key required. Get one from: https://serpapi.com/")
         
         self.base_url = "https://serpapi.com/search"
-        logger.info("✅ SerpApi enricher initialized")
+        self.database = database
+        logger.info("✅ SerpApi enricher initialized" + (" with 365-day caching!" if database else " (no cache)"))
     
     def find_contact(self, company_name: str, address: str = "") -> Dict[str, str]:
         """
@@ -65,6 +67,8 @@ class SerpApiEnricher:
         Use SerpApi to find ALL contacts for a company from a SINGLE API call.
         Extracts multiple phone numbers, emails, and names from search results.
         
+        **NEW: Now checks 365-day cache FIRST to save API costs!**
+        
         Args:
             company_name: Name of the company
             address: Address of the company (helps narrow down results)
@@ -77,24 +81,48 @@ class SerpApiEnricher:
         seen_emails = set()
         
         try:
-            # Build OPTIMIZED search query (better results!)
-            query = build_optimized_serpapi_query(company_name, address)
+            # ========================================
+            # STEP 1: CHECK 365-DAY CACHE FIRST! 💾
+            # ========================================
+            data = None
+            from_cache = False
             
-            # Call SerpApi ONCE
-            params = {
-                'q': query,
-                'api_key': self.api_key,
-                'engine': 'google',
-                'gl': 'in',  # India
-                'hl': 'en',
-                'num': 10  # Get top 10 results
-            }
+            if self.database:
+                cached_response = self.database.get_serpapi_cache(company_name, address)
+                if cached_response:
+                    data = cached_response
+                    from_cache = True
+                    logger.info(f"💾 Using cached SerpAPI data for '{company_name}' - NO API CALL MADE!")
             
-            logger.info(f"🔍 Making 1 SerpApi call to extract ALL contacts for: {company_name}")
-            response = requests.get(self.base_url, params=params, timeout=30)
-            response.raise_for_status()
-            
-            data = response.json()
+            # ========================================
+            # STEP 2: Make API call if no cache
+            # ========================================
+            if not data:
+                # Build OPTIMIZED search query (better results!)
+                query = build_optimized_serpapi_query(company_name, address)
+                
+                # Call SerpApi ONCE
+                params = {
+                    'q': query,
+                    'api_key': self.api_key,
+                    'engine': 'google',
+                    'gl': 'in',  # India
+                    'hl': 'en',
+                    'num': 10  # Get top 10 results
+                }
+                
+                logger.info(f"🔍 Making 1 SerpApi call to extract ALL contacts for: {company_name}")
+                response = requests.get(self.base_url, params=params, timeout=30)
+                response.raise_for_status()
+                
+                data = response.json()
+                
+                # ========================================
+                # STEP 3: Save to cache for 365 days! 💾
+                # ========================================
+                if self.database:
+                    self.database.save_serpapi_cache(company_name, address, query, data)
+                    logger.info(f"💾 Cached SerpAPI response for 365 days - future lookups will be FREE!")
             
             # Extract ALL contact info from search results (not just first!)
             

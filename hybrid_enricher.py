@@ -89,7 +89,7 @@ class HybridEnricher:
     NEW: Supports collecting ALL contacts from ALL methods (multi-row output).
     """
     
-    def __init__(self, serpapi_key: str = None, openai_key: str = None, gemini_key: str = None, google_maps_key: str = None, leadzen_key: str = None, collect_all: bool = False):
+    def __init__(self, serpapi_key: str = None, openai_key: str = None, gemini_key: str = None, google_maps_key: str = None, leadzen_key: str = None, collect_all: bool = False, database=None):
         """
         Initialize hybrid enricher.
         
@@ -99,6 +99,8 @@ class HybridEnricher:
             gemini_key: Google Gemini API key (for Gemini fallback)
             google_maps_key: Google Maps API key (for Places API)
             leadzen_key: Leadzen.ai API key (for GST enrichment)
+            collect_all: If True, collect ALL contacts from ALL methods
+            database: ContactDatabase instance for 365-day SerpAPI caching (HIGHLY RECOMMENDED!)
         """
         self.serpapi_key = serpapi_key or os.getenv('SERPAPI_API_KEY')
         self.openai_key = openai_key or os.getenv('OPENAI_API_KEY')
@@ -107,6 +109,7 @@ class HybridEnricher:
         self.leadzen_key = leadzen_key or os.getenv('LEADZEN_API_KEY')
         self.collect_all = collect_all  # If True, collect ALL contacts from ALL methods
         self.enable_indiamart = True  # Can be set to False to disable IndiaMART scraping
+        self.database = database  # For SerpAPI 365-day caching!
         
         # Initialize Email Enhancer (NEW - Advanced email extraction with Gemini + Pattern Matching + AI Validation!)
         if HAS_EMAIL_ENHANCER:
@@ -163,10 +166,10 @@ class HybridEnricher:
             if not self.google_maps_key:
                 logger.warning("⚠️  Google Maps API key not found - Google Places disabled")
         
-        # Initialize SerpApi enricher
+        # Initialize SerpApi enricher (with 365-day caching!)
         if self.serpapi_key:
-            self.serpapi = SerpApiEnricher(api_key=self.serpapi_key)
-            logger.info("✅ SerpApi enricher initialized")
+            self.serpapi = SerpApiEnricher(api_key=self.serpapi_key, database=self.database)
+            logger.info("✅ SerpApi enricher initialized" + (" with 365-day caching!" if self.database else ""))
         else:
             self.serpapi = None
             logger.warning("⚠️  SerpApi key not found")

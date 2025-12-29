@@ -873,7 +873,8 @@ def enrich_contacts(file_path, file_id):
                 serpapi_key=None,  # ❌ Disable SerpAPI (trial over)
                 openai_key=openai_key,
                 gemini_key=gemini_key if USE_GEMINI else None,
-                collect_all=COLLECT_ALL_CONTACTS  # Try all methods
+                collect_all=COLLECT_ALL_CONTACTS,  # Try all methods
+                database=db  # 💾 Enable 365-day caching!
             )
             # All free methods are enabled by default
             mode_desc = 'FREE (ChatGPT + WhatsApp Hunter + IndiaMART)'
@@ -881,14 +882,15 @@ def enrich_contacts(file_path, file_id):
                 mode_desc += ' - OPTIMIZED'
             progress_data[file_id]['mode'] = mode_desc
         else:
-            # 💰 PAID MODE: All methods including SerpAPI
+            # 💰 PAID MODE: All methods including SerpAPI (with 365-day caching!)
             enricher = HybridEnricher(
                 serpapi_key=serpapi_key,
                 openai_key=openai_key,
                 gemini_key=gemini_key if USE_GEMINI else None,
-                collect_all=COLLECT_ALL_CONTACTS
+                collect_all=COLLECT_ALL_CONTACTS,
+                database=db  # 💾 Enable 365-day caching!
             )
-            progress_data[file_id]['mode'] = 'PAID (All methods including SerpAPI)'
+            progress_data[file_id]['mode'] = 'PAID (All methods + SerpAPI with 365-day cache)'
         
         # Enrich each company
         results = []
@@ -1551,15 +1553,17 @@ def process_company():
                 serpapi_key=None,
                 openai_key=openai_key,
                 gemini_key=gemini_key,
-                collect_all=COLLECT_ALL_CONTACTS
+                collect_all=COLLECT_ALL_CONTACTS,
+                database=db  # 💾 Enable 365-day caching!
             )
         else:
-            logger.info("✅ PAID MODE: SerpAPI enabled")
+            logger.info("✅ PAID MODE: SerpAPI enabled with 365-day caching!")
             enricher = HybridEnricher(
                 serpapi_key=serpapi_key,
                 openai_key=openai_key,
                 gemini_key=gemini_key,
-                collect_all=COLLECT_ALL_CONTACTS
+                collect_all=COLLECT_ALL_CONTACTS,
+                database=db  # 💾 Enable 365-day caching!
             )
         
         # Verify SerpAPI is initialized
@@ -3026,6 +3030,82 @@ def test_db_stats():
             'status': 'error',
             'message': str(e),
             'error_type': type(e).__name__
+        }), 500
+
+
+@app.route('/api/serpapi-cache/stats', methods=['GET'])
+@login_required
+def get_serpapi_cache_stats():
+    """
+    Get SerpAPI cache statistics - shows how much money you're saving!
+    
+    Returns:
+        JSON with cache stats including:
+        - total_entries: Number of cached searches
+        - total_hits: Number of times cache was used
+        - estimated_api_calls_saved: Total API calls avoided
+        - estimated_cost_saved_usd: Total cost saved in USD
+    """
+    try:
+        stats = db.get_serpapi_cache_stats()
+        
+        # Add some helpful context
+        stats['cache_enabled'] = True
+        stats['cache_duration_days'] = 365
+        stats['cost_per_api_call'] = 0.005  # $0.005 per SerpAPI call
+        
+        logger.info(f"💰 Cache Stats: {stats['total_entries']} entries, {stats['total_hits']} hits, ${stats['estimated_cost_saved_usd']:.2f} saved")
+        
+        return jsonify({
+            'status': 'success',
+            'stats': stats
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Error getting cache stats: {str(e)}", exc_info=True)
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+
+@app.route('/serpapi-cache-dashboard')
+@login_required
+def serpapi_cache_dashboard():
+    """
+    Dashboard page showing SerpAPI cache statistics and cost savings.
+    """
+    try:
+        stats = db.get_serpapi_cache_stats()
+        return render_template('serpapi_cache_dashboard.html', stats=stats)
+    except Exception as e:
+        flash(f'Error loading cache stats: {str(e)}', 'error')
+        return redirect(url_for('dashboard'))
+
+
+@app.route('/api/serpapi-cache/cleanup', methods=['POST'])
+@login_required
+def cleanup_serpapi_cache():
+    """
+    Manually trigger cleanup of expired SerpAPI cache entries.
+    Normally this happens automatically, but you can force it here.
+    """
+    try:
+        deleted_count = db.cleanup_expired_serpapi_cache()
+        
+        logger.info(f"🧹 Manual cache cleanup: {deleted_count} expired entries removed")
+        
+        return jsonify({
+            'status': 'success',
+            'message': f'Cleaned up {deleted_count} expired cache entries',
+            'deleted_count': deleted_count
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Error cleaning cache: {str(e)}", exc_info=True)
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
         }), 500
 
 

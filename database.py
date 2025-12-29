@@ -166,6 +166,26 @@ class ContactDatabase:
                 )
             """)
             
+            # SerpAPI cache table - Store API responses for 365 days to save costs!
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS serpapi_cache (
+                    id SERIAL PRIMARY KEY,
+                    company_name VARCHAR(500) NOT NULL,
+                    company_address TEXT,
+                    query_hash VARCHAR(64) NOT NULL UNIQUE,
+                    search_query TEXT NOT NULL,
+                    response_data TEXT NOT NULL,
+                    cached_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    expires_at TIMESTAMP NOT NULL,
+                    hit_count INTEGER DEFAULT 0,
+                    last_accessed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_serpapi_query_hash ON serpapi_cache(query_hash)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_serpapi_expires ON serpapi_cache(expires_at)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_serpapi_company ON serpapi_cache(company_name)")
+            
             # Scheduled campaigns table for email marketing
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS scheduled_campaigns (
@@ -329,6 +349,26 @@ class ContactDatabase:
                     FOREIGN KEY (created_by) REFERENCES users(id)
                 )
             """)
+            
+            # SerpAPI cache table - Store API responses for 365 days to save costs!
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS serpapi_cache (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    company_name TEXT NOT NULL,
+                    company_address TEXT,
+                    query_hash TEXT NOT NULL UNIQUE,
+                    search_query TEXT NOT NULL,
+                    response_data TEXT NOT NULL,
+                    cached_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    expires_at TIMESTAMP NOT NULL,
+                    hit_count INTEGER DEFAULT 0,
+                    last_accessed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_serpapi_query_hash ON serpapi_cache(query_hash)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_serpapi_expires ON serpapi_cache(expires_at)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_serpapi_company ON serpapi_cache(company_name)")
             
             # Processing jobs table for tracking file uploads and processing
             cursor.execute("""
@@ -738,6 +778,250 @@ class ContactDatabase:
         
         logger.info(f"💾 Retrieved {len(contacts)} cached contacts for company ID {company_id}")
         return contacts
+    
+    # ========================================
+    # SERPAPI CACHE METHODS - 365 DAY CACHING
+    # ========================================
+    
+    def get_serpapi_cache(self, company_name: str, company_address: str = "") -> Optional[Dict]:
+        """
+        Check if SerpAPI response is cached and still valid (365 days).
+        
+        Args:
+            company_name: Company name to search for
+            company_address: Company address (optional, for more specific matching)
+        
+        Returns:
+            Cached SerpAPI response dict if found and valid, None otherwise
+        """
+        import hashlib
+        from datetime import datetime, timedelta
+        
+        # Create query hash (same logic as serpapi_enricher will use)
+        cache_key = f"{company_name.lower().strip()}|{company_address.lower().strip() if company_address else ''}"
+        query_hash = hashlib.md5(cache_key.encode()).hexdigest()
+        
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        
+        try:
+            # Check if cache exists and is not expired
+            cursor.execute(
+                """
+                SELECT response_data, cached_at, expires_at, hit_count 
+                FROM serpapi_cache 
+                WHERE query_hash = %s AND expires_at > %s
+                """ if self.db_type == 'postgresql'
+                else """
+                SELECT response_data, cached_at, expires_at, hit_count 
+                FROM serpapi_cache 
+                WHERE query_hash = ? AND expires_at > ?
+                """,
+                (query_hash, datetime.now())
+            )
+            
+            row = cursor.fetchone()
+            
+            if row:
+                # Update hit count and last accessed time
+                cursor.execute(
+                    """
+                    UPDATE serpapi_cache 
+                    SET hit_count = hit_count + 1, last_accessed_at = %s 
+                    WHERE query_hash = %s
+                    """ if self.db_type == 'postgresql'
+                    else """
+                    UPDATE serpapi_cache 
+                    SET hit_count = hit_count + 1, last_accessed_at = ? 
+                    WHERE query_hash = ?
+                    """,
+                    (datetime.now(), query_hash)
+                )
+                conn.commit()
+                
+                response_data = row['response_data'] if self.db_type == 'postgresql' else row[0]
+                cached_at = row['cached_at'] if self.db_type == 'postgresql' else row[1]
+                hit_count = row['hit_count'] if self.db_type == 'postgresql' else row[3]
+                
+                logger.info(f"💾 SerpAPI CACHE HIT for '{company_name}' (cached {cached_at}, hits: {hit_count + 1}) - SAVED 1 API CALL!")
+                
+                # Parse JSON and return
+                return json.loads(response_data)
+            
+            logger.info(f"🔍 SerpAPI cache miss for '{company_name}' - will make API call")
+            return None
+            
+        except Exception as e:
+            logger.error(f"❌ Error checking SerpAPI cache: {str(e)}")
+            return None
+        finally:
+            conn.close()
+    
+    def save_serpapi_cache(self, company_name: str, company_address: str, search_query: str, response_data: Dict) -> bool:
+        """
+        Save SerpAPI response to cache for 365 days.
+        
+        Args:
+            company_name: Company name searched
+            company_address: Company address (optional)
+            search_query: The actual search query used
+            response_data: Full SerpAPI response (JSON dict)
+        
+        Returns:
+            True if saved successfully, False otherwise
+        """
+        import hashlib
+        from datetime import datetime, timedelta
+        
+        # Create query hash
+        cache_key = f"{company_name.lower().strip()}|{company_address.lower().strip() if company_address else ''}"
+        query_hash = hashlib.md5(cache_key.encode()).hexdigest()
+        
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        
+        try:
+            # Calculate expiry (365 days from now)
+            expires_at = datetime.now() + timedelta(days=365)
+            
+            # Store response as JSON string
+            response_json = json.dumps(response_data)
+            
+            # Insert or replace (upsert)
+            if self.db_type == 'postgresql':
+                cursor.execute(
+                    """
+                    INSERT INTO serpapi_cache 
+                    (company_name, company_address, query_hash, search_query, response_data, expires_at)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (query_hash) 
+                    DO UPDATE SET 
+                        response_data = EXCLUDED.response_data,
+                        cached_at = CURRENT_TIMESTAMP,
+                        expires_at = EXCLUDED.expires_at,
+                        hit_count = 0,
+                        last_accessed_at = CURRENT_TIMESTAMP
+                    """,
+                    (company_name, company_address, query_hash, search_query, response_json, expires_at)
+                )
+            else:
+                cursor.execute(
+                    """
+                    INSERT OR REPLACE INTO serpapi_cache 
+                    (company_name, company_address, query_hash, search_query, response_data, cached_at, expires_at, hit_count, last_accessed_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)
+                    """,
+                    (company_name, company_address, query_hash, search_query, response_json, datetime.now(), expires_at, datetime.now())
+                )
+            
+            conn.commit()
+            logger.info(f"💾 Cached SerpAPI response for '{company_name}' (valid for 365 days)")
+            return True
+            
+        except Exception as e:
+            logger.error(f"❌ Error saving SerpAPI cache: {str(e)}")
+            conn.rollback()
+            return False
+        finally:
+            conn.close()
+    
+    def cleanup_expired_serpapi_cache(self) -> int:
+        """
+        Remove expired SerpAPI cache entries.
+        
+        Returns:
+            Number of entries deleted
+        """
+        from datetime import datetime
+        
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        
+        try:
+            cursor.execute(
+                "DELETE FROM serpapi_cache WHERE expires_at < %s" if self.db_type == 'postgresql'
+                else "DELETE FROM serpapi_cache WHERE expires_at < ?",
+                (datetime.now(),)
+            )
+            
+            deleted = cursor.rowcount
+            conn.commit()
+            
+            if deleted > 0:
+                logger.info(f"🧹 Cleaned up {deleted} expired SerpAPI cache entries")
+            
+            return deleted
+            
+        except Exception as e:
+            logger.error(f"❌ Error cleaning SerpAPI cache: {str(e)}")
+            conn.rollback()
+            return 0
+        finally:
+            conn.close()
+    
+    def get_serpapi_cache_stats(self) -> Dict:
+        """
+        Get statistics about SerpAPI cache usage.
+        
+        Returns:
+            Dict with cache stats (total entries, hit count, cost savings estimate)
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        
+        try:
+            cursor.execute(
+                """
+                SELECT 
+                    COUNT(*) as total_entries,
+                    SUM(hit_count) as total_hits,
+                    AVG(hit_count) as avg_hits_per_entry,
+                    MIN(cached_at) as oldest_cache,
+                    MAX(last_accessed_at) as most_recent_access
+                FROM serpapi_cache
+                """
+            )
+            
+            row = cursor.fetchone()
+            
+            if self.db_type == 'postgresql':
+                stats = {
+                    'total_entries': row['total_entries'] or 0,
+                    'total_hits': row['total_hits'] or 0,
+                    'avg_hits_per_entry': float(row['avg_hits_per_entry'] or 0),
+                    'oldest_cache': row['oldest_cache'],
+                    'most_recent_access': row['most_recent_access'],
+                    'estimated_api_calls_saved': row['total_hits'] or 0,
+                    'estimated_cost_saved_usd': (row['total_hits'] or 0) * 0.005  # Assuming $0.005 per SerpAPI call
+                }
+            else:
+                stats = {
+                    'total_entries': row[0] or 0,
+                    'total_hits': row[1] or 0,
+                    'avg_hits_per_entry': float(row[2] or 0),
+                    'oldest_cache': row[3],
+                    'most_recent_access': row[4],
+                    'estimated_api_calls_saved': row[1] or 0,
+                    'estimated_cost_saved_usd': (row[1] or 0) * 0.005
+                }
+            
+            return stats
+            
+        except Exception as e:
+            logger.error(f"❌ Error getting cache stats: {str(e)}")
+            return {
+                'total_entries': 0,
+                'total_hits': 0,
+                'avg_hits_per_entry': 0.0,
+                'estimated_api_calls_saved': 0,
+                'estimated_cost_saved_usd': 0.0
+            }
+        finally:
+            conn.close()
+    
+    # ========================================
+    # END SERPAPI CACHE METHODS
+    # ========================================
     
     def get_contact_by_id(self, contact_id: int) -> Optional[Dict]:
         """
