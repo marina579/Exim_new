@@ -9,6 +9,13 @@ import re
 import logging
 from typing import Dict, Optional
 import requests
+from contact_validator import (
+    validate_contact, 
+    filter_contacts_by_company,
+    extract_domain_from_url,
+    is_blocked_email
+)
+from smart_optimizer import build_optimized_serpapi_query
 
 logger = logging.getLogger(__name__)
 
@@ -70,11 +77,8 @@ class SerpApiEnricher:
         seen_emails = set()
         
         try:
-            # Build search query
-            if address:
-                query = f"{company_name} {address} India phone contact"
-            else:
-                query = f"{company_name} India phone contact email"
+            # Build OPTIMIZED search query (better results!)
+            query = build_optimized_serpapi_query(company_name, address)
             
             # Call SerpApi ONCE
             params = {
@@ -100,6 +104,7 @@ class SerpApiEnricher:
                 phone = self._normalize_phone(kg.get('phone', ''))
                 email = self._extract_email(kg.get('description', ''))
                 source = kg.get('website', '')
+                kg_title = kg.get('title', '')  # Company name from knowledge graph
                 
                 if phone and phone not in seen_phones:
                     all_contacts.append({
@@ -107,19 +112,20 @@ class SerpApiEnricher:
                         'email': email,
                         'whatsapp': phone,
                         'contact_name': '',
+                        'company_name': kg_title,  # Store for validation
                         'source_url': source,
                         'method': 'serpapi_knowledge_graph'
                     })
                     seen_phones.add(phone)
                     if email:
                         seen_emails.add(email)
-                    logger.info(f"✅ Found contact in knowledge graph: {phone}")
+                    logger.info(f"✅ Found contact in knowledge graph: {phone} ({kg_title})")
             
             # 2. Check local results (Google Maps listings - ALL locations/contacts)
             if 'local_results' in data and isinstance(data.get('local_results'), list):
                 for idx, local in enumerate(data['local_results']):  # Process ALL local results (no limit)
                     phone = self._normalize_phone(local.get('phone', ''))
-                    title = local.get('title', '')
+                    title = local.get('title', '')  # This is the business name from Google
                     link = local.get('link', '')
                     
                     # Try to extract email from description
@@ -132,13 +138,14 @@ class SerpApiEnricher:
                             'email': email,
                             'whatsapp': phone,
                             'contact_name': '',
+                            'company_name': title,  # Store company name for validation
                             'source_url': link or 'Google Maps',
                             'method': 'serpapi_local_results'
                         })
                         seen_phones.add(phone)
                         if email:
                             seen_emails.add(email)
-                        logger.info(f"✅ Found contact #{len(all_contacts)} in local results: {phone}")
+                        logger.info(f"✅ Found contact #{len(all_contacts)} in local results: {phone} ({title})")
             
             # 3. Check organic results (extract ALL contacts, not just first!)
             if 'organic_results' in data:
@@ -164,13 +171,14 @@ class SerpApiEnricher:
                                 'email': email if email not in seen_emails else '',
                                 'whatsapp': self._extract_whatsapp(combined_text) or phone,
                                 'contact_name': contact_name,
+                                'company_name': title,  # Store title for validation
                                 'source_url': link,
                                 'method': 'serpapi_organic_results'
                             })
                             seen_phones.add(phone)
                             if email:
                                 seen_emails.add(email)
-                            logger.info(f"✅ Found contact #{len(all_contacts)} in organic result #{idx+1}: {phone}")
+                            logger.info(f"✅ Found contact #{len(all_contacts)} in organic result #{idx+1}: {phone} ({title})")
                     
                     # Also extract standalone emails (without phone)
                     emails = self._extract_all_emails(combined_text)
@@ -182,14 +190,31 @@ class SerpApiEnricher:
                                 'email': email,
                                 'whatsapp': '',
                                 'contact_name': self._extract_contact_name(combined_text),
+                                'company_name': title,  # Store title for validation
                                 'source_url': link,
                                 'method': 'serpapi_organic_results'
                             })
                             seen_emails.add(email)
-                            logger.info(f"✅ Found email-only contact #{len(all_contacts)}: {email}")
+                            logger.info(f"✅ Found email-only contact #{len(all_contacts)}: {email} ({title})")
             
             logger.info(f"📊 Extracted {len(all_contacts)} unique contacts from 1 API call for: {company_name}")
-            return all_contacts
+            
+            # VALIDATE CONTACTS - Filter out wrong companies with similar names (STRICT)
+            # Pass address to handle branches (same company, different locations)
+            logger.info(f"🔍 Validating contacts for company: {company_name}")
+            validated_contacts = filter_contacts_by_company(
+                searched_company=company_name,
+                contacts=all_contacts,
+                searched_address=address,  # Pass address for branch handling
+                min_similarity=0.80
+            )
+            
+            if len(validated_contacts) < len(all_contacts):
+                rejected = len(all_contacts) - len(validated_contacts)
+                logger.warning(f"⚠️  Rejected {rejected} contacts (wrong company or low confidence)")
+            
+            logger.info(f"✅ {len(validated_contacts)} validated contacts returned")
+            return validated_contacts
             
         except Exception as e:
             logger.error(f"Error using SerpApi for {company_name}: {str(e)}")
@@ -230,7 +255,7 @@ class SerpApiEnricher:
         return emails[0] if emails else ''
     
     def _extract_all_emails(self, text: str) -> list:
-        """Extract ALL emails from text."""
+        """Extract ALL emails from text (includes gmail, yahoo, hotmail for small businesses)."""
         email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
         matches = re.findall(email_pattern, text, re.IGNORECASE)
         
@@ -238,10 +263,9 @@ class SerpApiEnricher:
         seen = set()
         
         for email in matches:
-            # Filter out common non-business emails
-            if not any(x in email.lower() for x in ['noreply', 'example.com', 'test.com', 
-                                                      'sample.com', 'domain.com', '@gmail.com',
-                                                      '@yahoo.com', '@hotmail.com']):
+            # Filter out ONLY blocked emails (spam, temp, test) using validator
+            # Allow gmail, yahoo, hotmail since small businesses use them
+            if not is_blocked_email(email):
                 if email.lower() not in seen:
                     found_emails.append(email)
                     seen.add(email.lower())

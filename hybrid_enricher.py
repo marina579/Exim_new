@@ -14,6 +14,14 @@ import logging
 import requests
 from typing import Dict, Optional
 from serpapi_enricher import SerpApiEnricher
+from contact_validator import filter_contacts_by_company, filter_contacts_by_address_only
+from parallel_enricher import get_parallel_enricher
+from geo_validator import get_geo_validator
+from smart_optimizer import (
+    check_session_cache, save_to_session_cache,
+    rank_contacts_by_confidence, get_cost_tracker,
+    build_optimized_serpapi_query
+)
 
 # IndiaMART imports
 try:
@@ -480,11 +488,25 @@ class HybridEnricher:
         
         logger.info(f"🔍 Collecting ALL contacts for: {company_name}")
         
+        # OPTIMIZATION: Check session cache first (avoid duplicate processing)
+        cached_contacts = check_session_cache(company_name, address)
+        if cached_contacts:
+            logger.info(f"♻️  Using session cache ({len(cached_contacts)} contacts)")
+            return cached_contacts
+        
+        # Track API costs
+        cost_tracker = get_cost_tracker()
+        cost_tracker.costs['total_companies'] += 1
+        
         # STEP 1: Make ONE SerpAPI call FIRST and extract ALL contacts
         serpapi_search_results = ""
         if self.serpapi:
             try:
                 logger.info(f"   [1/6] 🔍 Making ONE SerpAPI call to extract ALL contacts...")
+                
+                # Track SerpAPI cost
+                cost_tracker.log_api_call('serpapi')
+                
                 all_serpapi_contacts = self.serpapi.find_all_contacts(company_name, address)
                 logger.info(f"   [SerpAPI] Found {len(all_serpapi_contacts)} contacts from SerpAPI (1 API call)")
                 
@@ -554,10 +576,16 @@ class HybridEnricher:
         elif self.google_places and address:
             logger.info(f"   [SKIP] Google Places (SerpAPI already includes Google Business listings)")
         
-        # SKIP WhatsApp Detective, WhatsApp Hunter, and Email Enhancer
-        # They make additional SerpAPI calls (2-3 calls each), which we want to avoid
-        # We already have SerpAPI contacts from Step 1, so we don't need these expensive methods
-        logger.info(f"   [SKIP] WhatsApp Detective, WhatsApp Hunter, Email Enhancer (would make additional SerpAPI calls)")
+        # Method 4: WhatsApp Hunter (with shared SerpAPI results - NO additional calls)
+        if self.whatsapp_hunter and serpapi_search_results:
+            methods.append(('WhatsApp Hunter', lambda: self.whatsapp_hunter.find_contacts(company_name, address, search_results=serpapi_search_results)))
+            logger.info(f"   [ENABLED] WhatsApp Hunter (using cached SerpAPI results)")
+        elif self.whatsapp_hunter:
+            logger.info(f"   [SKIP] WhatsApp Hunter (no SerpAPI results to reuse)")
+        
+        # SKIP WhatsApp Detective and Email Enhancer for now
+        # They don't yet support cached results parameter
+        logger.info(f"   [SKIP] WhatsApp Detective, Email Enhancer (would make additional SerpAPI calls)")
         
         # Method 7: IndiaMART
         if HAS_INDIAMART and self.enable_indiamart:
@@ -675,7 +703,83 @@ class HybridEnricher:
             except Exception as e:
                 logger.error(f"      ❌ Email enhancement error: {str(e)[:100]}")
         
-        return all_contacts
+        # FINAL VALIDATION: Three-pass approach for maximum coverage
+        # Pass 1 (P1): Try with BOTH seller AND address (most strict)
+        # Pass 2 (P2): If P1 fails, try with seller name only
+        # Pass 3 (P3): If P2 also fails, try with address only (location-based)
+        
+        validated_contacts = []
+        
+        if address and address.strip():
+            # P1: Try with BOTH seller AND address
+            logger.info(f"🔍 P1 Validation: Filtering contacts with BOTH company name AND address")
+            validated_contacts = filter_contacts_by_company(
+                searched_company=company_name,
+                contacts=all_contacts,
+                searched_address=address,  # P1: Check address + company
+                min_similarity=0.80
+            )
+            
+            if len(validated_contacts) > 0:
+                logger.info(f"✅ P1 Success: {len(validated_contacts)} contacts matched (both name and address)")
+                if len(validated_contacts) < len(all_contacts):
+                    rejected = len(all_contacts) - len(validated_contacts)
+                    logger.warning(f"⚠️  P1 rejected {rejected} contacts (address or company mismatch)")
+            else:
+                # P1 failed - no contacts matched both criteria
+                logger.warning(f"⚠️  P1 failed: No contacts matched BOTH name AND address")
+                logger.info(f"🔄 Fallback to P2: Trying with seller name only...")
+                
+                # P2 FALLBACK: Try with seller name only (ignore address)
+                validated_contacts = filter_contacts_by_company(
+                    searched_company=company_name,
+                    contacts=all_contacts,
+                    searched_address=None,  # P2: Ignore address, check company name only
+                    min_similarity=0.80
+                )
+                
+                if len(validated_contacts) > 0:
+                    logger.info(f"✅ P2 Success: {len(validated_contacts)} contacts matched (company name only)")
+                else:
+                    # P2 also failed - try P3 with address only
+                    logger.warning(f"⚠️  P2 also failed: No contacts matched company name")
+                    logger.info(f"🔄 Final fallback to P3: Trying with address only (location-based)...")
+                    
+                    # P3 FALLBACK: Address only (get any contacts from same location)
+                    validated_contacts = filter_contacts_by_address_only(
+                        contacts=all_contacts,
+                        searched_address=address  # P3: Check address only, ignore company
+                    )
+                    
+                    if len(validated_contacts) > 0:
+                        logger.info(f"✅ P3 Success: {len(validated_contacts)} contacts matched (address only - location-based)")
+                        logger.warning(f"⚠️  P3: Company name not verified, results are location-based only")
+                    else:
+                        logger.warning(f"❌ P3 also failed: No contacts found at address '{address}'")
+        else:
+            # No address provided - direct P2
+            logger.info(f"🔍 P2 Validation: No address provided, checking company name only")
+            validated_contacts = filter_contacts_by_company(
+                searched_company=company_name,
+                contacts=all_contacts,
+                searched_address=None,  # P2: No address
+                min_similarity=0.80
+            )
+            
+            if len(validated_contacts) < len(all_contacts):
+                rejected = len(all_contacts) - len(validated_contacts)
+                logger.warning(f"⚠️  P2 rejected {rejected} contacts (company name mismatch)")
+        
+        # OPTIMIZATION: Rank by confidence (best results first)
+        if validated_contacts:
+            validated_contacts = rank_contacts_by_confidence(validated_contacts, company_name, address)
+            logger.info(f"📊 Ranked {len(validated_contacts)} contacts by confidence")
+        
+        # OPTIMIZATION: Save to session cache
+        save_to_session_cache(company_name, address, validated_contacts)
+        
+        logger.info(f"✅ Returning {len(validated_contacts)} validated contacts")
+        return validated_contacts
 
 
 def enrich_excel_hybrid(input_excel: str, output_excel: str, 

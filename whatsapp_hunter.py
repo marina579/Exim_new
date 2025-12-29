@@ -61,7 +61,7 @@ class WhatsAppHunter:
         self.serpapi_key = serpapi_key or os.getenv('SERPAPI_API_KEY')
         logger.info("✅ WhatsApp Hunter initialized")
     
-    def find_contacts(self, company_name: str, address: str = "") -> Dict[str, str]:
+    def find_contacts(self, company_name: str, address: str = "", search_results: str = None) -> Dict[str, str]:
         """
         Find WhatsApp/mobile using all techniques.
         
@@ -74,6 +74,7 @@ class WhatsAppHunter:
         Args:
             company_name: Company name
             address: Company address
+            search_results: Pre-fetched SerpAPI results (optional, to avoid duplicate calls)
         
         Returns:
             Dictionary with phone, whatsapp, email, source_url
@@ -89,6 +90,16 @@ class WhatsAppHunter:
             'source_url': '',
             'method': ''
         }
+        
+        # OPTIMIZATION: If search_results provided, extract contacts from there first (no SerpAPI call)
+        if search_results:
+            logger.info("  ♻️  Reusing pre-fetched SerpAPI results (no duplicate call)")
+            extracted = self._extract_from_search_results(search_results)
+            if extracted.get('phone') or extracted.get('whatsapp'):
+                result.update(extracted)
+                result['method'] = 'WhatsApp Hunter (cached SerpAPI)'
+                logger.info(f"  ✅ Found via cached results: {result.get('phone') or result.get('whatsapp')}")
+                return result
         
         # TECHNIQUE 1: Google Dorking (Most Effective)
         logger.info("  📱 Trying Google Dorking (Facebook/Instagram)...")
@@ -206,6 +217,49 @@ class WhatsAppHunter:
             time.sleep(random.uniform(DELAY_MIN, DELAY_MAX))
         
         return {}
+    
+    def _extract_from_search_results(self, search_results: str) -> Dict:
+        """Extract WhatsApp/phone numbers from pre-fetched search results (no API call)."""
+        result = {
+            'phone': '',
+            'whatsapp': '',
+            'email': '',
+            'source_url': ''
+        }
+        
+        if not search_results:
+            return result
+        
+        # Extract phone numbers from search results text
+        phone = self._extract_indian_phone(search_results)
+        if phone:
+            result['phone'] = phone
+            result['whatsapp'] = phone  # Assume phone is WhatsApp
+        
+        # Extract WhatsApp-specific patterns
+        whatsapp_patterns = [
+            r'wa\.me/91(\d{10})',
+            r'whatsapp.*?(\+91[-\s]?\d{10})',
+            r'whatsapp.*?91(\d{10})'
+        ]
+        
+        for pattern in whatsapp_patterns:
+            match = re.search(pattern, search_results, re.IGNORECASE)
+            if match:
+                whatsapp = match.group(1) if '91' not in match.group(0)[:3] else match.group(0)
+                whatsapp = self._normalize_phone(whatsapp)
+                if whatsapp:
+                    result['whatsapp'] = whatsapp
+                    if not result['phone']:
+                        result['phone'] = whatsapp
+                    break
+        
+        # Extract email
+        email_match = re.search(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', search_results)
+        if email_match:
+            result['email'] = email_match.group(0)
+        
+        return result
     
     def _serpapi_search(self, query: str) -> Dict:
         """Execute search via SerpApi."""
