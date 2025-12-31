@@ -106,6 +106,40 @@
                     {% endif %}
                 {% endwith %}
 
+                <!-- WhatsApp Inbox Widget (RBAC Protected) -->
+                {% if session.get('is_admin') or (session.get('permissions') and session.get('permissions').get('whatsapp')) %}
+                <div class="card mb-4" style="border-left: 4px solid #25D366;">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h5 class="mb-2">
+                                    <i class="fab fa-whatsapp" style="color: #25D366;"></i> WhatsApp Inbox
+                                </h5>
+                                <p class="text-muted mb-0">Manage WhatsApp conversations and leads in real-time</p>
+                            </div>
+                            <a href="/whatsapp/inbox" class="btn btn-success btn-lg">
+                                <i class="fab fa-whatsapp me-2"></i>Open Inbox
+                            </a>
+                        </div>
+                        <hr>
+                        <div class="row text-center">
+                            <div class="col-4">
+                                <h4 class="text-warning mb-0" id="whatsapp-unread">-</h4>
+                                <small class="text-muted">Unread</small>
+                            </div>
+                            <div class="col-4">
+                                <h4 class="text-info mb-0" id="whatsapp-qualified">-</h4>
+                                <small class="text-muted">Qualified</small>
+                            </div>
+                            <div class="col-4">
+                                <h4 class="text-success mb-0" id="whatsapp-converted">-</h4>
+                                <small class="text-muted">Converted</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
                 <form action="/upload" method="post" enctype="multipart/form-data" id="uploadForm">
                     <div class="upload-area" id="uploadArea">
                         <i class="fas fa-cloud-upload-alt fa-3x text-primary mb-3"></i>
@@ -199,6 +233,20 @@
                 fileName.classList.add('text-success', 'fw-bold');
             }
         });
+
+        // Load WhatsApp stats
+        {% if session.get('is_admin') or (session.get('permissions') and session.get('permissions').get('whatsapp')) %}
+        fetch('/whatsapp/api/conversations')
+            .then(response => response.json())
+            .then(data => {
+                if (data.stats) {
+                    document.getElementById('whatsapp-unread').textContent = data.stats.unread || 0;
+                    document.getElementById('whatsapp-qualified').textContent = data.stats.qualified || 0;
+                    document.getElementById('whatsapp-converted').textContent = data.stats.converted || 0;
+                }
+            })
+            .catch(error => console.error('Error loading WhatsApp stats:', error));
+        {% endif %}
 
         // Click to upload (but not on the button)
         uploadArea.addEventListener('click', function(e) {

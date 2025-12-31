@@ -439,11 +439,17 @@
     <!-- Top Navbar -->
     <div class="top-navbar">
         <div class="brand">
+            <a href="{{ url_for('index') }}" style="color: white; text-decoration: none; margin-right: 20px;">
+                <i class="fas fa-arrow-left"></i> Back
+            </a>
             Marineco AI Labs
         </div>
         <div class="user-info">
+            <a href="{{ url_for('index') }}" style="color: white; text-decoration: none; margin-right: 20px;">
+                <i class="fas fa-home"></i> Home
+            </a>
             <span><i class="fas fa-user-circle"></i> {{ session.get('username', 'admin') }}</span>
-            <a href="{{ url_for('logout') }}" style="color: white; text-decoration: none;">
+            <a href="{{ url_for('logout') }}" style="color: white; text-decoration: none; margin-left: 15px;">
                 <i class="fas fa-sign-out-alt"></i> Logout
             </a>
         </div>
@@ -550,16 +556,16 @@
             }
             
             list.innerHTML = conversations.map(conv => `
-                <div class="conversation-item ${conv.id === currentConversationId ? 'active' : ''}" 
-                     onclick="openConversation('${conv.id}')">
+                <div class="conversation-item ${conv.conversation_id === currentConversationId ? 'active' : ''}" 
+                     data-conv-id="${conv.conversation_id}" onclick="openConversation('${conv.conversation_id}', this)">
                     <div class="conversation-avatar">${conv.lead_score || '10'}</div>
                     <div class="conversation-content">
                         <div class="conversation-header">
-                            <span class="conversation-name">${conv.name || conv.phone}</span>
+                            <span class="conversation-name">${escapeHtml(conv.lead_name || conv.phone)}</span>
                             <span class="conversation-time">${formatTime(conv.last_message_at)}</span>
                         </div>
                         <div class="conversation-preview">
-                            ${conv.last_message || 'No messages'}
+                            ${escapeHtml(conv.last_message_preview || 'No messages')}
                             <span class="conversation-badge" style="background: ${getStageColor(conv.funnel_stage)}; color: white;">
                                 ${conv.funnel_stage}
                             </span>
@@ -570,14 +576,16 @@
         }
         
         // Open conversation in right panel
-        function openConversation(conversationId) {
+        function openConversation(conversationId, element) {
             currentConversationId = conversationId;
             
             // Update active state
             document.querySelectorAll('.conversation-item').forEach(item => {
                 item.classList.remove('active');
             });
-            event.currentTarget.classList.add('active');
+            if (element) {
+                element.classList.add('active');
+            }
             
             // Load chat
             fetch(`/whatsapp/api/conversation/${conversationId}`)
@@ -602,9 +610,9 @@
                     <div class="chat-header-left">
                         <div class="conversation-avatar">${conv.lead_score || '10'}</div>
                         <div>
-                            <div class="conversation-name">${conv.name || conv.phone}</div>
+                            <div class="conversation-name">${escapeHtml(lead.name || conv.name || conv.phone)}</div>
                             <div style="font-size: 0.85rem; color: #667781;">
-                                <i class="fas fa-phone"></i> ${conv.phone} | ${conv.language.toUpperCase()}
+                                <i class="fas fa-phone"></i> ${conv.phone} | ${(conv.language || 'en').toUpperCase()}
                             </div>
                         </div>
                     </div>
@@ -779,10 +787,25 @@
         
         // Update stats
         function updateStats(stats) {
-            // Update stat badges
+            if (!stats) return;
+            
+            // Update stat badges in the sidebar
+            const statBadges = document.querySelectorAll('.stat-badge');
+            if (statBadges.length >= 3) {
+                statBadges[0].querySelector('.stat-number').textContent = stats.unread || 0;
+                statBadges[1].querySelector('.stat-number').textContent = stats.qualified || 0;
+                statBadges[2].querySelector('.stat-number').textContent = stats.converted || 0;
+            }
         }
         
         // Helper functions
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
         function formatTime(timestamp) {
             if (!timestamp) return '';
             const date = new Date(timestamp);

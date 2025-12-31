@@ -107,7 +107,9 @@ class WhatsAppDatabase:
             query = f"""
                 SELECT 
                     c.id as conversation_id,
+                    c.id,
                     c.phone,
+                    c.name,
                     c.language,
                     c.intent,
                     c.funnel_stage,
