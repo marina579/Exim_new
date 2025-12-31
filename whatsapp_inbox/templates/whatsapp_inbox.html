@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WhatsApp Inbox - Marineco</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: #f0f2f5;
+            font-family: 'Segoe UI', Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .whatsapp-container {
+            display: flex;
+            height: calc(100vh - 56px); /* Account for navbar */
+            max-width: 1920px;
+            margin: 0 auto;
+            background: white;
+        }
+        
+        /* Sidebar - Conversation List */
+        .conversation-sidebar {
+            width: 400px;
+            border-right: 1px solid #e9edef;
+            display: flex;
+            flex-direction: column;
+            background: white;
+        }
+        
+        .sidebar-header {
+            background: #008069;
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .sidebar-header h5 {
+            margin: 0;
+            font-weight: 600;
+        }
+        
+        .search-box {
+            padding: 10px 15px;
+            background: #f0f2f5;
+            border-bottom: 1px solid #e9edef;
+        }
+        
+        .search-box input {
+            width: 100%;
+            padding: 8px 15px;
+            border: none;
+            border-radius: 20px;
+            background: white;
+            font-size: 14px;
+        }
+        
+        .filter-tabs {
+            display: flex;
+            gap: 5px;
+            padding: 10px 15px;
+            background: #f0f2f5;
+            border-bottom: 1px solid #e9edef;
+            overflow-x: auto;
+        }
+        
+        .filter-tab {
+            padding: 5px 12px;
+            border-radius: 15px;
+            background: white;
+            border: 1px solid #ddd;
+            font-size: 13px;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.2s;
+        }
+        
+        .filter-tab:hover {
+            background: #e9edef;
+        }
+        
+        .filter-tab.active {
+            background: #008069;
+            color: white;
+            border-color: #008069;
+        }
+        
+        .conversations-list {
+            flex: 1;
+            overflow-y: auto;
+        }
+        
+        .conversation-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 15px;
+            border-bottom: 1px solid #f0f2f5;
+            cursor: pointer;
+            transition: background 0.2s;
+            text-decoration: none;
+            color: inherit;
+        }
+        
+        .conversation-item:hover {
+            background: #f5f6f6;
+        }
+        
+        .conversation-item.unread {
+            background: #f0f8ff;
+        }
+        
+        .conversation-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #25D366, #128C7E);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 20px;
+            margin-right: 15px;
+            flex-shrink: 0;
+        }
+        
+        .conversation-content {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .conversation-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 3px;
+        }
+        
+        .conversation-name {
+            font-weight: 600;
+            font-size: 16px;
+            color: #111b21;
+        }
+        
+        .conversation-time {
+            font-size: 12px;
+            color: #667781;
+        }
+        
+        .conversation-preview {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .conversation-message {
+            font-size: 14px;
+            color: #667781;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 250px;
+        }
+        
+        .conversation-badge {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 3px;
+        }
+        
+        .unread-badge {
+            background: #25D366;
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        
+        .funnel-badge {
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: 500;
+        }
+        
+        .funnel-NEW { background: #e3f2fd; color: #1976d2; }
+        .funnel-ENGAGED { background: #fff3e0; color: #f57c00; }
+        .funnel-QUALIFIED { background: #f3e5f5; color: #7b1fa2; }
+        .funnel-QUOTE_REQUESTED { background: #fce4ec; color: #c2185b; }
+        .funnel-CONTACT_SHARED { background: #e8f5e9; color: #388e3c; }
+        .funnel-CONVERTED { background: #c8e6c9; color: #2e7d32; }
+        
+        /* Stats Panel */
+        .stats-panel {
+            padding: 15px;
+            background: #f0f2f5;
+            border-bottom: 1px solid #e9edef;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 10px;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid #e9edef;
+        }
+        
+        .stat-number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #008069;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #667781;
+            margin-top: 3px;
+        }
+        
+        /* Empty State */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #667781;
+            padding: 40px;
+            text-align: center;
+        }
+        
+        .empty-state i {
+            font-size: 64px;
+            margin-bottom: 20px;
+            opacity: 0.3;
+        }
+        
+        /* Main Content Area */
+        .main-content {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f0f2f5;
+        }
+        
+        .welcome-screen {
+            text-align: center;
+            color: #667781;
+        }
+        
+        .welcome-screen i {
+            font-size: 80px;
+            margin-bottom: 20px;
+            opacity: 0.3;
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .conversation-sidebar {
+                width: 100%;
+            }
+            
+            .main-content {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar (keep your existing navbar) -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">Marineco AI Labs</a>
+            <div class="navbar-nav ms-auto">
+                <span class="navbar-text me-3">
+                    <i class="fas fa-user-circle"></i> {{ username }}
+                </span>
+                <a class="nav-link" href="/logout">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="whatsapp-container">
+        <!-- Sidebar -->
+        <div class="conversation-sidebar">
+            <!-- Header -->
+            <div class="sidebar-header">
+                <h5><i class="fab fa-whatsapp"></i> WhatsApp Inbox</h5>
+                <div>
+                    <span class="badge bg-light text-dark">{{ stats.active_total or 0 }}</span>
+                </div>
+            </div>
+            
+            <!-- Stats Panel -->
+            <div class="stats-panel">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-number">{{ stats.unread_total or 0 }}</div>
+                        <div class="stat-label">Unread</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">{{ stats.qualified_count or 0 }}</div>
+                        <div class="stat-label">Qualified</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">{{ stats.converted_count or 0 }}</div>
+                        <div class="stat-label">Converted</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Search Box -->
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="Search conversations..." 
+                       value="{{ filters.get('search', '') }}">
+            </div>
+            
+            <!-- Filter Tabs -->
+            <div class="filter-tabs">
+                <a href="/whatsapp/inbox" class="filter-tab {% if not filters.get('funnel') %}active{% endif %}">
+                    All
+                </a>
+                <a href="/whatsapp/inbox?replied=true" class="filter-tab {% if filters.get('replied') %}active{% endif %}">
+                    <i class="fas fa-check-double"></i> Replied
+                </a>
+                <a href="/whatsapp/inbox?funnel=QUALIFIED" class="filter-tab {% if filters.get('funnel') == 'QUALIFIED' %}active{% endif %}">
+                    Qualified
+                </a>
+                <a href="/whatsapp/inbox?funnel=QUOTE_REQUESTED" class="filter-tab {% if filters.get('funnel') == 'QUOTE_REQUESTED' %}active{% endif %}">
+                    Quote Req
+                </a>
+                <a href="/whatsapp/inbox?funnel=CONVERTED" class="filter-tab {% if filters.get('funnel') == 'CONVERTED' %}active{% endif %}">
+                    <i class="fas fa-trophy"></i> Converted
+                </a>
+            </div>
+            
+            <!-- Conversations List -->
+            <div class="conversations-list">
+                {% if conversations %}
+                    {% for conv in conversations %}
+                    <a href="/whatsapp/conversation/{{ conv.conversation_id }}" 
+                       class="conversation-item {% if conv.unread_count > 0 %}unread{% endif %}">
+                        <div class="conversation-avatar">
+                            {{ conv.phone[-2:] if conv.phone else '??' }}
+                        </div>
+                        <div class="conversation-content">
+                            <div class="conversation-header">
+                                <div class="conversation-name">
+                                    {% if conv.lead_name %}
+                                        {{ conv.lead_name }}
+                                    {% elif conv.company %}
+                                        {{ conv.company }}
+                                    {% else %}
+                                        {{ conv.phone }}
+                                    {% endif %}
+                                </div>
+                                <div class="conversation-time">
+                                    {% if conv.last_message_at %}
+                                        {{ conv.last_message_at.strftime('%I:%M %p') }}
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="conversation-preview">
+                                <div class="conversation-message">
+                                    {{ conv.last_message_preview or 'No messages' }}
+                                </div>
+                                <div class="conversation-badge">
+                                    {% if conv.unread_count > 0 %}
+                                        <div class="unread-badge">{{ conv.unread_count }}</div>
+                                    {% endif %}
+                                    <div class="funnel-badge funnel-{{ conv.funnel_stage }}">
+                                        {{ conv.funnel_stage }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </a>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state">
+                        <i class="fab fa-whatsapp"></i>
+                        <h5>No conversations found</h5>
+                        <p>All inbound messages will appear here</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Main Content Area -->
+        <div class="main-content">
+            <div class="welcome-screen">
+                <i class="fab fa-whatsapp"></i>
+                <h4>WhatsApp Inbox</h4>
+                <p>Select a conversation to start messaging</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Real-time updates via Server-Sent Events
+        const eventSource = new EventSource('/whatsapp/stream');
+        
+        eventSource.addEventListener('new_message', function(e) {
+            const data = JSON.parse(e.data);
+            console.log('New message:', data);
+            
+            // Reload page to show new message (simple approach)
+            // In production, update DOM dynamically
+            if (window.location.pathname === '/whatsapp/inbox') {
+                window.location.reload();
+            }
+        });
+        
+        eventSource.addEventListener('funnel_change', function(e) {
+            const data = JSON.parse(e.data);
+            console.log('Funnel change:', data);
+        });
+        
+        eventSource.addEventListener('error', function(e) {
+            console.error('SSE error:', e);
+        });
+        
+        // Search functionality
+        const searchInput = document.getElementById('searchInput');
+        let searchTimeout;
+        
+        searchInput.addEventListener('input', function(e) {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                const search = e.target.value.trim();
+                if (search) {
+                    window.location.href = `/whatsapp/inbox?search=${encodeURIComponent(search)}`;
+                } else {
+                    window.location.href = '/whatsapp/inbox';
+                }
+            }, 500);
+        });
+        
+        // Auto-refresh every 30 seconds (fallback if SSE fails)
+        setInterval(() => {
+            if (document.visibilityState === 'visible') {
+                fetch('/whatsapp/api/conversations')
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Update UI with new data (simplified)
+                            console.log('Conversations updated:', data.conversations.length);
+                        }
+                    })
+                    .catch(console.error);
+            }
+        }, 30000);
+    </script>
+</body>
+</html>
+

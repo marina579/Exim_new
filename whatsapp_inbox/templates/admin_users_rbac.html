@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Management - Marineco</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: #f8f9fa;
+        }
+        
+        .permission-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+            margin: 2px;
+        }
+        
+        .permission-whatsapp {
+            background: #d1f4e0;
+            color: #25D366;
+        }
+        
+        .permission-contacts {
+            background: #cfe2ff;
+            color: #0d6efd;
+        }
+        
+        .permission-campaigns {
+            background: #f8d7da;
+            color: #dc3545;
+        }
+        
+        .permission-admin {
+            background: #fff3cd;
+            color: #ffc107;
+        }
+        
+        .user-card {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .user-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .user-name {
+            font-weight: 600;
+            font-size: 16px;
+        }
+        
+        .user-role {
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .role-admin {
+            background: #ffc107;
+            color: #000;
+        }
+        
+        .role-user {
+            background: #6c757d;
+            color: #fff;
+        }
+        
+        .checkbox-card {
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            transition: all 0.3s;
+        }
+        
+        .checkbox-card:hover {
+            border-color: #0d6efd;
+            background: #f8f9fa;
+        }
+        
+        .checkbox-card.selected {
+            border-color: #0d6efd;
+            background: #e7f1ff;
+        }
+        
+        .permission-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">Marineco AI Labs</a>
+            <div class="navbar-nav ms-auto">
+                <span class="navbar-text me-3">
+                    <i class="fas fa-user-circle"></i> {{ username }}
+                </span>
+                <a class="nav-link" href="/logout">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid py-4">
+        <div class="row">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h3><i class="fas fa-users"></i> User Management</h3>
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createUserModal">
+                        <i class="fas fa-plus"></i> Create New User
+                    </button>
+                </div>
+
+                <!-- Stats Cards -->
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <div class="card text-white bg-primary">
+                            <div class="card-body">
+                                <h5 class="card-title">Total Users</h5>
+                                <h2>{{ users|length }}</h2>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-white bg-success">
+                            <div class="card-body">
+                                <h5 class="card-title">Active Users</h5>
+                                <h2>{{ users|selectattr('is_active')|list|length }}</h2>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-white bg-warning">
+                            <div class="card-body">
+                                <h5 class="card-title">Admins</h5>
+                                <h2>{{ users|selectattr('is_admin')|list|length }}</h2>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-white bg-info">
+                            <div class="card-body">
+                                <h5 class="card-title">WhatsApp Access</h5>
+                                <h2>{{ users|selectattr('has_whatsapp_access')|list|length }}</h2>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Users List -->
+                <div class="card">
+                    <div class="card-body">
+                        {% for user in users %}
+                        <div class="user-card">
+                            <div class="user-header">
+                                <div>
+                                    <div class="user-name">
+                                        {{ user.full_name or user.username }}
+                                        {% if not user.is_active %}
+                                            <span class="badge bg-secondary">Inactive</span>
+                                        {% endif %}
+                                    </div>
+                                    <small class="text-muted">@{{ user.username }} | {{ user.email or 'No email' }}</small>
+                                </div>
+                                <div>
+                                    <span class="user-role {% if user.is_admin %}role-admin{% else %}role-user{% endif %}">
+                                        {{ user.role|upper }}
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    {% if user.has_whatsapp_access %}
+                                        <span class="permission-badge permission-whatsapp">
+                                            <i class="fab fa-whatsapp"></i> WhatsApp
+                                        </span>
+                                    {% endif %}
+                                    {% if user.has_contacts_access %}
+                                        <span class="permission-badge permission-contacts">
+                                            <i class="fas fa-address-book"></i> Contacts
+                                        </span>
+                                    {% endif %}
+                                    {% if user.has_campaigns_access %}
+                                        <span class="permission-badge permission-campaigns">
+                                            <i class="fas fa-envelope"></i> Campaigns
+                                        </span>
+                                    {% endif %}
+                                    {% if user.has_admin_access %}
+                                        <span class="permission-badge permission-admin">
+                                            <i class="fas fa-crown"></i> Admin
+                                        </span>
+                                    {% endif %}
+                                    {% if not user.has_whatsapp_access and not user.has_contacts_access and not user.has_campaigns_access and not user.has_admin_access %}
+                                        <span class="text-muted">
+                                            <i class="fas fa-ban"></i> No permissions assigned
+                                        </span>
+                                    {% endif %}
+                                </div>
+                                <div>
+                                    <button class="btn btn-sm btn-primary" 
+                                            onclick="editUser({{ user.id }}, '{{ user.username }}', '{{ user.full_name }}', '{{ user.email }}', '{{ user.role }}', {{ user.permissions|tojson }})">
+                                        <i class="fas fa-edit"></i> Edit
+                                    </button>
+                                    {% if user.username != username %}
+                                    <button class="btn btn-sm btn-danger" 
+                                            onclick="deactivateUser({{ user.id }}, '{{ user.username }}')">
+                                        <i class="fas fa-user-slash"></i> Deactivate
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="mt-2">
+                                <small class="text-muted">
+                                    <i class="fas fa-clock"></i> Created: {{ user.created_at.strftime('%Y-%m-%d') if user.created_at else 'Unknown' }}
+                                    {% if user.last_login %}
+                                        | Last login: {{ user.last_login.strftime('%Y-%m-%d %H:%M') }}
+                                    {% endif %}
+                                </small>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create User Modal -->
+    <div class="modal fade" id="createUserModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Create New User</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form action="/admin/users/create-rbac" method="POST">
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Username *</label>
+                                <input type="text" class="form-control" name="username" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Password *</label>
+                                <input type="password" class="form-control" name="password" required minlength="6">
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Full Name</label>
+                                <input type="text" class="form-control" name="full_name">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Email</label>
+                                <input type="email" class="form-control" name="email">
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Role *</label>
+                            <select class="form-select" name="role" id="createRole" onchange="togglePermissions('create')">
+                                <option value="user">User</option>
+                                <option value="admin">Admin (Full Access)</option>
+                            </select>
+                        </div>
+                        
+                        <div id="createPermissions">
+                            <h6 class="mb-3">Permissions</h6>
+                            
+                            <div class="permission-grid">
+                                <div class="checkbox-card">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="permission_whatsapp" id="create_perm_whatsapp">
+                                        <label class="form-check-label" for="create_perm_whatsapp">
+                                            <strong><i class="fab fa-whatsapp text-success"></i> WhatsApp Access</strong><br>
+                                            <small class="text-muted">View and reply to WhatsApp messages</small>
+                                        </label>
+                                    </div>
+                                </div>
+                                
+                                <div class="checkbox-card">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="permission_contacts" id="create_perm_contacts">
+                                        <label class="form-check-label" for="create_perm_contacts">
+                                            <strong><i class="fas fa-address-book text-primary"></i> Contacts Access</strong><br>
+                                            <small class="text-muted">Upload files and enrich contacts</small>
+                                        </label>
+                                    </div>
+                                </div>
+                                
+                                <div class="checkbox-card">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="permission_campaigns" id="create_perm_campaigns">
+                                        <label class="form-check-label" for="create_perm_campaigns">
+                                            <strong><i class="fas fa-envelope text-danger"></i> Campaigns Access</strong><br>
+                                            <small class="text-muted">Create and manage email campaigns</small>
+                                        </label>
+                                    </div>
+                                </div>
+                                
+                                <div class="checkbox-card">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="permission_admin" id="create_perm_admin">
+                                        <label class="form-check-label" for="create_perm_admin">
+                                            <strong><i class="fas fa-crown text-warning"></i> Admin Access</strong><br>
+                                            <small class="text-muted">Manage users and settings</small>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="alert alert-info mt-3">
+                                <i class="fas fa-info-circle"></i>
+                                <strong>Quick Presets:</strong>
+                                <button type="button" class="btn btn-sm btn-outline-primary ms-2" onclick="setPreset('whatsapp_only', 'create')">WhatsApp Only</button>
+                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="setPreset('contacts_only', 'create')">Contacts Only</button>
+                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="setPreset('both', 'create')">Both</button>
+                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="setPreset('all', 'create')">All Access</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-user-plus"></i> Create User
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit User Modal -->
+    <div class="modal fade" id="editUserModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit User</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form action="/admin/users/update-rbac" method="POST" id="editUserForm">
+                    <input type="hidden" name="user_id" id="edit_user_id">
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Username</label>
+                                <input type="text" class="form-control" id="edit_username" disabled>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Full Name</label>
+                                <input type="text" class="form-control" name="full_name" id="edit_full_name">
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Email</label>
+                            <input type="email" class="form-control" name="email" id="edit_email">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Role</label>
+                            <select class="form-select" name="role" id="edit_role" onchange="togglePermissions('edit')">
+                                <option value="user">User</option>
+                                <option value="admin">Admin (Full Access)</option>
+                            </select>
+                        </div>
+                        
+                        <div id="editPermissions">
+                            <h6 class="mb-3">Permissions</h6>
+                            
+                            <div class="permission-grid">
+                                <div class="checkbox-card">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="permission_whatsapp" id="edit_perm_whatsapp">
+                                        <label class="form-check-label" for="edit_perm_whatsapp">
+                                            <strong><i class="fab fa-whatsapp text-success"></i> WhatsApp Access</strong><br>
+                                            <small class="text-muted">View and reply to WhatsApp messages</small>
+                                        </label>
+                                    </div>
+                                </div>
+                                
+                                <div class="checkbox-card">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="permission_contacts" id="edit_perm_contacts">
+                                        <label class="form-check-label" for="edit_perm_contacts">
+                                            <strong><i class="fas fa-address-book text-primary"></i> Contacts Access</strong><br>
+                                            <small class="text-muted">Upload files and enrich contacts</small>
+                                        </label>
+                                    </div>
+                                </div>
+                                
+                                <div class="checkbox-card">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="permission_campaigns" id="edit_perm_campaigns">
+                                        <label class="form-check-label" for="edit_perm_campaigns">
+                                            <strong><i class="fas fa-envelope text-danger"></i> Campaigns Access</strong><br>
+                                            <small class="text-muted">Create and manage email campaigns</small>
+                                        </label>
+                                    </div>
+                                </div>
+                                
+                                <div class="checkbox-card">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="permission_admin" id="edit_perm_admin">
+                                        <label class="form-check-label" for="edit_perm_admin">
+                                            <strong><i class="fas fa-crown text-warning"></i> Admin Access</strong><br>
+                                            <small class="text-muted">Manage users and settings</small>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="alert alert-info mt-3">
+                                <i class="fas fa-info-circle"></i>
+                                <strong>Quick Presets:</strong>
+                                <button type="button" class="btn btn-sm btn-outline-primary ms-2" onclick="setPreset('whatsapp_only', 'edit')">WhatsApp Only</button>
+                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="setPreset('contacts_only', 'edit')">Contacts Only</button>
+                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="setPreset('both', 'edit')">Both</button>
+                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="setPreset('all', 'edit')">All Access</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Save Changes
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function togglePermissions(mode) {
+            const role = document.getElementById(mode + 'Role').value;
+            const permissionsDiv = document.getElementById(mode + 'Permissions');
+            
+            if (role === 'admin') {
+                permissionsDiv.style.display = 'none';
+            } else {
+                permissionsDiv.style.display = 'block';
+            }
+        }
+        
+        function setPreset(preset, mode) {
+            const prefix = mode + '_perm_';
+            
+            // Uncheck all first
+            document.getElementById(prefix + 'whatsapp').checked = false;
+            document.getElementById(prefix + 'contacts').checked = false;
+            document.getElementById(prefix + 'campaigns').checked = false;
+            document.getElementById(prefix + 'admin').checked = false;
+            
+            // Set based on preset
+            if (preset === 'whatsapp_only') {
+                document.getElementById(prefix + 'whatsapp').checked = true;
+            } else if (preset === 'contacts_only') {
+                document.getElementById(prefix + 'contacts').checked = true;
+            } else if (preset === 'both') {
+                document.getElementById(prefix + 'whatsapp').checked = true;
+                document.getElementById(prefix + 'contacts').checked = true;
+            } else if (preset === 'all') {
+                document.getElementById(prefix + 'whatsapp').checked = true;
+                document.getElementById(prefix + 'contacts').checked = true;
+                document.getElementById(prefix + 'campaigns').checked = true;
+                document.getElementById(prefix + 'admin').checked = true;
+            }
+        }
+        
+        function editUser(id, username, fullName, email, role, permissions) {
+            document.getElementById('edit_user_id').value = id;
+            document.getElementById('edit_username').value = username;
+            document.getElementById('edit_full_name').value = fullName || '';
+            document.getElementById('edit_email').value = email || '';
+            document.getElementById('edit_role').value = role;
+            
+            // Set permissions
+            document.getElementById('edit_perm_whatsapp').checked = permissions.whatsapp || false;
+            document.getElementById('edit_perm_contacts').checked = permissions.contacts || false;
+            document.getElementById('edit_perm_campaigns').checked = permissions.campaigns || false;
+            document.getElementById('edit_perm_admin').checked = permissions.admin || false;
+            
+            togglePermissions('edit');
+            
+            new bootstrap.Modal(document.getElementById('editUserModal')).show();
+        }
+        
+        function deactivateUser(id, username) {
+            if (confirm(`Are you sure you want to deactivate user "${username}"?`)) {
+                window.location.href = `/admin/users/deactivate/${id}`;
+            }
+        }
+        
+        // Add visual feedback for checkbox cards
+        document.querySelectorAll('.checkbox-card input[type="checkbox"]').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                if (this.checked) {
+                    this.closest('.checkbox-card').classList.add('selected');
+                } else {
+                    this.closest('.checkbox-card').classList.remove('selected');
+                }
+            });
+            
+            // Set initial state
+            if (checkbox.checked) {
+                checkbox.closest('.checkbox-card').classList.add('selected');
+            }
+        });
+    </script>
+</body>
+</html>
+
