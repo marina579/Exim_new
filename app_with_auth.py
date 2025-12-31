@@ -20,6 +20,7 @@ from hybrid_enricher import HybridEnricher
 from database import db
 from zoho_crm_service import ZohoCRMService
 from campaign_scheduler import campaign_scheduler
+from whatsapp_routes import register_whatsapp_routes
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -46,6 +47,9 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['OUTPUT_FOLDER'], exist_ok=True)
 os.makedirs(app.config['CLEANED_FOLDER'], exist_ok=True)
+
+# Register WhatsApp inbox routes
+register_whatsapp_routes(app)
 
 # Progress tracking
 progress_data = {}
