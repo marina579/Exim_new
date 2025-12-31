@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WhatsApp Inbox - Marineco</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: #f0f2f5;
+            font-family: 'Segoe UI', Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+        
+        /* Top Navbar */
+        .top-navbar {
+            background: #2c3e50;
+            color: white;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 56px;
+        }
+        
+        .top-navbar .brand {
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+        
+        .top-navbar .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        /* Main Container */
+        .whatsapp-container {
+            display: flex;
+            height: calc(100vh - 56px);
+            background: #f0f2f5;
+        }
+        
+        /* LEFT SIDEBAR - Conversation List */
+        .conversation-sidebar {
+            width: 420px;
+            min-width: 420px;
+            display: flex;
+            flex-direction: column;
+            background: white;
+            border-right: 1px solid #d1d7db;
+        }
+        
+        .sidebar-header {
+            background: #008069;
+            color: white;
+            padding: 15px 20px;
+        }
+        
+        .sidebar-header h5 {
+            margin: 0;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .stats-bar {
+            display: flex;
+            gap: 10px;
+            padding: 15px;
+            background: #f0f2f5;
+            border-bottom: 1px solid #d1d7db;
+        }
+        
+        .stat-badge {
+            flex: 1;
+            background: white;
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+            border: 1px solid #e9edef;
+        }
+        
+        .stat-number {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #008069;
+        }
+        
+        .stat-label {
+            font-size: 0.75rem;
+            color: #667781;
+        }
+        
+        .search-box {
+            padding: 10px 15px;
+            background: #f0f2f5;
+        }
+        
+        .search-box input {
+            width: 100%;
+            padding: 8px 15px;
+            border: none;
+            border-radius: 8px;
+            background: white;
+        }
+        
+        .filter-tabs {
+            display: flex;
+            gap: 5px;
+            padding: 10px 15px;
+            background: #f0f2f5;
+            overflow-x: auto;
+            border-bottom: 1px solid #d1d7db;
+        }
+        
+        .filter-tab {
+            padding: 6px 12px;
+            border-radius: 20px;
+            border: 1px solid #008069;
+            background: white;
+            color: #008069;
+            font-size: 0.85rem;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .filter-tab.active {
+            background: #008069;
+            color: white;
+        }
+        
+        .conversations-list {
+            flex: 1;
+            overflow-y: auto;
+        }
+        
+        .conversation-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 15px;
+            border-bottom: 1px solid #f0f2f5;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .conversation-item:hover {
+            background: #f5f6f6;
+        }
+        
+        .conversation-item.active {
+            background: #f0f2f5;
+        }
+        
+        .conversation-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 1.2rem;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+        
+        .conversation-content {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .conversation-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+        }
+        
+        .conversation-name {
+            font-weight: 600;
+            color: #111b21;
+        }
+        
+        .conversation-time {
+            font-size: 0.75rem;
+            color: #667781;
+        }
+        
+        .conversation-preview {
+            font-size: 0.875rem;
+            color: #667781;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .conversation-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+        
+        /* RIGHT PANEL - Chat View */
+        .chat-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #efeae2;
+        }
+        
+        .chat-panel-empty {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #667781;
+        }
+        
+        .chat-panel-empty i {
+            font-size: 8rem;
+            margin-bottom: 20px;
+            opacity: 0.3;
+        }
+        
+        .chat-header {
+            background: #f0f2f5;
+            padding: 10px 20px;
+            border-bottom: 1px solid #d1d7db;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .chat-header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect fill="%23efeae2" width="100" height="100"/></svg>');
+        }
+        
+        .message-date {
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .message-date span {
+            background: #ffffff;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            color: #667781;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+        
+        .message {
+            display: flex;
+            margin-bottom: 8px;
+        }
+        
+        .message.inbound {
+            justify-content: flex-start;
+        }
+        
+        .message.outbound {
+            justify-content: flex-end;
+        }
+        
+        .message-bubble {
+            max-width: 65%;
+            padding: 8px 12px;
+            border-radius: 8px;
+            position: relative;
+        }
+        
+        .message.inbound .message-bubble {
+            background: #ffffff;
+            border-top-left-radius: 0;
+            box-shadow: 0 1px 1px rgba(0,0,0,0.1);
+        }
+        
+        .message.outbound .message-bubble {
+            background: #d9fdd3;
+            border-top-right-radius: 0;
+            box-shadow: 0 1px 1px rgba(0,0,0,0.1);
+        }
+        
+        .message-sender {
+            font-weight: 600;
+            font-size: 0.8rem;
+            margin-bottom: 4px;
+        }
+        
+        .message.inbound .message-sender {
+            color: #667781;
+        }
+        
+        .message.outbound .message-sender {
+            color: #008069;
+        }
+        
+        .message-text {
+            color: #111b21;
+            word-wrap: break-word;
+            line-height: 1.4;
+        }
+        
+        .message-time {
+            font-size: 0.7rem;
+            color: #667781;
+            text-align: right;
+            margin-top: 4px;
+        }
+        
+        .chat-input-container {
+            background: #f0f2f5;
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .chat-input-container input {
+            flex: 1;
+            padding: 12px 15px;
+            border: none;
+            border-radius: 8px;
+            background: white;
+        }
+        
+        .send-button {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            background: #008069;
+            color: white;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .send-button:hover {
+            background: #06cf9c;
+        }
+        
+        /* RIGHT SIDEBAR - Contact Details */
+        .contact-sidebar {
+            width: 350px;
+            min-width: 350px;
+            background: white;
+            border-left: 1px solid #d1d7db;
+            overflow-y: auto;
+            padding: 20px;
+        }
+        
+        .contact-section {
+            margin-bottom: 25px;
+        }
+        
+        .contact-section-title {
+            font-weight: 600;
+            color: #008069;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .contact-field {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #f0f2f5;
+        }
+        
+        .contact-field-label {
+            color: #667781;
+            font-size: 0.9rem;
+        }
+        
+        .contact-field-value {
+            font-weight: 500;
+            text-align: right;
+        }
+        
+        .funnel-select {
+            width: 100%;
+            padding: 8px;
+            border-radius: 8px;
+            border: 1px solid #d1d7db;
+            background: #f0f2f5;
+        }
+        
+        .notes-textarea {
+            width: 100%;
+            min-height: 100px;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #d1d7db;
+            resize: vertical;
+        }
+        
+        .save-notes-btn {
+            width: 100%;
+            padding: 10px;
+            background: #008069;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        
+        .save-notes-btn:hover {
+            background: #06cf9c;
+        }
+    </style>
+</head>
+<body>
+    <!-- Top Navbar -->
+    <div class="top-navbar">
+        <div class="brand">
+            Marineco AI Labs
+        </div>
+        <div class="user-info">
+            <span><i class="fas fa-user-circle"></i> {{ session.get('username', 'admin') }}</span>
+            <a href="{{ url_for('logout') }}" style="color: white; text-decoration: none;">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </a>
+        </div>
+    </div>
+
+    <!-- Main WhatsApp Container -->
+    <div class="whatsapp-container">
+        <!-- LEFT: Conversation Sidebar -->
+        <div class="conversation-sidebar">
+            <div class="sidebar-header">
+                <h5><i class="fab fa-whatsapp"></i> WhatsApp Inbox <span class="badge bg-light text-dark">1</span></h5>
+            </div>
+            
+            <!-- Stats -->
+            <div class="stats-bar">
+                <div class="stat-badge">
+                    <div class="stat-number">0</div>
+                    <div class="stat-label">Unread</div>
+                </div>
+                <div class="stat-badge">
+                    <div class="stat-number">0</div>
+                    <div class="stat-label">Qualified</div>
+                </div>
+                <div class="stat-badge">
+                    <div class="stat-number">0</div>
+                    <div class="stat-label">Converted</div>
+                </div>
+            </div>
+            
+            <!-- Search -->
+            <div class="search-box">
+                <input type="text" placeholder="Search conversations..." id="searchInput">
+            </div>
+            
+            <!-- Filters -->
+            <div class="filter-tabs">
+                <div class="filter-tab active" data-filter="all">All</div>
+                <div class="filter-tab" data-filter="NEW">New</div>
+                <div class="filter-tab" data-filter="ENGAGED">Engaged</div>
+                <div class="filter-tab" data-filter="QUALIFIED">Qualified</div>
+                <div class="filter-tab" data-filter="CONVERTED">Converted</div>
+            </div>
+            
+            <!-- Conversations List -->
+            <div class="conversations-list" id="conversationsList">
+                <!-- Conversations will be loaded here -->
+            </div>
+        </div>
+        
+        <!-- CENTER: Chat Panel -->
+        <div class="chat-panel" id="chatPanel">
+            <div class="chat-panel-empty">
+                <i class="fab fa-whatsapp"></i>
+                <h3>WhatsApp Inbox</h3>
+                <p>Select a conversation to start messaging</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentConversationId = null;
+        let eventSource = null;
+        
+        // Load conversations on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadConversations();
+            
+            // Filter tabs
+            document.querySelectorAll('.filter-tab').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+                    this.classList.add('active');
+                    loadConversations(this.dataset.filter);
+                });
+            });
+            
+            // Search
+            document.getElementById('searchInput').addEventListener('input', function() {
+                loadConversations(null, this.value);
+            });
+        });
+        
+        // Load conversations from API
+        function loadConversations(filter = 'all', search = '') {
+            let url = '/whatsapp/api/conversations?';
+            if (filter && filter !== 'all') url += `stage=${filter}&`;
+            if (search) url += `search=${encodeURIComponent(search)}`;
+            
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    renderConversations(data.conversations || []);
+                    updateStats(data.stats || {});
+                })
+                .catch(error => console.error('Error loading conversations:', error));
+        }
+        
+        // Render conversation list
+        function renderConversations(conversations) {
+            const list = document.getElementById('conversationsList');
+            if (conversations.length === 0) {
+                list.innerHTML = '<div style="padding: 20px; text-align: center; color: #667781;">No conversations found</div>';
+                return;
+            }
+            
+            list.innerHTML = conversations.map(conv => `
+                <div class="conversation-item ${conv.id === currentConversationId ? 'active' : ''}" 
+                     onclick="openConversation('${conv.id}')">
+                    <div class="conversation-avatar">${conv.lead_score || '10'}</div>
+                    <div class="conversation-content">
+                        <div class="conversation-header">
+                            <span class="conversation-name">${conv.name || conv.phone}</span>
+                            <span class="conversation-time">${formatTime(conv.last_message_at)}</span>
+                        </div>
+                        <div class="conversation-preview">
+                            ${conv.last_message || 'No messages'}
+                            <span class="conversation-badge" style="background: ${getStageColor(conv.funnel_stage)}; color: white;">
+                                ${conv.funnel_stage}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // Open conversation in right panel
+        function openConversation(conversationId) {
+            currentConversationId = conversationId;
+            
+            // Update active state
+            document.querySelectorAll('.conversation-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            event.currentTarget.classList.add('active');
+            
+            // Load chat
+            fetch(`/whatsapp/api/conversation/${conversationId}`)
+                .then(response => response.json())
+                .then(data => {
+                    renderChat(data);
+                    setupEventSource(conversationId);
+                })
+                .catch(error => console.error('Error loading chat:', error));
+        }
+        
+        // Render chat view
+        function renderChat(data) {
+            const chatPanel = document.getElementById('chatPanel');
+            const conv = data.conversation;
+            const messages = data.messages || [];
+            const lead = data.lead || {};
+            
+            chatPanel.innerHTML = `
+                <!-- Chat Header -->
+                <div class="chat-header">
+                    <div class="chat-header-left">
+                        <div class="conversation-avatar">${conv.lead_score || '10'}</div>
+                        <div>
+                            <div class="conversation-name">${conv.name || conv.phone}</div>
+                            <div style="font-size: 0.85rem; color: #667781;">
+                                <i class="fas fa-phone"></i> ${conv.phone} | ${conv.language.toUpperCase()}
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <span class="conversation-badge" style="background: ${getStageColor(conv.funnel_stage)}; color: white; padding: 6px 12px;">
+                            ${conv.funnel_stage}
+                        </span>
+                    </div>
+                </div>
+                
+                <!-- Chat Messages -->
+                <div class="chat-messages" id="chatMessages">
+                    ${renderMessages(messages)}
+                </div>
+                
+                <!-- Chat Input -->
+                <div class="chat-input-container">
+                    <input type="text" placeholder="Type a message..." id="messageInput" 
+                           onkeypress="if(event.key==='Enter') sendMessage()">
+                    <button class="send-button" onclick="sendMessage()">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+                
+                <!-- Contact Details Sidebar -->
+                <div class="contact-sidebar">
+                    <div class="contact-section">
+                        <div class="contact-section-title">
+                            <i class="fas fa-user"></i> Contact Information
+                        </div>
+                        <div class="contact-field">
+                            <span class="contact-field-label">Phone</span>
+                            <span class="contact-field-value">${conv.phone}</span>
+                        </div>
+                        <div class="contact-field">
+                            <span class="contact-field-label">Company</span>
+                            <span class="contact-field-value">${lead.company || '-'}</span>
+                        </div>
+                        <div class="contact-field">
+                            <span class="contact-field-label">Language</span>
+                            <span class="contact-field-value">${conv.language.toUpperCase()}</span>
+                        </div>
+                        <div class="contact-field">
+                            <span class="contact-field-label">Lead Score</span>
+                            <span class="contact-field-value">${conv.lead_score}/100</span>
+                        </div>
+                    </div>
+                    
+                    <div class="contact-section">
+                        <div class="contact-section-title">
+                            <i class="fas fa-ship"></i> Shipment Details
+                        </div>
+                        <div class="contact-field">
+                            <span class="contact-field-label">Route</span>
+                            <span class="contact-field-value">${lead.origin || '-'} → ${lead.destination || '-'}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="contact-section">
+                        <div class="contact-section-title">
+                            <i class="fas fa-filter"></i> Funnel Stage
+                        </div>
+                        <select class="funnel-select" onchange="updateFunnelStage(this.value)">
+                            <option value="NEW" ${conv.funnel_stage === 'NEW' ? 'selected' : ''}>New</option>
+                            <option value="ENGAGED" ${conv.funnel_stage === 'ENGAGED' ? 'selected' : ''}>Engaged</option>
+                            <option value="QUALIFIED" ${conv.funnel_stage === 'QUALIFIED' ? 'selected' : ''}>Qualified</option>
+                            <option value="QUOTE_REQUESTED" ${conv.funnel_stage === 'QUOTE_REQUESTED' ? 'selected' : ''}>Quote Requested</option>
+                            <option value="CONTACT_SHARED" ${conv.funnel_stage === 'CONTACT_SHARED' ? 'selected' : ''}>Contact Shared</option>
+                            <option value="CONVERTED" ${conv.funnel_stage === 'CONVERTED' ? 'selected' : ''}>Converted</option>
+                            <option value="DROPPED" ${conv.funnel_stage === 'DROPPED' ? 'selected' : ''}>Dropped</option>
+                        </select>
+                    </div>
+                    
+                    <div class="contact-section">
+                        <div class="contact-section-title">
+                            <i class="fas fa-sticky-note"></i> Notes
+                        </div>
+                        <textarea class="notes-textarea" id="notesText" placeholder="Add notes about this lead...">${lead.notes || ''}</textarea>
+                        <button class="save-notes-btn" onclick="saveNotes()">
+                            <i class="fas fa-save"></i> Save Notes
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            // Scroll to bottom
+            const chatMessages = document.getElementById('chatMessages');
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        // Render messages
+        function renderMessages(messages) {
+            if (messages.length === 0) {
+                return '<div style="text-align: center; color: #667781; padding: 40px;">No messages yet</div>';
+            }
+            
+            let html = '<div class="message-date"><span>December 31, 2025</span></div>';
+            
+            messages.forEach(msg => {
+                const direction = msg.direction === 'inbound' ? 'inbound' : 'outbound';
+                const senderLabel = msg.sender === 'user' ? 'User' : msg.sender === 'bot' ? 'Bot' : 'Agent';
+                
+                html += `
+                    <div class="message ${direction}">
+                        <div class="message-bubble">
+                            <div class="message-sender">${senderLabel}</div>
+                            <div class="message-text">${msg.message}</div>
+                            <div class="message-time">${formatTime(msg.created_at)}</div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            return html;
+        }
+        
+        // Send message
+        function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            
+            if (!message || !currentConversationId) return;
+            
+            fetch('/whatsapp/api/send', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    conversation_id: currentConversationId,
+                    message: message
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    input.value = '';
+                    openConversation(currentConversationId); // Reload chat
+                } else {
+                    alert('Error sending message: ' + data.message);
+                }
+            });
+        }
+        
+        // Update funnel stage
+        function updateFunnelStage(newStage) {
+            fetch(`/whatsapp/api/conversation/${currentConversationId}/update_stage`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({stage: newStage})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    loadConversations();
+                }
+            });
+        }
+        
+        // Save notes
+        function saveNotes() {
+            const notes = document.getElementById('notesText').value;
+            
+            fetch(`/whatsapp/api/conversation/${currentConversationId}/save_notes`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({notes: notes})
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+            });
+        }
+        
+        // Update stats
+        function updateStats(stats) {
+            // Update stat badges
+        }
+        
+        // Helper functions
+        function formatTime(timestamp) {
+            if (!timestamp) return '';
+            const date = new Date(timestamp);
+            return date.toLocaleTimeString('en-US', {hour: '2-digit', minute: '2-digit'});
+        }
+        
+        function getStageColor(stage) {
+            const colors = {
+                'NEW': '#6c757d',
+                'ENGAGED': '#ffc107',
+                'QUALIFIED': '#17a2b8',
+                'QUOTE_REQUESTED': '#007bff',
+                'CONTACT_SHARED': '#6f42c1',
+                'CONVERTED': '#28a745',
+                'DROPPED': '#dc3545'
+            };
+            return colors[stage] || '#6c757d';
+        }
+        
+        // Setup EventSource for real-time updates
+        function setupEventSource(conversationId) {
+            if (eventSource) {
+                eventSource.close();
+            }
+            
+            eventSource = new EventSource(`/whatsapp/stream?conversation_id=${conversationId}`);
+            
+            eventSource.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                if (data.conversation_id === currentConversationId) {
+                    openConversation(currentConversationId);
+                }
+            };
+        }
+    </script>
+</body>
+</html>
+

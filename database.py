@@ -1812,22 +1812,67 @@ class ContactDatabase:
                 cursor.execute("""
                     INSERT INTO users (username, password_hash, full_name, email, is_admin, created_by)
                     VALUES (%s, %s, %s, %s, %s, %s)
+                    RETURNING id
                 """, (username, password_hash, full_name, email, is_admin, created_by_id))
+                user_id = cursor.fetchone()[0]
             else:
                 cursor.execute("""
                     INSERT INTO users (username, password_hash, full_name, email, is_admin, created_by)
                     VALUES (?, ?, ?, ?, ?, ?)
                 """, (username, password_hash, full_name, email, 1 if is_admin else 0, created_by_id))
+                user_id = cursor.lastrowid
             
             conn.commit()
             conn.close()
             
             logger.info(f"✅ Created new user: {username}")
-            return {'success': True, 'message': 'User created successfully'}
+            return {'success': True, 'message': 'User created successfully', 'user_id': user_id}
         
         except Exception as e:
             conn.close()
             logger.error(f"Error creating user: {str(e)}")
+            return {'success': False, 'message': str(e)}
+    
+    def update_user_permissions(self, user_id: int, permissions: Dict) -> Dict:
+        """
+        Update user permissions.
+        
+        Args:
+            user_id: User ID
+            permissions: Dict with permission flags (whatsapp, contacts, campaigns, admin)
+        
+        Returns:
+            Dict with success status
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        
+        try:
+            import json
+            permissions_json = json.dumps(permissions)
+            
+            if self.db_type == 'postgresql':
+                cursor.execute("""
+                    UPDATE users 
+                    SET permissions = %s::jsonb
+                    WHERE id = %s
+                """, (permissions_json, user_id))
+            else:
+                cursor.execute("""
+                    UPDATE users 
+                    SET permissions = ?
+                    WHERE id = ?
+                """, (permissions_json, user_id))
+            
+            conn.commit()
+            conn.close()
+            
+            logger.info(f"✅ Updated permissions for user ID: {user_id}")
+            return {'success': True}
+        
+        except Exception as e:
+            conn.close()
+            logger.error(f"Error updating permissions: {str(e)}")
             return {'success': False, 'message': str(e)}
     
     def change_password(self, user_id: int, old_password: str, new_password: str) -> Dict:

@@ -156,6 +156,11 @@ def admin_create_user():
     email = request.form.get('email', '').strip()
     is_admin = request.form.get('is_admin') == 'on'
     
+    # Get permissions
+    perm_whatsapp = request.form.get('perm_whatsapp') == 'on'
+    perm_contacts = request.form.get('perm_contacts') == 'on'
+    perm_campaigns = request.form.get('perm_campaigns') == 'on'
+    
     if not username or not password:
         flash('Username and password are required', 'error')
         return redirect(url_for('admin_users'))
@@ -172,6 +177,16 @@ def admin_create_user():
         is_admin=is_admin,
         created_by_id=session.get('user_id')
     )
+    
+    # Set permissions if user was created successfully
+    if result['success'] and result.get('user_id'):
+        permissions = {
+            'whatsapp': is_admin or perm_whatsapp,
+            'contacts': is_admin or perm_contacts,
+            'campaigns': is_admin or perm_campaigns,
+            'admin': is_admin
+        }
+        db.update_user_permissions(result['user_id'], permissions)
     
     flash(result['message'], 'success' if result['success'] else 'error')
     return redirect(url_for('admin_users'))

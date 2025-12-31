@@ -47,38 +47,10 @@ def register_whatsapp_routes(app):
     @login_required
     def whatsapp_inbox():
         """
-        Main WhatsApp inbox view - shows conversation list.
+        Main WhatsApp inbox view - unified layout (like real WhatsApp).
         """
-        # Get filter parameters
-        filters = {}
-        
-        if request.args.get('funnel'):
-            filters['funnel_stage'] = request.args.get('funnel')
-        
-        if request.args.get('replied'):
-            filters['has_replied'] = request.args.get('replied') == 'true'
-        
-        if request.args.get('language'):
-            filters['language'] = request.args.get('language')
-        
-        if request.args.get('search'):
-            filters['search'] = request.args.get('search')
-        
-        # Get conversations
-        conversations = whatsapp_db.get_active_conversations(filters=filters, limit=50)
-        
-        # Get inbox stats
-        stats = whatsapp_db.get_inbox_stats()
-        
-        # Get funnel breakdown
-        funnel_breakdown = whatsapp_db.get_funnel_breakdown()
-        
         return render_template(
-            'whatsapp_inbox.html',
-            conversations=conversations,
-            stats=stats,
-            funnel_breakdown=funnel_breakdown,
-            filters=filters,
+            'whatsapp_unified.html',
             username=session.get('username', 'Agent')
         )
     
@@ -189,6 +161,53 @@ def register_whatsapp_routes(app):
                 'error': str(e)
             }), 500
     
+    @app.route('/whatsapp/api/conversation/<conversation_id>/update_stage', methods=['POST'])
+    @login_required
+    def whatsapp_update_stage(conversation_id):
+        """
+        API endpoint to update funnel stage.
+        """
+        data = request.json
+        new_stage = data.get('stage')
+        
+        if not new_stage:
+            return jsonify({'success': False, 'message': 'Stage is required'}), 400
+        
+        try:
+            whatsapp_db.update_funnel_stage(conversation_id, new_stage)
+            whatsapp_db.log_agent_action(
+                conversation_id,
+                session.get('username', 'Agent'),
+                'funnel_change',
+                {'new_stage': new_stage}
+            )
+            return jsonify({'success': True, 'message': 'Stage updated successfully'})
+        except Exception as e:
+            logger.error(f"Error updating funnel stage: {str(e)}")
+            return jsonify({'success': False, 'message': str(e)}), 500
+    
+    @app.route('/whatsapp/api/conversation/<conversation_id>/save_notes', methods=['POST'])
+    @login_required
+    def whatsapp_save_notes(conversation_id):
+        """
+        API endpoint to save notes for a lead.
+        """
+        data = request.json
+        notes = data.get('notes', '')
+        
+        try:
+            whatsapp_db.update_lead_notes(conversation_id, notes)
+            whatsapp_db.log_agent_action(
+                conversation_id,
+                session.get('username', 'Agent'),
+                'note_added',
+                {'notes_length': len(notes)}
+            )
+            return jsonify({'success': True, 'message': 'Notes saved successfully'})
+        except Exception as e:
+            logger.error(f"Error saving notes: {str(e)}")
+            return jsonify({'success': False, 'message': str(e)}), 500
+    
     @app.route('/whatsapp/api/conversations')
     @login_required
     def whatsapp_api_conversations():
@@ -201,13 +220,20 @@ def register_whatsapp_routes(app):
         if request.args.get('funnel'):
             filters['funnel_stage'] = request.args.get('funnel')
         
+        if request.args.get('stage'):  # Added for unified UI
+            filters['funnel_stage'] = request.args.get('stage')
+        
         if request.args.get('replied'):
             filters['has_replied'] = request.args.get('replied') == 'true'
         
         if request.args.get('language'):
             filters['language'] = request.args.get('language')
         
+        if request.args.get('search'):  # Added for unified UI
+            filters['search'] = request.args.get('search')
+        
         conversations = whatsapp_db.get_active_conversations(filters=filters, limit=50)
+        stats = whatsapp_db.get_inbox_stats()
         
         # Convert datetime objects to strings
         for conv in conversations:
@@ -217,7 +243,8 @@ def register_whatsapp_routes(app):
         
         return jsonify({
             'success': True,
-            'conversations': conversations
+            'conversations': conversations,
+            'stats': stats
         })
     
     @app.route('/whatsapp/api/messages/<conversation_id>')
@@ -237,6 +264,47 @@ def register_whatsapp_routes(app):
         return jsonify({
             'success': True,
             'messages': messages
+        })
+    
+    @app.route('/whatsapp/api/conversation/<conversation_id>')
+    @login_required
+    def whatsapp_api_conversation(conversation_id):
+        """
+        API endpoint to get full conversation details (conversation + messages + lead).
+        Used by the unified inbox UI.
+        """
+        # Get conversation details
+        conversation = whatsapp_db.get_conversation_by_id(conversation_id)
+        
+        if not conversation:
+            return jsonify({'success': False, 'message': 'Conversation not found'}), 404
+        
+        # Get messages
+        messages = whatsapp_db.get_conversation_messages(conversation_id)
+        
+        # Get lead data
+        lead = whatsapp_db.get_lead_by_conversation(conversation_id)
+        
+        # Convert datetime objects to strings
+        for key, value in conversation.items():
+            if isinstance(value, datetime):
+                conversation[key] = value.isoformat()
+        
+        for msg in messages:
+            for key, value in msg.items():
+                if isinstance(value, datetime):
+                    msg[key] = value.isoformat()
+        
+        if lead:
+            for key, value in lead.items():
+                if isinstance(value, datetime):
+                    lead[key] = value.isoformat()
+        
+        return jsonify({
+            'success': True,
+            'conversation': conversation,
+            'messages': messages,
+            'lead': lead or {}
         })
     
     @app.route('/whatsapp/api/funnel/update', methods=['POST'])

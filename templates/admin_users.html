@@ -114,14 +114,14 @@
                 <a href="{{ url_for('index') }}">
                     <i class="fas fa-home me-1"></i>Home
                 </a>
-                <a href="{{ url_for('step2') }}">
-                    <i class="fas fa-upload me-1"></i>Bulk Upload
-                </a>
-                <a href="{{ url_for('chatbot') }}">
-                    <i class="fas fa-comments me-1"></i>Chatbot
-                </a>
                 <a href="{{ url_for('view_contacts') }}">
                     <i class="fas fa-users me-1"></i>Contacts
+                </a>
+                <a href="/whatsapp/inbox">
+                    <i class="fab fa-whatsapp me-1"></i>WhatsApp
+                </a>
+                <a href="{{ url_for('campaigns_page') }}">
+                    <i class="fas fa-envelope me-1"></i>Campaigns
                 </a>
                 <a href="{{ url_for('admin_users') }}" style="text-decoration: underline;">
                     <i class="fas fa-users-cog me-1"></i>Admin Panel
@@ -196,14 +196,57 @@
                     </div>
                 </div>
                 <div class="mb-3">
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" name="is_admin" id="isAdmin">
+                    <label class="form-label"><strong>User Role & Permissions</strong></label>
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" name="is_admin" id="isAdmin" onchange="toggleAdminPerms()">
                         <label class="form-check-label" for="isAdmin">
-                            <strong>Grant Admin Privileges</strong>
-                            <small class="text-muted d-block">Admins can create users and manage accounts</small>
+                            <strong>🔑 Admin</strong>
+                            <small class="text-muted d-block">Full access to everything (Users, Contacts, WhatsApp, Campaigns)</small>
                         </label>
                     </div>
                 </div>
+                
+                <div id="permissionsSection" class="mb-3">
+                    <label class="form-label"><strong>Access Permissions (for non-admin users)</strong></label>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" name="perm_whatsapp" id="permWhatsApp">
+                                <label class="form-check-label" for="permWhatsApp">
+                                    <i class="fab fa-whatsapp text-success me-1"></i> <strong>WhatsApp Inbox</strong>
+                                    <small class="text-muted d-block">Access to WhatsApp conversations & replies</small>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" name="perm_contacts" id="permContacts">
+                                <label class="form-check-label" for="permContacts">
+                                    <i class="fas fa-users text-primary me-1"></i> <strong>Contacts Database</strong>
+                                    <small class="text-muted d-block">View and manage contact enrichment</small>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" name="perm_campaigns" id="permCampaigns">
+                                <label class="form-check-label" for="permCampaigns">
+                                    <i class="fas fa-envelope text-warning me-1"></i> <strong>Email Campaigns</strong>
+                                    <small class="text-muted d-block">Access to email campaign management</small>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="alert alert-info mt-2">
+                        <small><i class="fas fa-info-circle me-1"></i> <strong>Quick Presets:</strong></small>
+                        <div class="mt-1">
+                            <button type="button" class="btn btn-sm btn-outline-success me-2" onclick="setPreset('whatsapp_only')">WhatsApp Only</button>
+                            <button type="button" class="btn btn-sm btn-outline-primary me-2" onclick="setPreset('ui_only')">UI Only (No WhatsApp)</button>
+                            <button type="button" class="btn btn-sm btn-outline-info" onclick="setPreset('both')">Full Access (Both)</button>
+                        </div>
+                    </div>
+                </div>
+                
                 <button type="submit" class="btn btn-gradient">
                     <i class="fas fa-user-plus me-2"></i>Create User
                 </button>
@@ -224,6 +267,7 @@
                             <th>Full Name</th>
                             <th>Email</th>
                             <th>Role</th>
+                            <th>Permissions</th>
                             <th>Status</th>
                             <th>Last Login</th>
                             <th>Actions</th>
@@ -249,6 +293,30 @@
                                 {% endif %}
                             </td>
                             <td>
+                                <small>
+                                    {% if user.is_admin %}
+                                    <span class="badge bg-primary">All Access</span>
+                                    {% else %}
+                                    {% if user.permissions %}
+                                        {% if user.permissions.whatsapp %}
+                                        <span class="badge bg-success me-1" title="WhatsApp Access"><i class="fab fa-whatsapp"></i></span>
+                                        {% endif %}
+                                        {% if user.permissions.contacts %}
+                                        <span class="badge bg-info me-1" title="Contacts Access"><i class="fas fa-users"></i></span>
+                                        {% endif %}
+                                        {% if user.permissions.campaigns %}
+                                        <span class="badge bg-warning me-1" title="Campaigns Access"><i class="fas fa-envelope"></i></span>
+                                        {% endif %}
+                                        {% if not user.permissions.whatsapp and not user.permissions.contacts and not user.permissions.campaigns %}
+                                        <span class="text-muted">No Access</span>
+                                        {% endif %}
+                                    {% else %}
+                                    <span class="text-muted">No Access</span>
+                                    {% endif %}
+                                    {% endif %}
+                                </small>
+                            </td>
+                            <td>
                                 {% if user.is_active %}
                                 <span class="badge bg-success">Active</span>
                                 {% else %}
@@ -262,12 +330,11 @@
                             </td>
                             <td>
                                 <button class="btn btn-sm btn-warning" onclick="showResetPasswordModal({{ user.id }}, '{{ user.username }}')">
-                                    <i class="fas fa-key"></i> Reset Password
+                                    <i class="fas fa-key"></i>
                                 </button>
                                 <button class="btn btn-sm {% if user.is_active %}btn-danger{% else %}btn-success{% endif %}" 
                                         onclick="toggleUser({{ user.id }}, '{{ user.username }}', {{ user.is_active|lower }})">
                                     <i class="fas fa-{% if user.is_active %}ban{% else %}check{% endif %}"></i>
-                                    {% if user.is_active %}Deactivate{% else %}Activate{% endif %}
                                 </button>
                             </td>
                         </tr>
@@ -377,6 +444,51 @@
                 alert('Password must be at least 6 characters!');
                 return false;
             }
+        });
+
+        // Toggle admin permissions section
+        function toggleAdminPerms() {
+            const isAdmin = document.getElementById('isAdmin').checked;
+            const permsSection = document.getElementById('permissionsSection');
+            
+            if (isAdmin) {
+                permsSection.style.display = 'none';
+                // Uncheck all permissions (admin gets all by default)
+                document.getElementById('permWhatsApp').checked = false;
+                document.getElementById('permContacts').checked = false;
+                document.getElementById('permCampaigns').checked = false;
+            } else {
+                permsSection.style.display = 'block';
+            }
+        }
+
+        // Set permission presets
+        function setPreset(presetType) {
+            document.getElementById('isAdmin').checked = false;
+            toggleAdminPerms();
+            
+            switch(presetType) {
+                case 'whatsapp_only':
+                    document.getElementById('permWhatsApp').checked = true;
+                    document.getElementById('permContacts').checked = false;
+                    document.getElementById('permCampaigns').checked = false;
+                    break;
+                case 'ui_only':
+                    document.getElementById('permWhatsApp').checked = false;
+                    document.getElementById('permContacts').checked = true;
+                    document.getElementById('permCampaigns').checked = true;
+                    break;
+                case 'both':
+                    document.getElementById('permWhatsApp').checked = true;
+                    document.getElementById('permContacts').checked = true;
+                    document.getElementById('permCampaigns').checked = true;
+                    break;
+            }
+        }
+
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', function() {
+            toggleAdminPerms();
         });
     </script>
 </body>
