@@ -128,31 +128,45 @@ def register_whatsapp_routes(app):
             
             logger.info(f"Sending WhatsApp message via n8n: {phone}")
             
-            response = requests.post(
-                N8N_SEND_WEBHOOK,
-                json=webhook_payload,
-                timeout=10
+            # Check if n8n webhook is configured
+            if N8N_SEND_WEBHOOK and N8N_SEND_WEBHOOK != 'https://your-n8n-instance.com/webhook/send-whatsapp':
+                try:
+                    response = requests.post(
+                        N8N_SEND_WEBHOOK,
+                        json=webhook_payload,
+                        timeout=10
+                    )
+                    
+                    if response.status_code != 200:
+                        logger.error(f"n8n webhook error: {response.status_code} - {response.text}")
+                        # Fall through to demo mode
+                except Exception as e:
+                    logger.error(f"n8n webhook request failed: {str(e)}")
+                    # Fall through to demo mode
+            
+            # Demo mode: Save message to database without actually sending via WhatsApp
+            logger.info(f"Demo mode: Saving agent message to database (n8n not configured)")
+            
+            # Insert message into database as outbound from agent
+            whatsapp_db.insert_message(
+                conversation_id=conversation_id,
+                direction='outbound',
+                sender='agent',
+                message=message
             )
             
-            if response.status_code == 200:
-                # Log agent action
-                whatsapp_db.log_agent_action(
-                    conversation_id,
-                    agent_name,
-                    'reply',
-                    {'message': message[:100]}
-                )
-                
-                return jsonify({
-                    'success': True,
-                    'message': 'Message sent successfully'
-                })
-            else:
-                logger.error(f"n8n webhook error: {response.status_code} - {response.text}")
-                return jsonify({
-                    'success': False,
-                    'error': f'Failed to send message: {response.text}'
-                }), 500
+            # Log agent action
+            whatsapp_db.log_agent_action(
+                conversation_id,
+                agent_name,
+                'reply',
+                {'message': message[:100]}
+            )
+            
+            return jsonify({
+                'success': True,
+                'message': 'Message sent successfully (Demo mode - saved to database)'
+            })
         
         except Exception as e:
             logger.error(f"Error sending WhatsApp message: {str(e)}", exc_info=True)

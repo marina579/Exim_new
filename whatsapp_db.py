@@ -401,6 +401,49 @@ class WhatsAppDatabase:
     # AGENT ACTIONS
     # ============================================
     
+    def insert_message(self, conversation_id: str, direction: str, sender: str, 
+                      message: str, status: str = 'sent') -> bool:
+        """
+        Insert a new message into the messages table.
+        
+        Args:
+            conversation_id: UUID of the conversation
+            direction: 'inbound' or 'outbound'
+            sender: 'user', 'bot', 'agent', or 'campaign'
+            message: The message text
+            status: Message status (default: 'sent')
+        
+        Returns:
+            bool: True if successful
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        
+        try:
+            if self.db_type == 'postgresql':
+                query = """
+                    INSERT INTO messages (conversation_id, direction, sender, message, status)
+                    VALUES (%s, %s, %s, %s, %s)
+                """
+                cursor.execute(query, (conversation_id, direction, sender, message, status))
+            else:
+                query = """
+                    INSERT INTO messages (conversation_id, direction, sender, message, status)
+                    VALUES (?, ?, ?, ?, ?)
+                """
+                cursor.execute(query, (conversation_id, direction, sender, message, status))
+            
+            conn.commit()
+            logger.info(f"✅ Message inserted: {direction} from {sender}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error inserting message: {e}")
+            conn.rollback()
+            return False
+        finally:
+            conn.close()
+    
     def log_agent_action(self, conversation_id: str, agent_name: str, 
                         action_type: str, action_data: Dict = None) -> bool:
         """Log an agent action for audit trail."""
