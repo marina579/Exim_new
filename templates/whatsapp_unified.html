@@ -507,6 +507,11 @@
                 <p>Select a conversation to start messaging</p>
             </div>
         </div>
+        
+        <!-- RIGHT: Contact Details Sidebar -->
+        <div class="contact-sidebar" id="contactSidebar" style="display: none;">
+            <!-- Contact details will be loaded here -->
+        </div>
     </div>
 
     <script>
@@ -600,10 +605,15 @@
         // Render chat view
         function renderChat(data) {
             const chatPanel = document.getElementById('chatPanel');
+            const contactSidebar = document.getElementById('contactSidebar');
             const conv = data.conversation;
             const messages = data.messages || [];
             const lead = data.lead || {};
             
+            // Show contact sidebar
+            contactSidebar.style.display = 'block';
+            
+            // Render chat panel
             chatPanel.innerHTML = `
                 <!-- Chat Header -->
                 <div class="chat-header">
@@ -636,10 +646,11 @@
                         <i class="fas fa-paper-plane"></i>
                     </button>
                 </div>
-                
-                <!-- Contact Details Sidebar -->
-                <div class="contact-sidebar">
-                    <div class="contact-section">
+            `;
+            
+            // Render contact sidebar separately
+            contactSidebar.innerHTML = `
+                <div class="contact-section">
                         <div class="contact-section-title">
                             <i class="fas fa-user"></i> Contact Information
                         </div>
@@ -695,7 +706,6 @@
                             <i class="fas fa-save"></i> Save Notes
                         </button>
                     </div>
-                </div>
             `;
             
             // Scroll to bottom
@@ -719,7 +729,7 @@
                     <div class="message ${direction}">
                         <div class="message-bubble">
                             <div class="message-sender">${senderLabel}</div>
-                            <div class="message-text">${msg.message}</div>
+                            <div class="message-text">${escapeHtml(msg.message)}</div>
                             <div class="message-time">${formatTime(msg.created_at)}</div>
                         </div>
                     </div>

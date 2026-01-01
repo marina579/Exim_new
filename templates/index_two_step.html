@@ -345,6 +345,11 @@
             <a href="{{ url_for('chatbot') }}" class="btn btn-custom" style="white-space: nowrap; min-width: fit-content; background: #ffffff; color: #1e3a5f; border: 2px solid #1e3a5f; box-shadow: 0 4px 15px rgba(0,0,0,0.1); font-weight: 600;">
                 <i class="fas fa-comments me-1"></i>Chatbot
             </a>
+            {% if session.get('is_admin') or (session.get('permissions') and session.get('permissions').get('whatsapp')) %}
+            <a href="/whatsapp/inbox" class="btn btn-custom" style="white-space: nowrap; min-width: fit-content; background: #25D366; color: white; border: 2px solid #25D366; box-shadow: 0 4px 15px rgba(37,211,102,0.3); font-weight: 600;">
+                <i class="fab fa-whatsapp me-1"></i>WhatsApp
+            </a>
+            {% endif %}
         </div>
         {% endif %}
         
