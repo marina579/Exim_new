@@ -33,6 +33,8 @@ from automated_processor import process_file_automated
 # Load environment variables from .env file
 load_dotenv()
 
+# IMPORTANT: Load .env BEFORE importing whatsapp_routes
+# This ensures DATABASE_URL is available for the adapter
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'marineco_exim_contact_finder_secure_2024_auth_key')  # Change in production!
 app.config['UPLOAD_FOLDER'] = 'uploads'

@@ -9,7 +9,13 @@ import requests
 from datetime import datetime
 from flask import render_template, request, jsonify, session, redirect, url_for
 from functools import wraps
-from whatsapp_db import whatsapp_db
+# Use adapter to work with N8N's chat_history and Lead tables
+try:
+    from whatsapp_db_adapter import whatsapp_db
+    logger.info("✅ Using WhatsApp DB Adapter (chat_history + Lead tables)")
+except ImportError:
+    from whatsapp_db import whatsapp_db
+    logger.info("⚠️  Using standard WhatsApp DB")
 
 logger = logging.getLogger(__name__)
 

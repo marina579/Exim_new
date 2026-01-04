@@ -136,7 +136,7 @@ class WhatsAppDatabase:
                      AND m.direction = 'inbound' 
                      AND m.status != 'read') as unread_count
                 FROM conversations c
-                LEFT JOIN leads l ON l.conversation_id = c.id
+                LEFT JOIN leads l ON l.phone = c.phone
                 WHERE {where_sql}
                 ORDER BY c.last_message_at DESC NULLS LAST
                 LIMIT {"%s" if self.db_type == "postgresql" else "?"} OFFSET {"%s" if self.db_type == "postgresql" else "?"}
@@ -178,7 +178,7 @@ class WhatsAppDatabase:
                     l.shipment_type,
                     l.notes
                 FROM conversations c
-                LEFT JOIN leads l ON l.conversation_id = c.id
+                LEFT JOIN leads l ON l.phone = c.phone
                 WHERE c.id = {param_placeholder}
             """
             
@@ -356,12 +356,25 @@ class WhatsAppDatabase:
         try:
             param_placeholder = "%s" if self.db_type == "postgresql" else "?"
             
+            # First get the phone from conversation
+            query = f"""
+                SELECT phone FROM conversations WHERE id = {param_placeholder}
+            """
+            cursor.execute(query, (conversation_id,))
+            conv_row = cursor.fetchone()
+            
+            if not conv_row:
+                return None
+            
+            phone = conv_row['phone'] if self.db_type == 'postgresql' else conv_row[0]
+            
+            # Then get lead by phone
             query = f"""
                 SELECT * FROM leads
-                WHERE conversation_id = {param_placeholder}
+                WHERE phone = {param_placeholder}
             """
             
-            cursor.execute(query, (conversation_id,))
+            cursor.execute(query, (phone,))
             row = cursor.fetchone()
             
             if row:
@@ -379,14 +392,26 @@ class WhatsAppDatabase:
         try:
             param_placeholder = "%s" if self.db_type == "postgresql" else "?"
             
+            # First get the phone from conversation
+            query = f"""
+                SELECT phone FROM conversations WHERE id = {param_placeholder}
+            """
+            cursor.execute(query, (conversation_id,))
+            conv_row = cursor.fetchone()
+            
+            if not conv_row:
+                return False
+            
+            phone = conv_row['phone'] if self.db_type == 'postgresql' else conv_row[0]
+            
+            # Check if notes column exists, if not just skip the update
             query = f"""
                 UPDATE leads
-                SET notes = {param_placeholder},
-                    updated_at = CURRENT_TIMESTAMP
-                WHERE conversation_id = {param_placeholder}
+                SET notes = {param_placeholder}
+                WHERE phone = {param_placeholder}
             """
             
-            cursor.execute(query, (notes, conversation_id))
+            cursor.execute(query, (notes, phone))
             conn.commit()
             return True
             
