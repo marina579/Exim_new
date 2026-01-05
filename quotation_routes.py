@@ -418,17 +418,18 @@ def generate_quotation_document(data):
 <body>
     <div class="header">
         <div style="text-align: center; margin-bottom: 10px;">
-            <svg width="90" height="90" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="50" cy="50" r="45" fill="white" stroke="#3d7ab8" stroke-width="2.5"/>
-                <path d="M 50,15 L 52,48 L 50,50 L 48,48 Z" fill="#3d7ab8"/>
-                <path d="M 72,22 L 52,48 L 50,46 L 52,44 Z" fill="#3d7ab8"/>
-                <path d="M 85,50 L 52,52 L 50,50 L 52,48 Z" fill="#3d7ab8"/>
-                <path d="M 78,78 L 52,52 L 54,50 L 56,52 Z" fill="#3d7ab8"/>
-                <path d="M 50,85 L 48,52 L 50,50 L 52,52 Z" fill="#3d7ab8"/>
-                <path d="M 22,78 L 48,52 L 50,54 L 48,56 Z" fill="#3d7ab8"/>
-                <path d="M 15,50 L 48,48 L 50,50 L 48,52 Z" fill="#3d7ab8"/>
-                <path d="M 22,22 L 48,48 L 46,50 L 44,48 Z" fill="#3d7ab8"/>
-                <circle cx="50" cy="50" r="5" fill="white"/>
+            <svg width="140" height="110" viewBox="0 0 200 160" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="100" cy="50" r="45" fill="white" stroke="#3d7ab8" stroke-width="2.5"/>
+                <path d="M 100,15 L 102,48 L 100,50 L 98,48 Z" fill="#3d7ab8"/>
+                <path d="M 122,22 L 102,48 L 100,46 L 102,44 Z" fill="#3d7ab8"/>
+                <path d="M 135,50 L 102,52 L 100,50 L 102,48 Z" fill="#3d7ab8"/>
+                <path d="M 128,78 L 102,52 L 104,50 L 106,52 Z" fill="#3d7ab8"/>
+                <path d="M 100,85 L 98,52 L 100,50 L 102,52 Z" fill="#3d7ab8"/>
+                <path d="M 72,78 L 98,52 L 100,54 L 98,56 Z" fill="#3d7ab8"/>
+                <path d="M 65,50 L 98,48 L 100,50 L 98,52 Z" fill="#3d7ab8"/>
+                <path d="M 72,22 L 98,48 L 96,50 L 94,48 Z" fill="#3d7ab8"/>
+                <circle cx="100" cy="50" r="5" fill="white"/>
+                <text x="100" y="130" font-family="Georgia, serif" font-size="32" font-style="italic" font-weight="bold" fill="#1a1a2e" text-anchor="middle">Marineco</text>
             </svg>
         </div>
         <div class="company-name">Marineco Private Limited</div>
