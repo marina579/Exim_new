@@ -460,7 +460,7 @@
         <!-- LEFT: Conversation Sidebar -->
         <div class="conversation-sidebar">
             <div class="sidebar-header">
-                <h5><i class="fab fa-whatsapp"></i> WhatsApp Inbox <span class="badge bg-light text-dark">1</span></h5>
+                <h5><i class="fab fa-whatsapp"></i> WhatsApp Inbox <span class="badge bg-light text-dark" id="totalConversations">0</span></h5>
             </div>
             
             <!-- Stats -->
@@ -521,6 +521,16 @@
         // Load conversations on page load
         document.addEventListener('DOMContentLoaded', function() {
             loadConversations();
+            
+            // Also load stats immediately
+            fetch('/whatsapp/api/stats')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        updateStats(data.stats);
+                    }
+                })
+                .catch(console.error);
             
             // Filter tabs
             document.querySelectorAll('.filter-tab').forEach(tab => {
@@ -799,12 +809,18 @@
         function updateStats(stats) {
             if (!stats) return;
             
+            // Update total conversations badge
+            const totalBadge = document.getElementById('totalConversations');
+            if (totalBadge) {
+                totalBadge.textContent = stats.active_total || 0;
+            }
+            
             // Update stat badges in the sidebar
             const statBadges = document.querySelectorAll('.stat-badge');
             if (statBadges.length >= 3) {
-                statBadges[0].querySelector('.stat-number').textContent = stats.unread || 0;
-                statBadges[1].querySelector('.stat-number').textContent = stats.qualified || 0;
-                statBadges[2].querySelector('.stat-number').textContent = stats.converted || 0;
+                statBadges[0].querySelector('.stat-number').textContent = stats.unread_total || 0;
+                statBadges[1].querySelector('.stat-number').textContent = stats.qualified_count || 0;
+                statBadges[2].querySelector('.stat-number').textContent = stats.converted_count || 0;
             }
         }
         
