@@ -303,8 +303,8 @@
                 
                 <!-- Export Buttons (hidden initially) -->
                 <div class="export-buttons" id="exportButtons" style="display: none;">
-                    <button class="btn btn-export btn-export-pdf" onclick="exportDocument('pdf')">
-                        <i class="fas fa-file-pdf"></i> Export PDF
+                    <button class="btn btn-export" style="background: #2ecc71; color: white;" onclick="printDocument()">
+                        <i class="fas fa-print"></i> Print / Save PDF
                     </button>
                     <button class="btn btn-export btn-export-docx" onclick="exportDocument('docx')">
                         <i class="fas fa-file-word"></i> Export DOCX
@@ -412,11 +412,18 @@
                     document.body.removeChild(a);
                 } else {
                     const error = await response.json();
-                    alert('Export failed: ' + (error.error || 'Unknown error'));
+                    const errorMsg = error.error || 'Unknown error';
+                    
+                    // User-friendly error messages
+                    if (errorMsg.includes('python-docx') || errorMsg.includes('htmldocx')) {
+                        alert('Word export is not available. Please use "Print / Save PDF" button instead.\n\nYou can then open the PDF and save as Word if needed.');
+                    } else {
+                        alert('Export failed: ' + errorMsg);
+                    }
                 }
             } catch (error) {
                 console.error('Error exporting document:', error);
-                alert('Failed to export document. Please try again.');
+                alert('Failed to export. Please use the "Print / Save PDF" button instead.');
             }
         }
         
@@ -432,13 +439,21 @@
             document.getElementById('exportButtons').style.display = 'none';
         }
         
-        // Print functionality
+        // Print functionality - opens browser print dialog
         function printDocument() {
             if (!currentDocument) {
                 alert('No document to print');
                 return;
             }
-            window.print();
+            
+            // Open print dialog for the preview panel
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(currentDocument);
+            printWindow.document.close();
+            printWindow.focus();
+            setTimeout(() => {
+                printWindow.print();
+            }, 250);
         }
     </script>
 </body>

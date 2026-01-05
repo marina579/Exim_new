@@ -375,6 +375,24 @@ def generate_quotation_document(data):
                 margin: 0;
                 padding: 20px;
             }}
+            
+            .logo {{
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }}
+            
+            .header {{
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }}
+            
+            .footer {{
+                page-break-inside: avoid;
+            }}
+            
+            .signature {{
+                page-break-inside: avoid;
+            }}
         }}
     </style>
 </head>
@@ -621,7 +639,7 @@ def generate_shipment_overview(origin, destination, transport_mode, cargo_descri
 def export_to_pdf(html_content, quote_number):
     """
     Export HTML document to PDF format.
-    Requires: pip install weasyprint
+    Fallback: Returns HTML for browser printing
     """
     try:
         from weasyprint import HTML
@@ -633,9 +651,13 @@ def export_to_pdf(html_content, quote_number):
         return pdf_bytes, mimetype, filename
     
     except ImportError:
-        # Fallback: return HTML with instructions
-        logger.warning("WeasyPrint not installed - PDF export unavailable")
-        raise Exception("PDF export requires WeasyPrint: pip install weasyprint")
+        # Fallback: Return HTML that can be printed as PDF from browser
+        logger.warning("WeasyPrint not installed - using browser print fallback")
+        html_bytes = html_content.encode('utf-8')
+        filename = f"Quotation_{quote_number}.html"
+        mimetype = 'text/html'
+        
+        return html_bytes, mimetype, filename
 
 
 def export_to_docx(html_content, quote_number):
