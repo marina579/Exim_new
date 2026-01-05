@@ -418,35 +418,26 @@ def generate_quotation_document(data):
 <body>
     <div class="header">
         <div style="text-align: center; margin-bottom: 15px;">
-            <svg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                <!-- Outer Circle -->
-                <circle cx="50" cy="50" r="45" fill="none" stroke="#2B5F9E" stroke-width="2.5"/>
+            <svg width="90" height="90" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                <!-- Outer Circle Border -->
+                <circle cx="50" cy="50" r="48" fill="white" stroke="#1e5a96" stroke-width="2"/>
                 
-                <!-- Inner Circle -->
-                <circle cx="50" cy="50" r="38" fill="#2B5F9E"/>
+                <!-- 8-Point Compass Star -->
+                <!-- Main 4 points (N, E, S, W) - Longer -->
+                <polygon points="50,8 52,45 50,48 48,45" fill="#1e5a96"/>
+                <polygon points="92,50 55,52 52,50 55,48" fill="#1e5a96"/>
+                <polygon points="50,92 48,55 50,52 52,55" fill="#1e5a96"/>
+                <polygon points="8,50 45,48 48,50 45,52" fill="#1e5a96"/>
                 
-                <!-- Compass Star Points -->
-                <!-- North Point -->
-                <polygon points="50,12 54,35 50,38 46,35" fill="#87CEEB"/>
-                <!-- Northeast Point -->
-                <polygon points="67,20 58,37 54,38 56,33" fill="#5B9BD5"/>
-                <!-- East Point -->
-                <polygon points="88,50 65,54 62,50 65,46" fill="#87CEEB"/>
-                <!-- Southeast Point -->
-                <polygon points="80,67 63,58 62,54 67,56" fill="#5B9BD5"/>
-                <!-- South Point -->
-                <polygon points="50,88 46,65 50,62 54,65" fill="#87CEEB"/>
-                <!-- Southwest Point -->
-                <polygon points="33,80 42,63 46,62 44,67" fill="#5B9BD5"/>
-                <!-- West Point -->
-                <polygon points="12,50 35,46 38,50 35,54" fill="#87CEEB"/>
-                <!-- Northwest Point -->
-                <polygon points="20,33 37,42 38,46 33,44" fill="#5B9BD5"/>
+                <!-- Diagonal 4 points (NE, SE, SW, NW) - Shorter -->
+                <polygon points="73,27 54,46 52,44 54,42" fill="#4a90d9"/>
+                <polygon points="73,73 54,54 56,52 58,54" fill="#4a90d9"/>
+                <polygon points="27,73 46,54 48,56 46,58" fill="#4a90d9"/>
+                <polygon points="27,27 46,46 44,48 42,46" fill="#4a90d9"/>
                 
                 <!-- Center Circle -->
-                <circle cx="50" cy="50" r="10" fill="white"/>
-                <circle cx="50" cy="50" r="7" fill="#2B5F9E"/>
-                <circle cx="50" cy="50" r="3" fill="white"/>
+                <circle cx="50" cy="50" r="8" fill="white" stroke="#1e5a96" stroke-width="1.5"/>
+                <circle cx="50" cy="50" r="3" fill="#1e5a96"/>
             </svg>
         </div>
         <div class="company-name">Marineco Private Limited</div>
