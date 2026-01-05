@@ -419,17 +419,32 @@ def generate_quotation_document(data):
     <div class="header">
         <div style="text-align: center; margin-bottom: 10px;">
             <svg width="140" height="110" viewBox="0 0 200 160" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="100" cy="50" r="45" fill="white" stroke="#3d7ab8" stroke-width="2.5"/>
-                <path d="M 100,15 L 102,48 L 100,50 L 98,48 Z" fill="#3d7ab8"/>
-                <path d="M 122,22 L 102,48 L 100,46 L 102,44 Z" fill="#3d7ab8"/>
-                <path d="M 135,50 L 102,52 L 100,50 L 102,48 Z" fill="#3d7ab8"/>
-                <path d="M 128,78 L 102,52 L 104,50 L 106,52 Z" fill="#3d7ab8"/>
-                <path d="M 100,85 L 98,52 L 100,50 L 102,52 Z" fill="#3d7ab8"/>
-                <path d="M 72,78 L 98,52 L 100,54 L 98,56 Z" fill="#3d7ab8"/>
-                <path d="M 65,50 L 98,48 L 100,50 L 98,52 Z" fill="#3d7ab8"/>
-                <path d="M 72,22 L 98,48 L 96,50 L 94,48 Z" fill="#3d7ab8"/>
-                <circle cx="100" cy="50" r="5" fill="white"/>
-                <text x="100" y="130" font-family="Georgia, serif" font-size="32" font-style="italic" font-weight="bold" fill="#1a1a2e" text-anchor="middle">Marineco</text>
+                <!-- Outer circle -->
+                <circle cx="100" cy="50" r="42" fill="none" stroke="#5A8BBE" stroke-width="2.5"/>
+                
+                <!-- 8-point compass star -->
+                <!-- North -->
+                <path d="M 100,10 L 103,45 L 100,48 L 97,45 Z" fill="#2E5C8A"/>
+                <!-- Northeast -->
+                <path d="M 128,18 L 105,43 L 103,40 L 106,37 Z" fill="#2E5C8A"/>
+                <!-- East -->
+                <path d="M 138,50 L 103,53 L 100,50 L 103,47 Z" fill="#2E5C8A"/>
+                <!-- Southeast -->
+                <path d="M 128,82 L 103,57 L 106,54 L 109,57 Z" fill="#2E5C8A"/>
+                <!-- South -->
+                <path d="M 100,90 L 97,55 L 100,52 L 103,55 Z" fill="#2E5C8A"/>
+                <!-- Southwest -->
+                <path d="M 72,82 L 97,57 L 100,60 L 97,63 Z" fill="#2E5C8A"/>
+                <!-- West -->
+                <path d="M 62,50 L 97,47 L 100,50 L 97,53 Z" fill="#2E5C8A"/>
+                <!-- Northwest -->
+                <path d="M 72,18 L 97,43 L 94,46 L 91,43 Z" fill="#2E5C8A"/>
+                
+                <!-- Center dot -->
+                <circle cx="100" cy="50" r="4" fill="#2E5C8A"/>
+                
+                <!-- Marineco text in decorative serif -->
+                <text x="100" y="132" font-family="'Baskerville', 'Libre Baskerville', 'Georgia', serif" font-size="30" font-weight="600" fill="#1a2332" text-anchor="middle" letter-spacing="0.5">Marineco</text>
             </svg>
         </div>
         <div class="company-name">Marineco Private Limited</div>
