@@ -9,6 +9,9 @@ import requests
 from datetime import datetime
 from flask import render_template, request, jsonify, session, redirect, url_for
 from functools import wraps
+
+logger = logging.getLogger(__name__)
+
 # Use adapter to work with N8N's chat_history and Lead tables
 try:
     from whatsapp_db_adapter import whatsapp_db
@@ -16,8 +19,6 @@ try:
 except ImportError:
     from whatsapp_db import whatsapp_db
     logger.info("⚠️  Using standard WhatsApp DB")
-
-logger = logging.getLogger(__name__)
 
 # N8N webhook URL for sending messages (set in Railway env vars)
 N8N_SEND_WEBHOOK = os.getenv('N8N_SEND_WEBHOOK_URL', 'https://your-n8n-instance.com/webhook/send-whatsapp')
