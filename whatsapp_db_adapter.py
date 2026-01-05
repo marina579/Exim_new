@@ -66,13 +66,22 @@ class WhatsAppDatabaseAdapter:
             params = []
             
             if filters:
+                # Handle funnel_stage/stage filter
+                if filters.get('funnel_stage'):
+                    where_clauses.append("l.status = %s" if self.db_type == 'postgresql' else "l.status = ?")
+                    params.append(filters['funnel_stage'])
+                elif filters.get('stage'):
+                    where_clauses.append("l.status = %s" if self.db_type == 'postgresql' else "l.status = ?")
+                    params.append(filters['stage'])
+                
+                # Handle search
                 if filters.get('search'):
                     search_clause = """(
-                        ch.phone LIKE %s OR 
+                        cs.phone LIKE %s OR 
                         l.name LIKE %s OR 
                         l.company LIKE %s
                     )""" if self.db_type == 'postgresql' else """(
-                        ch.phone LIKE ? OR 
+                        cs.phone LIKE ? OR 
                         l.name LIKE ? OR 
                         l.company LIKE ?
                     )"""
@@ -376,10 +385,9 @@ class WhatsAppDatabaseAdapter:
             # Map direction/sender to role
             if direction == 'inbound' or sender == 'user':
                 role = 'Customer'
-            elif sender == 'agent':
-                role = 'Agent'
             else:
-                role = 'AI Agent'
+                # All outbound messages from UI are marked as 'Agent'
+                role = 'Agent'
             
             if self.db_type == 'postgresql':
                 query = """

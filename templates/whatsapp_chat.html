@@ -367,11 +367,7 @@
                             <div class="message-bubble">
                                 {% if msg.direction == 'outbound' and msg.sender in ['agent', 'bot'] %}
                                     <div class="message-sender">
-                                        {% if msg.sender == 'agent' %}
-                                            <i class="fas fa-user"></i> Agent
-                                        {% else %}
-                                            <i class="fas fa-robot"></i> Bot
-                                        {% endif %}
+                                        <i class="fas fa-user"></i> Agent
                                     </div>
                                 {% endif %}
                                 <div class="message-text">{{ msg.message }}</div>

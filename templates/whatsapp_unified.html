@@ -723,7 +723,7 @@
             
             messages.forEach(msg => {
                 const direction = msg.direction === 'inbound' ? 'inbound' : 'outbound';
-                const senderLabel = msg.sender === 'user' ? 'User' : msg.sender === 'bot' ? 'Bot' : 'Agent';
+                const senderLabel = msg.sender === 'user' ? 'User' : 'Agent';
                 
                 html += `
                     <div class="message ${direction}">
