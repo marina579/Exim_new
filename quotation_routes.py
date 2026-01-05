@@ -163,6 +163,16 @@ def generate_quotation_document(data):
     local_transport_charges = data.get('local_transport_charges', 'As per distance and service level')
     total_amount = data.get('total_amount', '')
     
+    # Additional custom pricing items (JSON format)
+    import json
+    additional_items = []
+    try:
+        additional_items_json = data.get('additional_pricing_items', '[]')
+        if additional_items_json:
+            additional_items = json.loads(additional_items_json) if isinstance(additional_items_json, str) else additional_items_json
+    except:
+        additional_items = []
+    
     # Calculate validity date
     try:
         validity_date = (datetime.strptime(quote_date, '%Y-%m-%d') + 
@@ -407,8 +417,14 @@ def generate_quotation_document(data):
 </head>
 <body>
     <div class="header">
-        <img src="{logo_base64}" alt="Marineco Logo" class="logo">
-        <div class="company-name">MARINECO PVT LTD</div>
+        <div style="text-align: center; margin-bottom: 15px;">
+            <svg width="80" height="80" viewBox="0 0 90 90" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="45" cy="45" r="40" fill="#2c3e50" stroke="#3498db" stroke-width="3"/>
+                <polygon points="45,15 50,35 70,35 55,47 60,65 45,55 30,65 35,47 20,35 40,35" fill="#3498db"/>
+                <circle cx="45" cy="45" r="8" fill="white"/>
+            </svg>
+        </div>
+        <div class="company-name">Marineco Private Limited</div>
         <div class="tagline">Global Logistics & Freight Forwarding</div>
         <div class="website">www.marineco.co</div>
     </div>
@@ -505,13 +521,10 @@ def generate_quotation_document(data):
             <td><strong>Local Transportation</strong></td>
             <td>{local_transport_charges}</td>
         </tr>
+        {''.join([f'<tr><td><strong>{item.get("name", "Additional Service")}</strong></td><td>{item.get("price", "On request")}</td></tr>' for item in additional_items])}
         <tr>
             <td><strong>Documentation Charges</strong></td>
             <td>Standard documentation fees applicable</td>
-        </tr>
-        <tr>
-            <td><strong>Additional Services</strong></td>
-            <td>On request and subject to quotation</td>
         </tr>
         {f'<tr style="background: #f0f8ff; font-weight: bold;"><td><strong>TOTAL</strong></td><td>{total_amount}</td></tr>' if total_amount else ''}
     </table>
@@ -541,7 +554,7 @@ def generate_quotation_document(data):
     </div>
     
     <div class="signature">
-        <div class="signature-line"><span class="signature-title">For Marineco Pvt Ltd</span></div>
+        <div class="signature-line"><span class="signature-title">For Marineco Private Limited</span></div>
         <div style="margin-top: 40px; margin-bottom: 5px;">_______________________</div>
         <div class="signature-line">Authorized Signatory</div>
         <div class="signature-line" style="color: #666;">Logistics Operations</div>
@@ -580,7 +593,7 @@ def generate_quotation_document(data):
         </div>
         
         <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #ddd; font-size: 11px; color: #999;">
-            This is a system-generated quotation document from Marineco Pvt Ltd.
+            This is a system-generated quotation document from Marineco Private Limited.
         </div>
     </div>
 </body>

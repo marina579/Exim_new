@@ -319,6 +319,18 @@
                         <input type="text" class="form-control" name="total_amount" placeholder="e.g., USD 2,000 or On request">
                     </div>
                     
+                    <hr style="margin: 20px 0;">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 style="color: #2c3e50; margin: 0;"><i class="fas fa-plus-circle"></i> Additional Charges</h6>
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="addPricingItem()">
+                            <i class="fas fa-plus"></i> Add Item
+                        </button>
+                    </div>
+                    
+                    <div id="additionalPricingItems">
+                        <!-- Dynamic pricing items will be added here -->
+                    </div>
+                    
                     <button type="submit" class="btn btn-primary btn-generate">
                         <i class="fas fa-magic"></i> Generate Quotation
                     </button>
@@ -352,6 +364,68 @@
     <script>
         let currentDocument = null;
         let currentQuoteNumber = null;
+        let pricingItemCounter = 0;
+        
+        // Add pricing item dynamically
+        function addPricingItem() {
+            pricingItemCounter++;
+            const container = document.getElementById('additionalPricingItems');
+            const itemDiv = document.createElement('div');
+            itemDiv.className = 'mb-3 p-3';
+            itemDiv.style.background = '#f8f9fa';
+            itemDiv.style.borderRadius = '8px';
+            itemDiv.style.border = '1px solid #dee2e6';
+            itemDiv.id = `pricing-item-${pricingItemCounter}`;
+            
+            itemDiv.innerHTML = `
+                <div class="d-flex justify-content-between mb-2">
+                    <small style="font-weight: 600; color: #666;">Item ${pricingItemCounter}</small>
+                    <button type="button" class="btn btn-sm btn-link text-danger p-0" onclick="removePricingItem(${pricingItemCounter})">
+                        <i class="fas fa-times"></i> Remove
+                    </button>
+                </div>
+                <div class="row">
+                    <div class="col-7">
+                        <input type="text" class="form-control form-control-sm pricing-item-name" 
+                               placeholder="e.g., Insurance, Packaging, Storage" 
+                               data-id="${pricingItemCounter}">
+                    </div>
+                    <div class="col-5">
+                        <input type="text" class="form-control form-control-sm pricing-item-price" 
+                               placeholder="e.g., USD 100" 
+                               data-id="${pricingItemCounter}">
+                    </div>
+                </div>
+            `;
+            
+            container.appendChild(itemDiv);
+        }
+        
+        // Remove pricing item
+        function removePricingItem(id) {
+            const item = document.getElementById(`pricing-item-${id}`);
+            if (item) {
+                item.remove();
+            }
+        }
+        
+        // Collect pricing items before form submission
+        function collectPricingItems() {
+            const items = [];
+            const nameInputs = document.querySelectorAll('.pricing-item-name');
+            const priceInputs = document.querySelectorAll('.pricing-item-price');
+            
+            nameInputs.forEach((nameInput, index) => {
+                const name = nameInput.value.trim();
+                const price = priceInputs[index].value.trim();
+                
+                if (name && price) {
+                    items.push({ name, price });
+                }
+            });
+            
+            return items;
+        }
         
         // Form submission
         document.getElementById('quotationForm').addEventListener('submit', async function(e) {
@@ -368,6 +442,10 @@
             // Get form data
             const formData = new FormData(this);
             const data = Object.fromEntries(formData);
+            
+            // Add additional pricing items
+            const additionalItems = collectPricingItems();
+            data.additional_pricing_items = JSON.stringify(additionalItems);
             
             try {
                 // Generate quotation
