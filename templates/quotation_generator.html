@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quotation Generator - Marineco</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: #f0f2f5;
+            font-family: 'Segoe UI', Arial, sans-serif;
+        }
+        
+        .top-navbar {
+            background: #2c3e50;
+            color: white;
+            padding: 15px 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .top-navbar .brand {
+            font-weight: bold;
+            font-size: 1.3rem;
+        }
+        
+        .top-navbar a {
+            color: white;
+            text-decoration: none;
+            margin-left: 20px;
+        }
+        
+        .top-navbar a:hover {
+            color: #3498db;
+        }
+        
+        .container-main {
+            max-width: 1400px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+        
+        .split-view {
+            display: grid;
+            grid-template-columns: 450px 1fr;
+            gap: 20px;
+            min-height: calc(100vh - 150px);
+        }
+        
+        .form-panel {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            height: fit-content;
+            position: sticky;
+            top: 20px;
+        }
+        
+        .preview-panel {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            min-height: 800px;
+        }
+        
+        .form-panel h4 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #3498db;
+        }
+        
+        .form-label {
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 5px;
+        }
+        
+        .form-control, .form-select {
+            border-radius: 6px;
+            border: 1px solid #ddd;
+        }
+        
+        .form-control:focus, .form-select:focus {
+            border-color: #3498db;
+            box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.25);
+        }
+        
+        .btn-generate {
+            background: #3498db;
+            border: none;
+            padding: 12px 30px;
+            font-size: 16px;
+            font-weight: 600;
+            border-radius: 6px;
+            width: 100%;
+            margin-top: 20px;
+        }
+        
+        .btn-generate:hover {
+            background: #2980b9;
+        }
+        
+        .export-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px solid #e0e0e0;
+        }
+        
+        .btn-export {
+            flex: 1;
+            padding: 10px;
+            font-weight: 600;
+            border-radius: 6px;
+        }
+        
+        .btn-export-pdf {
+            background: #e74c3c;
+            border: none;
+            color: white;
+        }
+        
+        .btn-export-pdf:hover {
+            background: #c0392b;
+        }
+        
+        .btn-export-docx {
+            background: #2c3e50;
+            border: none;
+            color: white;
+        }
+        
+        .btn-export-docx:hover {
+            background: #1a252f;
+        }
+        
+        .preview-empty {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 400px;
+            color: #999;
+        }
+        
+        .preview-empty i {
+            font-size: 80px;
+            margin-bottom: 20px;
+            color: #ddd;
+        }
+        
+        #documentPreview {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        
+        .spinner-border {
+            width: 3rem;
+            height: 3rem;
+        }
+        
+        @media (max-width: 1200px) {
+            .split-view {
+                grid-template-columns: 1fr;
+            }
+            
+            .form-panel {
+                position: static;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Top Navbar -->
+    <div class="top-navbar">
+        <div class="d-flex justify-content-between align-items-center">
+            <div class="brand">
+                <i class="fas fa-file-invoice"></i> Quotation Generator
+            </div>
+            <div>
+                <a href="/"><i class="fas fa-home"></i> Dashboard</a>
+                <a href="/whatsapp/inbox"><i class="fab fa-whatsapp"></i> WhatsApp</a>
+                <span style="margin-left: 20px;">{{ username }}</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Main Container -->
+    <div class="container-main">
+        <div class="split-view">
+            <!-- LEFT: Form Panel -->
+            <div class="form-panel">
+                <h4><i class="fas fa-edit"></i> Quotation Details</h4>
+                
+                <form id="quotationForm">
+                    <!-- Quote Metadata -->
+                    <div class="mb-3">
+                        <label class="form-label">Quote Number <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="quote_number" value="{{ quote_number }}" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Quote Date <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" name="quote_date" value="{{ quote_date }}" required>
+                    </div>
+                    
+                    <!-- Client Info -->
+                    <div class="mb-3">
+                        <label class="form-label">Client Company <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="client_company" placeholder="e.g., ABC Industries Ltd" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Contact Person</label>
+                        <input type="text" class="form-control" name="client_contact" placeholder="e.g., John Doe">
+                    </div>
+                    
+                    <!-- Shipment Details -->
+                    <div class="mb-3">
+                        <label class="form-label">Origin <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="origin" placeholder="e.g., Mumbai, India" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Destination <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="destination" placeholder="e.g., Singapore Port" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Transport Mode <span class="text-danger">*</span></label>
+                        <select class="form-select" name="transport_mode" required>
+                            <option value="">Select mode...</option>
+                            <option value="Air">Air Freight</option>
+                            <option value="Sea">Sea Freight</option>
+                            <option value="Road">Road Transport</option>
+                            <option value="Multimodal">Multimodal</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Shipment Type</label>
+                        <select class="form-select" name="shipment_type">
+                            <option value="FCL">FCL (Full Container Load)</option>
+                            <option value="LCL">LCL (Less Container Load)</option>
+                            <option value="Express">Express</option>
+                            <option value="FTL">FTL (Full Truck Load)</option>
+                            <option value="LTL">LTL (Less Truck Load)</option>
+                            <option value="Standard">Standard</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Cargo Description</label>
+                        <input type="text" class="form-control" name="cargo_description" placeholder="e.g., Electronics, Textiles" value="General Cargo">
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-6">
+                            <div class="mb-3">
+                                <label class="form-label">Gross Weight</label>
+                                <input type="text" class="form-control" name="gross_weight" placeholder="e.g., 5000 kgs">
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="mb-3">
+                                <label class="form-label">Volume (CBM)</label>
+                                <input type="text" class="form-control" name="volume" placeholder="e.g., 25 CBM">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Service Level</label>
+                        <select class="form-select" name="service_level">
+                            <option value="Port-to-Port">Port-to-Port</option>
+                            <option value="Airport-to-Airport">Airport-to-Airport</option>
+                            <option value="Door-to-Door">Door-to-Door</option>
+                            <option value="Door-to-Port">Door-to-Port</option>
+                            <option value="Port-to-Door">Port-to-Door</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Validity (Days)</label>
+                        <input type="number" class="form-control" name="validity_days" value="15" min="1">
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary btn-generate">
+                        <i class="fas fa-magic"></i> Generate Quotation
+                    </button>
+                </form>
+                
+                <!-- Export Buttons (hidden initially) -->
+                <div class="export-buttons" id="exportButtons" style="display: none;">
+                    <button class="btn btn-export btn-export-pdf" onclick="exportDocument('pdf')">
+                        <i class="fas fa-file-pdf"></i> Export PDF
+                    </button>
+                    <button class="btn btn-export btn-export-docx" onclick="exportDocument('docx')">
+                        <i class="fas fa-file-word"></i> Export DOCX
+                    </button>
+                </div>
+            </div>
+            
+            <!-- RIGHT: Preview Panel -->
+            <div class="preview-panel">
+                <div id="documentPreview">
+                    <div class="preview-empty">
+                        <i class="fas fa-file-invoice"></i>
+                        <h5>No Document Generated</h5>
+                        <p>Fill the form and click "Generate Quotation" to preview</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let currentDocument = null;
+        let currentQuoteNumber = null;
+        
+        // Form submission
+        document.getElementById('quotationForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            // Show loading
+            document.getElementById('documentPreview').innerHTML = `
+                <div class="loading">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <p style="margin-top: 20px;">Generating quotation document...</p>
+                </div>
+            `;
+            
+            // Get form data
+            const formData = new FormData(this);
+            const data = Object.fromEntries(formData);
+            
+            try {
+                // Generate quotation
+                const response = await fetch('/quotations/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Display document
+                    currentDocument = result.document;
+                    currentQuoteNumber = result.quote_number;
+                    document.getElementById('documentPreview').innerHTML = result.document;
+                    
+                    // Show export buttons
+                    document.getElementById('exportButtons').style.display = 'flex';
+                    
+                    // Scroll to preview
+                    document.getElementById('documentPreview').scrollIntoView({ behavior: 'smooth', block: 'start' });
+                } else {
+                    alert('Error: ' + result.error);
+                    showEmptyPreview();
+                }
+            } catch (error) {
+                console.error('Error generating quotation:', error);
+                alert('Failed to generate quotation. Please try again.');
+                showEmptyPreview();
+            }
+        });
+        
+        // Export document
+        async function exportDocument(format) {
+            if (!currentDocument) {
+                alert('No document to export');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/quotations/export/${format}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        document_html: currentDocument,
+                        quote_number: currentQuoteNumber
+                    })
+                });
+                
+                if (response.ok) {
+                    // Download file
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `Quotation_${currentQuoteNumber}.${format}`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                } else {
+                    const error = await response.json();
+                    alert('Export failed: ' + (error.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error exporting document:', error);
+                alert('Failed to export document. Please try again.');
+            }
+        }
+        
+        // Show empty preview
+        function showEmptyPreview() {
+            document.getElementById('documentPreview').innerHTML = `
+                <div class="preview-empty">
+                    <i class="fas fa-file-invoice"></i>
+                    <h5>No Document Generated</h5>
+                    <p>Fill the form and click "Generate Quotation" to preview</p>
+                </div>
+            `;
+            document.getElementById('exportButtons').style.display = 'none';
+        }
+        
+        // Print functionality
+        function printDocument() {
+            if (!currentDocument) {
+                alert('No document to print');
+                return;
+            }
+            window.print();
+        }
+    </script>
+</body>
+</html>
+

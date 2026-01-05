@@ -81,6 +81,9 @@
                     <a href="/whatsapp/inbox" class="btn btn-success btn-sm me-2">
                         <i class="fab fa-whatsapp me-1"></i>WhatsApp
                     </a>
+                    <a href="/quotations" class="btn btn-primary btn-sm me-2">
+                        <i class="fas fa-file-invoice me-1"></i>Quotations
+                    </a>
                     <a href="{{ url_for('campaigns_page') }}" class="btn btn-warning btn-sm me-2">
                         <i class="fas fa-envelope me-1"></i>Campaigns
                     </a>
@@ -139,6 +142,38 @@
                     </div>
                 </div>
                 {% endif %}
+
+                <!-- Quotation Generator Widget -->
+                <div class="card mb-4" style="border-left: 4px solid #3498db;">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h5 class="mb-2">
+                                    <i class="fas fa-file-invoice" style="color: #3498db;"></i> Quotation Generator
+                                </h5>
+                                <p class="text-muted mb-0">Generate professional freight quotations instantly</p>
+                            </div>
+                            <a href="/quotations" class="btn btn-primary btn-lg">
+                                <i class="fas fa-plus-circle me-2"></i>New Quote
+                            </a>
+                        </div>
+                        <hr>
+                        <div class="row text-center">
+                            <div class="col-4">
+                                <i class="fas fa-ship fa-2x text-info mb-2"></i>
+                                <p class="text-muted mb-0" style="font-size: 0.85rem;">Sea Freight</p>
+                            </div>
+                            <div class="col-4">
+                                <i class="fas fa-plane fa-2x text-primary mb-2"></i>
+                                <p class="text-muted mb-0" style="font-size: 0.85rem;">Air Freight</p>
+                            </div>
+                            <div class="col-4">
+                                <i class="fas fa-truck fa-2x text-warning mb-2"></i>
+                                <p class="text-muted mb-0" style="font-size: 0.85rem;">Road Transport</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
                 <form action="/upload" method="post" enctype="multipart/form-data" id="uploadForm">
                     <div class="upload-area" id="uploadArea">

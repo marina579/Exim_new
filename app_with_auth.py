@@ -21,6 +21,7 @@ from database import db
 from zoho_crm_service import ZohoCRMService
 from campaign_scheduler import campaign_scheduler
 from whatsapp_routes import register_whatsapp_routes
+from quotation_routes import register_quotation_routes
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -52,6 +53,9 @@ os.makedirs(app.config['CLEANED_FOLDER'], exist_ok=True)
 
 # Register WhatsApp inbox routes
 register_whatsapp_routes(app)
+
+# Register Quotation Generator routes
+register_quotation_routes(app)
 
 # Progress tracking
 progress_data = {}
