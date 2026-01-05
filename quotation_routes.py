@@ -157,6 +157,12 @@ def generate_quotation_document(data):
     service_level = data.get('service_level', 'Port-to-Port')
     validity_days = data.get('validity_days', '15')
     
+    # Pricing fields (optional)
+    freight_charges = data.get('freight_charges', 'As per applicable carrier rates')
+    customs_charges = data.get('customs_charges', 'As per regulatory requirements')
+    local_transport_charges = data.get('local_transport_charges', 'As per distance and service level')
+    total_amount = data.get('total_amount', '')
+    
     # Calculate validity date
     try:
         validity_date = (datetime.strptime(quote_date, '%Y-%m-%d') + 
@@ -200,9 +206,12 @@ def generate_quotation_document(data):
         }}
         
         .logo {{
-            width: 120px;
+            width: 100px;
             height: auto;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
         }}
         
         .company-name {{
@@ -482,19 +491,19 @@ def generate_quotation_document(data):
     <table>
         <tr>
             <th>Service</th>
-            <th>Details</th>
+            <th>Amount</th>
         </tr>
         <tr>
             <td><strong>Freight Charges</strong></td>
-            <td>As per applicable carrier rates</td>
+            <td>{freight_charges}</td>
         </tr>
         <tr>
             <td><strong>Customs Clearance</strong></td>
-            <td>As per regulatory requirements</td>
+            <td>{customs_charges}</td>
         </tr>
         <tr>
             <td><strong>Local Transportation</strong></td>
-            <td>As per distance and service level</td>
+            <td>{local_transport_charges}</td>
         </tr>
         <tr>
             <td><strong>Documentation Charges</strong></td>
@@ -504,6 +513,7 @@ def generate_quotation_document(data):
             <td><strong>Additional Services</strong></td>
             <td>On request and subject to quotation</td>
         </tr>
+        {f'<tr style="background: #f0f8ff; font-weight: bold;"><td><strong>TOTAL</strong></td><td>{total_amount}</td></tr>' if total_amount else ''}
     </table>
     
     <h2>Validity & Transit Information</h2>
