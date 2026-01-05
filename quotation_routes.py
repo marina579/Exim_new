@@ -12,15 +12,6 @@ from io import BytesIO
 
 logger = logging.getLogger(__name__)
 
-def login_required(f):
-    """Decorator to require login for routes."""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if 'logged_in' not in session:
-            return redirect(url_for('login'))
-        return f(*args, **kwargs)
-    return decorated_function
-
 
 def register_quotation_routes(app):
     """
@@ -30,6 +21,15 @@ def register_quotation_routes(app):
         from quotation_routes import register_quotation_routes
         register_quotation_routes(app)
     """
+    
+    # Define login_required decorator inside function to avoid conflicts
+    def login_required(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if 'logged_in' not in session:
+                return redirect(url_for('login'))
+            return f(*args, **kwargs)
+        return decorated_function
     
     @app.route('/quotations')
     @login_required
