@@ -3,7 +3,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Quotation - MAR-2026-0105-SAMPLE</title>
+    <title>Quotation - MAR-2026-0105-0505</title>
     <style>
         @page {
             size: A4;
@@ -236,6 +236,25 @@
             .header {
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: space-between !important;
+            }
+            
+            .header-left {
+                display: block !important;
+            }
+            
+            .header-right {
+                display: block !important;
+            }
+            
+            .logo-svg, .header-left svg {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+                display: block !important;
+                width: 140px !important;
+                height: auto !important;
             }
             
             .footer {
@@ -268,7 +287,7 @@
         <div>
             <div class="metadata-item">
                 <div class="metadata-label">Quotation Number</div>
-                <div class="metadata-value">MAR-2026-0105-SAMPLE</div>
+                <div class="metadata-value">MAR-2026-0105-0505</div>
             </div>
             <div class="metadata-item">
                 <div class="metadata-label">Date of Issue</div>

@@ -432,6 +432,25 @@ def generate_quotation_document(data):
             .header {{
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: space-between !important;
+            }}
+            
+            .header-left {{
+                display: block !important;
+            }}
+            
+            .header-right {{
+                display: block !important;
+            }}
+            
+            .logo-svg, .header-left svg {{
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+                display: block !important;
+                width: 140px !important;
+                height: auto !important;
             }}
             
             .footer {{
