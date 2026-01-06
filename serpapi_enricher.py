@@ -1,6 +1,7 @@
 """
-SerpApi-based contact enrichment.
+SerpApi-based contact enrichment with Serper.dev fallback.
 Uses SerpApi to search Google and extract contact info from search results.
+Falls back to Serper.dev if SerpAPI fails or rate limits are hit.
 More reliable than direct web scraping, handles rate limiting automatically.
 """
 
@@ -21,23 +22,34 @@ logger = logging.getLogger(__name__)
 
 
 class SerpApiEnricher:
-    """Uses SerpApi to find contact information via Google search."""
+    """Uses SerpApi to find contact information via Google search, with Serper.dev fallback."""
     
-    def __init__(self, api_key: str = None, database=None):
+    def __init__(self, api_key: str = None, serper_api_key: str = None, database=None):
         """
-        Initialize SerpApi enricher.
+        Initialize SerpApi enricher with Serper.dev fallback.
         
         Args:
             api_key: SerpApi API key. If not provided, reads from SERPAPI_API_KEY env variable.
+            serper_api_key: Serper.dev API key. If not provided, reads from SERPER_API_KEY env variable.
             database: ContactDatabase instance for 365-day caching (optional but HIGHLY recommended!)
         """
         self.api_key = api_key or os.getenv('SERPAPI_API_KEY')
-        if not self.api_key:
-            raise ValueError("SerpApi API key required. Get one from: https://serpapi.com/")
+        self.serper_api_key = serper_api_key or os.getenv('SERPER_API_KEY')
         
-        self.base_url = "https://serpapi.com/search"
+        if not self.api_key and not self.serper_api_key:
+            raise ValueError("At least one API key required (SerpAPI or Serper). Get from: https://serpapi.com/ or https://serper.dev/")
+        
+        self.serpapi_url = "https://serpapi.com/search"
+        self.serper_url = "https://google.serper.dev/search"
         self.database = database
-        logger.info("✅ SerpApi enricher initialized" + (" with 365-day caching!" if database else " (no cache)"))
+        
+        providers = []
+        if self.api_key:
+            providers.append("SerpAPI")
+        if self.serper_api_key:
+            providers.append("Serper.dev")
+        
+        logger.info(f"✅ Search enricher initialized with: {' + '.join(providers)}" + (" with 365-day caching!" if database else " (no cache)"))
     
     def find_contact(self, company_name: str, address: str = "") -> Dict[str, str]:
         """
@@ -101,28 +113,36 @@ class SerpApiEnricher:
                 # Build OPTIMIZED search query (better results!)
                 query = build_optimized_serpapi_query(company_name, address)
                 
-                # Call SerpApi ONCE
-                params = {
-                    'q': query,
-                    'api_key': self.api_key,
-                    'engine': 'google',
-                    'gl': 'in',  # India
-                    'hl': 'en',
-                    'num': 10  # Get top 10 results
-                }
+                # Try SerpAPI first (if available)
+                if self.api_key:
+                    try:
+                        logger.info(f"🔍 Trying SerpAPI for: {company_name}")
+                        data = self._call_serpapi(query)
+                        logger.info(f"✅ SerpAPI successful!")
+                    except Exception as e:
+                        logger.warning(f"⚠️  SerpAPI failed: {str(e)}")
+                        if self.serper_api_key:
+                            logger.info(f"🔄 Falling back to Serper.dev...")
+                            data = None
+                        else:
+                            raise  # Re-raise if no fallback available
                 
-                logger.info(f"🔍 Making 1 SerpApi call to extract ALL contacts for: {company_name}")
-                response = requests.get(self.base_url, params=params, timeout=30)
-                response.raise_for_status()
-                
-                data = response.json()
+                # Try Serper.dev if SerpAPI failed or not available
+                if not data and self.serper_api_key:
+                    try:
+                        logger.info(f"🔍 Trying Serper.dev for: {company_name}")
+                        data = self._call_serper(query)
+                        logger.info(f"✅ Serper.dev successful!")
+                    except Exception as e:
+                        logger.error(f"❌ Serper.dev also failed: {str(e)}")
+                        raise
                 
                 # ========================================
                 # STEP 3: Save to cache for 365 days! 💾
                 # ========================================
-                if self.database:
+                if data and self.database:
                     self.database.save_serpapi_cache(company_name, address, query, data)
-                    logger.info(f"💾 Cached SerpAPI response for 365 days - future lookups will be FREE!")
+                    logger.info(f"💾 Cached search response for 365 days - future lookups will be FREE!")
             
             # Extract ALL contact info from search results (not just first!)
             
@@ -247,6 +267,81 @@ class SerpApiEnricher:
         except Exception as e:
             logger.error(f"Error using SerpApi for {company_name}: {str(e)}")
             return []
+    
+    def _call_serpapi(self, query: str) -> dict:
+        """Call SerpAPI and return normalized response."""
+        params = {
+            'q': query,
+            'api_key': self.api_key,
+            'engine': 'google',
+            'gl': 'in',  # India
+            'hl': 'en',
+            'num': 10  # Get top 10 results
+        }
+        
+        response = requests.get(self.serpapi_url, params=params, timeout=30)
+        response.raise_for_status()
+        return response.json()
+    
+    def _call_serper(self, query: str) -> dict:
+        """
+        Call Serper.dev API and normalize response to match SerpAPI format.
+        Serper uses a different JSON structure, so we convert it.
+        """
+        headers = {
+            'X-API-KEY': self.serper_api_key,
+            'Content-Type': 'application/json'
+        }
+        
+        payload = {
+            'q': query,
+            'gl': 'in',  # India
+            'hl': 'en',
+            'num': 10,
+            'page': 1
+        }
+        
+        response = requests.post(self.serper_url, json=payload, headers=headers, timeout=30)
+        response.raise_for_status()
+        serper_data = response.json()
+        
+        # Convert Serper format to SerpAPI format for compatibility
+        normalized = {}
+        
+        # Knowledge graph (if present)
+        if 'knowledgeGraph' in serper_data:
+            kg = serper_data['knowledgeGraph']
+            normalized['knowledge_graph'] = {
+                'title': kg.get('title', ''),
+                'phone': kg.get('phone', ''),
+                'website': kg.get('website', ''),
+                'description': kg.get('description', '')
+            }
+        
+        # Local results (Google Maps)
+        if 'places' in serper_data:
+            normalized['local_results'] = []
+            for place in serper_data['places']:
+                normalized['local_results'].append({
+                    'title': place.get('title', ''),
+                    'phone': place.get('phone', ''),
+                    'link': place.get('cid', ''),  # Serper uses 'cid' instead of 'link'
+                    'description': place.get('address', '') + ' ' + place.get('snippet', ''),
+                    'snippet': place.get('snippet', '')
+                })
+        
+        # Organic results
+        if 'organic' in serper_data:
+            normalized['organic_results'] = []
+            for result in serper_data['organic']:
+                normalized['organic_results'].append({
+                    'title': result.get('title', ''),
+                    'link': result.get('link', ''),
+                    'snippet': result.get('snippet', ''),
+                    'position': result.get('position', 0)
+                })
+        
+        return normalized
     
     def _extract_indian_phone(self, text: str) -> str:
         """Extract first Indian phone number from text."""

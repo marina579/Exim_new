@@ -134,17 +134,6 @@
             font-weight: normal;
         }
         
-        .form-check-input:checked + .form-check-label {
-            background: #0d6efd !important;
-            color: white !important;
-            border-color: #0d6efd !important;
-            font-weight: 600;
-        }
-        
-        .form-check-input {
-            display: none;
-        }
-        
         .export-buttons {
             display: flex;
             gap: 10px;
@@ -270,33 +259,13 @@
                     
                     <!-- Shipment Details -->
                     <div class="mb-3">
-                        <label class="form-label">POR (Port of Receipt) <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" name="por" placeholder="e.g., Hyderabad" required>
+                        <label class="form-label">Origin <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="origin" placeholder="e.g., Mumbai, India" required>
                     </div>
                     
                     <div class="mb-3">
-                        <label class="form-label">POL (Port of Loading)</label>
-                        <input type="text" class="form-control" name="pol" placeholder="e.g., Nhava Sheva">
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="form-label">POD (Port of Discharge) <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" name="pod" placeholder="e.g., Montreal, Canada" required>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="form-label">Commodity</label>
-                        <input type="text" class="form-control" name="commodity" placeholder="e.g., Spares">
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="form-label">Origin (Optional - for reference)</label>
-                        <input type="text" class="form-control" name="origin" placeholder="e.g., Mumbai, India">
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="form-label">Destination (Optional - for reference)</label>
-                        <input type="text" class="form-control" name="destination" placeholder="e.g., Singapore Port">
+                        <label class="form-label">Destination <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="destination" placeholder="e.g., Singapore Port" required>
                     </div>
                     
                     <div class="mb-3">
@@ -318,14 +287,7 @@
                             <option value="Express">Express</option>
                             <option value="FTL">FTL (Full Truck Load)</option>
                             <option value="LTL">LTL (Less Truck Load)</option>
-                            <option value="40 Flat Rack">40 Flat Rack</option>
-                            <option value="40 Open Top">40 Open Top</option>
-                            <option value="20 Flat Rack">20 Flat Rack</option>
-                            <option value="20 Open Top">20 Open Top</option>
-                            <option value="Air Shipment">Air Shipment</option>
-                            <option value="Break Bulk">Break Bulk</option>
                             <option value="Standard">Standard</option>
-                            <option value="Service Level">Service Level</option>
                         </select>
                     </div>
                     
@@ -366,12 +328,6 @@
                     </div>
                     
                     <hr style="margin: 20px 0;">
-                    
-                    <div class="mb-3">
-                        <label class="form-label">Exchange Rate (USD to INR)</label>
-                        <input type="number" step="0.01" class="form-control" name="exchange_rate" value="92.60" placeholder="e.g., 92.60">
-                    </div>
-                    
                     <h6 style="color: #2c3e50; margin-bottom: 15px;"><i class="fas fa-dollar-sign"></i> Pricing (Optional)</h6>
                     
                     <div class="mb-3">
@@ -404,51 +360,6 @@
                     
                     <div id="additionalPricingItems">
                         <!-- Dynamic pricing items will be added here -->
-                    </div>
-                    
-                    <hr style="margin: 20px 0;">
-                    <h6 style="color: #2c3e50; margin-bottom: 15px;"><i class="fas fa-percent"></i> GST Options</h6>
-                    
-                    <div class="mb-3">
-                        <div class="d-flex gap-2">
-                            <div class="form-check flex-fill">
-                                <input class="form-check-input" type="radio" name="gst_type" id="gst_5" value="5" checked>
-                                <label class="form-check-label w-100" for="gst_5" style="cursor: pointer; padding: 8px; border: 1px solid #dee2e6; border-radius: 4px; text-align: center;">
-                                    5% GST
-                                </label>
-                            </div>
-                            <div class="form-check flex-fill">
-                                <input class="form-check-input" type="radio" name="gst_type" id="gst_18" value="18">
-                                <label class="form-check-label w-100" for="gst_18" style="cursor: pointer; padding: 8px; border: 1px solid #dee2e6; border-radius: 4px; text-align: center;">
-                                    18% GST
-                                </label>
-                            </div>
-                            <div class="form-check flex-fill">
-                                <input class="form-check-input" type="radio" name="gst_type" id="gst_28" value="28">
-                                <label class="form-check-label w-100" for="gst_28" style="cursor: pointer; padding: 8px; border: 1px solid #dee2e6; border-radius: 4px; text-align: center;">
-                                    28% GST
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="form-label">GST Applicability Note</label>
-                        <input type="text" class="form-control" name="gst_note" value="Gst 5% on Freight and 18% on locals applicable" placeholder="e.g., GST applicable as per regulations">
-                    </div>
-                    
-                    <hr style="margin: 20px 0;">
-                    <h6 style="color: #2c3e50; margin-bottom: 15px;"><i class="fas fa-sticky-note"></i> Notes & Remarks</h6>
-                    
-                    <div class="mb-3">
-                        <label class="form-label">Additional Notes / Remarks</label>
-                        <textarea class="form-control" name="additional_notes" rows="4" placeholder="Add any additional notes, special conditions, or remarks here..." style="font-family: monospace; font-size: 0.85rem;"></textarea>
-                        <small class="text-muted">Optional: Add custom notes that will appear in the quotation document</small>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="form-label">Payment Term</label>
-                        <input type="text" class="form-control" name="payment_term" value="Against BL" placeholder="e.g., Against BL, Advance, 30 days">
                     </div>
                     
                     <div class="mb-3 mt-4" style="border-top: 1px solid #ddd; padding-top: 20px;">
