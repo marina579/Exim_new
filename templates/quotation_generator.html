@@ -145,6 +145,27 @@
             display: none;
         }
         
+        .field-delete-btn {
+            float: right;
+            cursor: pointer;
+            color: #dc3545;
+            font-size: 0.85rem;
+            padding: 2px 8px;
+            border: 1px solid #dc3545;
+            border-radius: 3px;
+            background: white;
+            transition: all 0.2s;
+        }
+        
+        .field-delete-btn:hover {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .field-hidden {
+            display: none !important;
+        }
+        
         .export-buttons {
             display: flex;
             gap: 10px;
@@ -263,8 +284,13 @@
                         <input type="text" class="form-control" name="client_company" placeholder="e.g., ABC Industries Ltd" required>
                     </div>
                     
-                    <div class="mb-3">
-                        <label class="form-label">Contact Person</label>
+                    <div class="mb-3" id="field_client_contact">
+                        <label class="form-label">
+                            Contact Person
+                            <span class="field-delete-btn" onclick="toggleField('field_client_contact')" title="Hide this field">
+                                <i class="fas fa-times"></i> Hide
+                            </span>
+                        </label>
                         <input type="text" class="form-control" name="client_contact" placeholder="e.g., John Doe">
                     </div>
                     
@@ -274,8 +300,13 @@
                         <input type="text" class="form-control" name="por" placeholder="e.g., Hyderabad" required>
                     </div>
                     
-                    <div class="mb-3">
-                        <label class="form-label">POL (Port of Loading)</label>
+                    <div class="mb-3" id="field_pol">
+                        <label class="form-label">
+                            POL (Port of Loading)
+                            <span class="field-delete-btn" onclick="toggleField('field_pol')" title="Hide this field">
+                                <i class="fas fa-times"></i> Hide
+                            </span>
+                        </label>
                         <input type="text" class="form-control" name="pol" placeholder="e.g., Nhava Sheva">
                     </div>
                     
@@ -284,18 +315,39 @@
                         <input type="text" class="form-control" name="pod" placeholder="e.g., Montreal, Canada" required>
                     </div>
                     
-                    <div class="mb-3">
-                        <label class="form-label">Commodity</label>
+                    <div class="mb-3" id="field_commodity">
+                        <label class="form-label">
+                            Commodity
+                            <span class="field-delete-btn" onclick="toggleField('field_commodity')" title="Hide this field">
+                                <i class="fas fa-times"></i> Hide
+                            </span>
+                        </label>
                         <input type="text" class="form-control" name="commodity" placeholder="e.g., Spares">
                     </div>
                     
                     <div class="mb-3">
-                        <label class="form-label">Origin (Optional - for reference)</label>
-                        <input type="text" class="form-control" name="origin" placeholder="e.g., Mumbai, India">
+                        <label class="form-label">Origin <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="origin" placeholder="e.g., Mumbai, India" required>
                     </div>
                     
-                    <div class="mb-3">
-                        <label class="form-label">Destination (Optional - for reference)</label>
+                    <div class="mb-3" id="field_port_of_origin">
+                        <label class="form-label">
+                            Port of Origin
+                            <span class="field-delete-btn" onclick="toggleField('field_port_of_origin')" title="Hide this field">
+                                <i class="fas fa-times"></i> Hide
+                            </span>
+                        </label>
+                        <input type="text" class="form-control" name="port_of_origin" placeholder="e.g., JNPT, Mumbai Port">
+                        <small class="text-muted">Port of Origin to be added below Origin field</small>
+                    </div>
+                    
+                    <div class="mb-3" id="field_destination">
+                        <label class="form-label">
+                            Destination (Optional - for reference)
+                            <span class="field-delete-btn" onclick="toggleField('field_destination')" title="Hide this field">
+                                <i class="fas fa-times"></i> Hide
+                            </span>
+                        </label>
                         <input type="text" class="form-control" name="destination" placeholder="e.g., Singapore Port">
                     </div>
                     
@@ -362,7 +414,21 @@
                     
                     <div class="mb-3">
                         <label class="form-label">Validity (Days)</label>
-                        <input type="number" class="form-control" name="validity_days" value="15" min="1">
+                        <div class="input-group">
+                            <input type="number" class="form-control" name="validity_days" value="15" min="1" placeholder="Days">
+                            <span class="input-group-text">days</span>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3" id="field_validity_date">
+                        <label class="form-label">
+                            Validity Date (Calendar)
+                            <span class="field-delete-btn" onclick="toggleField('field_validity_date')" title="Hide this field">
+                                <i class="fas fa-times"></i> Hide
+                            </span>
+                        </label>
+                        <input type="date" class="form-control" name="validity_date" placeholder="Select valid until date">
+                        <small class="text-muted">Alternative: Select specific expiry date</small>
                     </div>
                     
                     <hr style="margin: 20px 0;">
@@ -498,6 +564,18 @@
             const name = document.getElementById('signatory_name').value;
             const preview = document.getElementById('signaturePreview');
             preview.textContent = name;
+        }
+        
+        // Toggle field visibility (hide/show)
+        function toggleField(fieldId) {
+            const field = document.getElementById(fieldId);
+            if (field) {
+                if (field.classList.contains('field-hidden')) {
+                    field.classList.remove('field-hidden');
+                } else {
+                    field.classList.add('field-hidden');
+                }
+            }
         }
         
         // Add pricing item dynamically
