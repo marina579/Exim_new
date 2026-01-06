@@ -103,6 +103,37 @@
             background: #2980b9;
         }
         
+        .signature-preview {
+            font-family: 'Brush Script MT', 'Lucida Handwriting', cursive;
+            font-size: 36px;
+            color: #4a5568;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            text-align: center;
+            min-height: 70px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px dashed #ddd;
+            font-weight: 300;
+            opacity: 0.85;
+            font-style: italic;
+        }
+        
+        .signature-preview:empty {
+            opacity: 1;
+        }
+        
+        .signature-preview:empty::before {
+            content: 'Type any name - signature will appear here';
+            color: #999;
+            font-size: 13px;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            font-style: normal;
+            font-weight: normal;
+        }
+        
         .export-buttons {
             display: flex;
             gap: 10px;
@@ -331,6 +362,13 @@
                         <!-- Dynamic pricing items will be added here -->
                     </div>
                     
+                    <div class="mb-3 mt-4" style="border-top: 1px solid #ddd; padding-top: 20px;">
+                        <label class="form-label"><i class="fas fa-signature"></i> Authorized Signatory Name</label>
+                        <input type="text" class="form-control" id="signatory_name" name="signatory_name" placeholder="e.g., John Smith, Sarita Reddy, etc." oninput="updateSignaturePreview()">
+                        <small class="text-muted">✍️ Type any name - it will appear as an elegant handwritten signature</small>
+                        <div id="signaturePreview" class="signature-preview mt-2"></div>
+                    </div>
+                    
                     <button type="submit" class="btn btn-primary btn-generate">
                         <i class="fas fa-magic"></i> Generate Quotation
                     </button>
@@ -365,6 +403,13 @@
         let currentDocument = null;
         let currentQuoteNumber = null;
         let pricingItemCounter = 0;
+        
+        // Update signature preview
+        function updateSignaturePreview() {
+            const name = document.getElementById('signatory_name').value;
+            const preview = document.getElementById('signaturePreview');
+            preview.textContent = name;
+        }
         
         // Add pricing item dynamically
         function addPricingItem() {
