@@ -145,25 +145,63 @@
             display: none;
         }
         
-        .field-delete-btn {
+        .field-toggle-btn {
             float: right;
             cursor: pointer;
-            color: #dc3545;
-            font-size: 0.85rem;
-            padding: 2px 8px;
-            border: 1px solid #dc3545;
-            border-radius: 3px;
-            background: white;
-            transition: all 0.2s;
+            font-size: 0.75rem;
+            padding: 4px 10px;
+            border-radius: 4px;
+            transition: all 0.3s;
+            font-weight: 600;
+            border: none;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         
-        .field-delete-btn:hover {
+        .field-toggle-btn.active {
+            background: #198754;
+            color: white;
+        }
+        
+        .field-toggle-btn.active:hover {
+            background: #157347;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+        }
+        
+        .field-toggle-btn.inactive {
             background: #dc3545;
             color: white;
         }
         
-        .field-hidden {
-            display: none !important;
+        .field-toggle-btn.inactive:hover {
+            background: #bb2d3b;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+        }
+        
+        .field-excluded {
+            opacity: 0.4;
+            pointer-events: none;
+        }
+        
+        .field-excluded input,
+        .field-excluded select,
+        .field-excluded textarea {
+            background: #f8f9fa !important;
+            border-color: #dee2e6 !important;
+        }
+        
+        .field-excluded label {
+            text-decoration: line-through;
+            color: #6c757d;
+        }
+        
+        .document-note {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            margin-top: 5px;
+            color: #856404;
         }
         
         .export-buttons {
@@ -284,14 +322,15 @@
                         <input type="text" class="form-control" name="client_company" placeholder="e.g., ABC Industries Ltd" required>
                     </div>
                     
-                    <div class="mb-3" id="field_client_contact">
+                    <div class="mb-3" id="field_client_contact" data-field-name="Contact Person">
                         <label class="form-label">
                             Contact Person
-                            <span class="field-delete-btn" onclick="toggleField('field_client_contact')" title="Hide this field">
-                                <i class="fas fa-times"></i> Hide
-                            </span>
+                            <button type="button" class="field-toggle-btn active" onclick="toggleFieldForDocument('field_client_contact', this)">
+                                <i class="fas fa-check"></i> <span class="btn-text">Include in Document</span>
+                            </button>
                         </label>
                         <input type="text" class="form-control" name="client_contact" placeholder="e.g., John Doe">
+                        <small class="document-note" style="display:none;"><i class="fas fa-info-circle"></i> This field will NOT appear in the document</small>
                     </div>
                     
                     <!-- Shipment Details -->
@@ -300,14 +339,15 @@
                         <input type="text" class="form-control" name="por" placeholder="e.g., Hyderabad" required>
                     </div>
                     
-                    <div class="mb-3" id="field_pol">
+                    <div class="mb-3" id="field_pol" data-field-name="POL (Port of Loading)">
                         <label class="form-label">
                             POL (Port of Loading)
-                            <span class="field-delete-btn" onclick="toggleField('field_pol')" title="Hide this field">
-                                <i class="fas fa-times"></i> Hide
-                            </span>
+                            <button type="button" class="field-toggle-btn active" onclick="toggleFieldForDocument('field_pol', this)">
+                                <i class="fas fa-check"></i> <span class="btn-text">Include in Document</span>
+                            </button>
                         </label>
                         <input type="text" class="form-control" name="pol" placeholder="e.g., Nhava Sheva">
+                        <small class="document-note" style="display:none;"><i class="fas fa-info-circle"></i> This field will NOT appear in the document</small>
                     </div>
                     
                     <div class="mb-3">
@@ -315,14 +355,15 @@
                         <input type="text" class="form-control" name="pod" placeholder="e.g., Montreal, Canada" required>
                     </div>
                     
-                    <div class="mb-3" id="field_commodity">
+                    <div class="mb-3" id="field_commodity" data-field-name="Commodity">
                         <label class="form-label">
                             Commodity
-                            <span class="field-delete-btn" onclick="toggleField('field_commodity')" title="Hide this field">
-                                <i class="fas fa-times"></i> Hide
-                            </span>
+                            <button type="button" class="field-toggle-btn active" onclick="toggleFieldForDocument('field_commodity', this)">
+                                <i class="fas fa-check"></i> <span class="btn-text">Include in Document</span>
+                            </button>
                         </label>
                         <input type="text" class="form-control" name="commodity" placeholder="e.g., Spares">
+                        <small class="document-note" style="display:none;"><i class="fas fa-info-circle"></i> This field will NOT appear in the document</small>
                     </div>
                     
                     <div class="mb-3">
@@ -330,25 +371,26 @@
                         <input type="text" class="form-control" name="origin" placeholder="e.g., Mumbai, India" required>
                     </div>
                     
-                    <div class="mb-3" id="field_port_of_origin">
+                    <div class="mb-3" id="field_port_of_origin" data-field-name="Port of Origin">
                         <label class="form-label">
                             Port of Origin
-                            <span class="field-delete-btn" onclick="toggleField('field_port_of_origin')" title="Hide this field">
-                                <i class="fas fa-times"></i> Hide
-                            </span>
+                            <button type="button" class="field-toggle-btn active" onclick="toggleFieldForDocument('field_port_of_origin', this)">
+                                <i class="fas fa-check"></i> <span class="btn-text">Include in Document</span>
+                            </button>
                         </label>
                         <input type="text" class="form-control" name="port_of_origin" placeholder="e.g., JNPT, Mumbai Port">
-                        <small class="text-muted">Port of Origin to be added below Origin field</small>
+                        <small class="document-note" style="display:none;"><i class="fas fa-info-circle"></i> This field will NOT appear in the document</small>
                     </div>
                     
-                    <div class="mb-3" id="field_destination">
+                    <div class="mb-3" id="field_destination" data-field-name="Destination">
                         <label class="form-label">
                             Destination (Optional - for reference)
-                            <span class="field-delete-btn" onclick="toggleField('field_destination')" title="Hide this field">
-                                <i class="fas fa-times"></i> Hide
-                            </span>
+                            <button type="button" class="field-toggle-btn active" onclick="toggleFieldForDocument('field_destination', this)">
+                                <i class="fas fa-check"></i> <span class="btn-text">Include in Document</span>
+                            </button>
                         </label>
                         <input type="text" class="form-control" name="destination" placeholder="e.g., Singapore Port">
+                        <small class="document-note" style="display:none;"><i class="fas fa-info-circle"></i> This field will NOT appear in the document</small>
                     </div>
                     
                     <div class="mb-3">
@@ -420,15 +462,15 @@
                         </div>
                     </div>
                     
-                    <div class="mb-3" id="field_validity_date">
+                    <div class="mb-3" id="field_validity_date" data-field-name="Validity Date">
                         <label class="form-label">
                             Validity Date (Calendar)
-                            <span class="field-delete-btn" onclick="toggleField('field_validity_date')" title="Hide this field">
-                                <i class="fas fa-times"></i> Hide
-                            </span>
+                            <button type="button" class="field-toggle-btn active" onclick="toggleFieldForDocument('field_validity_date', this)">
+                                <i class="fas fa-check"></i> <span class="btn-text">Include in Document</span>
+                            </button>
                         </label>
                         <input type="date" class="form-control" name="validity_date" placeholder="Select valid until date">
-                        <small class="text-muted">Alternative: Select specific expiry date</small>
+                        <small class="document-note" style="display:none;"><i class="fas fa-info-circle"></i> This field will NOT appear in the document</small>
                     </div>
                     
                     <hr style="margin: 20px 0;">
@@ -566,16 +608,41 @@
             preview.textContent = name;
         }
         
-        // Toggle field visibility (hide/show)
-        function toggleField(fieldId) {
+        // Track which fields are excluded from document
+        const excludedFields = new Set();
+        
+        // Toggle field inclusion in document
+        function toggleFieldForDocument(fieldId, button) {
             const field = document.getElementById(fieldId);
-            if (field) {
-                if (field.classList.contains('field-hidden')) {
-                    field.classList.remove('field-hidden');
-                } else {
-                    field.classList.add('field-hidden');
-                }
+            const note = field.querySelector('.document-note');
+            const fieldName = field.getAttribute('data-field-name');
+            const btnText = button.querySelector('.btn-text');
+            const btnIcon = button.querySelector('i');
+            
+            if (excludedFields.has(fieldId)) {
+                // Field is currently excluded, include it
+                excludedFields.delete(fieldId);
+                field.classList.remove('field-excluded');
+                button.classList.remove('inactive');
+                button.classList.add('active');
+                btnText.textContent = 'Include in Document';
+                btnIcon.className = 'fas fa-check';
+                if (note) note.style.display = 'none';
+            } else {
+                // Field is currently included, exclude it
+                excludedFields.add(fieldId);
+                field.classList.add('field-excluded');
+                button.classList.remove('active');
+                button.classList.add('inactive');
+                btnText.textContent = 'Excluded from Document';
+                btnIcon.className = 'fas fa-times';
+                if (note) note.style.display = 'block';
             }
+        }
+        
+        // Check if a field should be included in document
+        function isFieldIncluded(fieldId) {
+            return !excludedFields.has(fieldId);
         }
         
         // Add pricing item dynamically
@@ -658,6 +725,20 @@
             // Add additional pricing items
             const additionalItems = collectPricingItems();
             data.additional_pricing_items = JSON.stringify(additionalItems);
+            
+            // Add excluded fields list (fields to hide from document)
+            data.excluded_fields = JSON.stringify(Array.from(excludedFields));
+            
+            // Remove values from excluded fields (don't send to backend)
+            excludedFields.forEach(fieldId => {
+                const field = document.getElementById(fieldId);
+                if (field) {
+                    const input = field.querySelector('input, select, textarea');
+                    if (input && input.name) {
+                        delete data[input.name];
+                    }
+                }
+            });
             
             try {
                 // Generate quotation
