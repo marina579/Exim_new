@@ -278,6 +278,29 @@
                 <h4><i class="fas fa-edit"></i> Quotation Details</h4>
                 
                 <form id="quotationForm">
+                    <!-- Quotation Type Selection -->
+                    <div class="mb-4" style="background: #f8f9fa; padding: 15px; border-radius: 8px; border: 2px solid #dee2e6;">
+                        <label class="form-label" style="font-weight: 600; font-size: 1.1rem; margin-bottom: 12px;">
+                            <i class="fas fa-file-invoice"></i> Select Quotation Type <span class="text-danger">*</span>
+                        </label>
+                        <div class="d-flex gap-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="quotation_type" id="type_company" value="company" checked onchange="toggleQuotationType()">
+                                <label class="form-check-label" for="type_company" style="font-size: 1rem; cursor: pointer;">
+                                    <i class="fas fa-building"></i> <strong>Company Quotation</strong>
+                                    <br><small class="text-muted">Full details, multiple pricing items</small>
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="quotation_type" id="type_individual" value="individual" onchange="toggleQuotationType()">
+                                <label class="form-check-label" for="type_individual" style="font-size: 1rem; cursor: pointer;">
+                                    <i class="fas fa-user"></i> <strong>Individual Quotation</strong>
+                                    <br><small class="text-muted">Simplified format, single rate quote</small>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Quote Metadata -->
                     <div class="mb-3">
                         <label class="form-label">Quote Number <span class="text-danger">*</span></label>
@@ -289,6 +312,8 @@
                         <input type="date" class="form-control" name="quote_date" value="{{ quote_date }}" required>
                     </div>
                     
+                    <!-- COMPANY QUOTATION FIELDS -->
+                    <div id="companyFields">
                     <!-- Client Info -->
                     <div class="mb-3">
                         <label class="form-label">Client Company <span class="text-danger">*</span></label>
@@ -536,6 +561,113 @@
                         <small class="text-muted">✍️ Type any name - it will appear as an elegant handwritten signature</small>
                         <div id="signaturePreview" class="signature-preview mt-2"></div>
                     </div>
+                    </div>
+                    <!-- END COMPANY FIELDS -->
+
+                    <!-- INDIVIDUAL QUOTATION FIELDS -->
+                    <div id="individualFields" style="display: none;">
+                        <div class="mb-3">
+                            <label class="form-label">Client Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="ind_client_name" placeholder="e.g., Rajesh Kumar">
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">POL (Port of Loading) <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" name="ind_pol" placeholder="e.g., Nhava Sheva">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Transit Time <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" name="ind_transit_time" placeholder="e.g., 22 to 25 Days">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Commodity <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" name="ind_commodity" placeholder="e.g., NEW Drilling Rig">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">POD (Port of Discharge) <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" name="ind_pod" placeholder="e.g., Dar Es Salaam">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Volume <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="ind_volume" placeholder="e.g., 1 x 40 FR">
+                        </div>
+
+                        <!-- Pricing Items (Multiple) -->
+                        <div class="mb-3">
+                            <label class="form-label">
+                                <i class="fas fa-dollar-sign"></i> Pricing Items <span class="text-danger">*</span>
+                                <button type="button" class="btn btn-sm btn-success ms-2" onclick="addIndPricingItem()">
+                                    <i class="fas fa-plus"></i> Add Item
+                                </button>
+                            </label>
+                            <div id="indPricingItems">
+                                <div class="pricing-item mb-3" data-item-id="1">
+                                    <div class="row align-items-end">
+                                        <div class="col-md-5">
+                                            <input type="text" class="form-control" name="ind_charge_desc_1" placeholder="Charge Description" required>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <input type="text" class="form-control" name="ind_rate_1" placeholder="Rate (e.g., INR 8,40,000.00)" required>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="form-check" style="margin-top: 8px;">
+                                                <input class="form-check-input" type="checkbox" name="ind_hide_item_1" id="hide_item_1">
+                                                <label class="form-check-label" for="hide_item_1" style="font-size: 0.9rem;">
+                                                    <i class="fas fa-eye-slash"></i> Hide
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- GST Options -->
+                        <div class="mb-3">
+                            <label class="form-label">GST <span class="text-danger">*</span></label>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <select class="form-select" name="ind_gst_type" id="ind_gst_type" onchange="toggleIndGSTInput()" required>
+                                        <option value="inclusive">Inclusive GST</option>
+                                        <option value="custom">Enter GST (%)</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6" id="ind_gst_input_div" style="display: none;">
+                                    <input type="text" class="form-control" name="ind_gst_value" id="ind_gst_value" placeholder="e.g., 18">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Notes / Inclusions</label>
+                            <textarea class="form-control" name="ind_notes" rows="3" placeholder="e.g., Above quote inclusive Feight from Nhava Sheva to Destination port..."></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Remarks (Optional)</label>
+                            <textarea class="form-control" name="ind_remarks" rows="2" placeholder="Additional remarks or special instructions..."></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Validity Date</label>
+                            <input type="text" class="form-control" name="ind_validity" placeholder="e.g., UPTO FEB END">
+                        </div>
+                    </div>
+                    <!-- END INDIVIDUAL FIELDS -->
                     
                     <button type="submit" class="btn btn-primary btn-generate">
                         <i class="fas fa-magic"></i> Generate Quotation
@@ -595,6 +727,84 @@
                 // Exclude field from document
                 excludedFields.add(fieldId);
                 field.classList.add('field-excluded');
+            }
+        }
+        
+        // Toggle between Company and Individual quotation types
+        function toggleQuotationType() {
+            const isCompany = document.getElementById('type_company').checked;
+            const companyFields = document.getElementById('companyFields');
+            const individualFields = document.getElementById('individualFields');
+            
+            if (isCompany) {
+                companyFields.style.display = 'block';
+                individualFields.style.display = 'none';
+            } else {
+                companyFields.style.display = 'none';
+                individualFields.style.display = 'block';
+            }
+        }
+
+        // Toggle GST input field for individual quotation
+        function toggleIndGSTInput() {
+            const gstType = document.getElementById('ind_gst_type').value;
+            const gstInputDiv = document.getElementById('ind_gst_input_div');
+            const gstValueInput = document.getElementById('ind_gst_value');
+            
+            if (gstType === 'custom') {
+                gstInputDiv.style.display = 'block';
+                gstValueInput.setAttribute('required', 'required');
+            } else {
+                gstInputDiv.style.display = 'none';
+                gstValueInput.removeAttribute('required');
+                gstValueInput.value = '';
+            }
+        }
+
+        // Add individual pricing item
+        let indPricingCounter = 1;
+        function addIndPricingItem() {
+            indPricingCounter++;
+            const container = document.getElementById('indPricingItems');
+            
+            const newItem = document.createElement('div');
+            newItem.className = 'pricing-item mb-3';
+            newItem.setAttribute('data-item-id', indPricingCounter);
+            newItem.innerHTML = `
+                <div class="row align-items-end">
+                    <div class="col-md-5">
+                        <input type="text" class="form-control" name="ind_charge_desc_${indPricingCounter}" 
+                               placeholder="Charge Description">
+                    </div>
+                    <div class="col-md-3">
+                        <input type="text" class="form-control" name="ind_rate_${indPricingCounter}" 
+                               placeholder="Rate">
+                    </div>
+                    <div class="col-md-2">
+                        <div class="form-check" style="margin-top: 8px;">
+                            <input class="form-check-input" type="checkbox" name="ind_hide_item_${indPricingCounter}" 
+                                   id="hide_item_${indPricingCounter}">
+                            <label class="form-check-label" for="hide_item_${indPricingCounter}" style="font-size: 0.9rem;">
+                                <i class="fas fa-eye-slash"></i> Hide
+                            </label>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="button" class="btn btn-sm btn-danger" onclick="removeIndPricingItem(${indPricingCounter})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            container.appendChild(newItem);
+        }
+
+        // Remove individual pricing item
+        function removeIndPricingItem(itemId) {
+            const item = document.querySelector(`[data-item-id="${itemId}"]`);
+            if (item) {
+                item.remove();
             }
         }
         
