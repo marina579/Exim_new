@@ -145,63 +145,36 @@
             display: none;
         }
         
-        .field-toggle-btn {
+        .include-radio-group {
             float: right;
-            cursor: pointer;
             font-size: 0.75rem;
-            padding: 4px 10px;
-            border-radius: 4px;
-            transition: all 0.3s;
-            font-weight: 600;
-            border: none;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            gap: 10px;
+            align-items: center;
         }
         
-        .field-toggle-btn.active {
-            background: #198754;
-            color: white;
+        .include-radio-group label {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            margin: 0;
+            font-weight: normal;
+            color: #666;
         }
         
-        .field-toggle-btn.active:hover {
-            background: #157347;
-            box-shadow: 0 3px 6px rgba(0,0,0,0.15);
-        }
-        
-        .field-toggle-btn.inactive {
-            background: #dc3545;
-            color: white;
-        }
-        
-        .field-toggle-btn.inactive:hover {
-            background: #bb2d3b;
-            box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+        .include-radio-group input[type="radio"] {
+            margin: 0;
+            cursor: pointer;
         }
         
         .field-excluded {
-            opacity: 0.4;
-            pointer-events: none;
+            opacity: 0.5;
         }
         
         .field-excluded input,
         .field-excluded select,
         .field-excluded textarea {
             background: #f8f9fa !important;
-            border-color: #dee2e6 !important;
-        }
-        
-        .field-excluded label {
-            text-decoration: line-through;
-            color: #6c757d;
-        }
-        
-        .document-note {
-            background: #fff3cd;
-            border: 1px solid #ffc107;
-            padding: 8px 12px;
-            border-radius: 4px;
-            font-size: 0.8rem;
-            margin-top: 5px;
-            color: #856404;
         }
         
         .export-buttons {
@@ -325,12 +298,13 @@
                     <div class="mb-3" id="field_client_contact" data-field-name="Contact Person">
                         <label class="form-label">
                             Contact Person
-                            <button type="button" class="field-toggle-btn active" onclick="toggleFieldForDocument('field_client_contact', this)">
-                                <i class="fas fa-check"></i> <span class="btn-text">Include in Document</span>
-                            </button>
+                            <span class="include-radio-group">
+                                <span style="font-size: 0.7rem; color: #999;">Include in document:</span>
+                                <label><input type="radio" name="include_client_contact" value="yes" checked onchange="toggleFieldInclude('field_client_contact', this)"> Yes</label>
+                                <label><input type="radio" name="include_client_contact" value="no" onchange="toggleFieldInclude('field_client_contact', this)"> No</label>
+                            </span>
                         </label>
                         <input type="text" class="form-control" name="client_contact" placeholder="e.g., John Doe">
-                        <small class="document-note" style="display:none;"><i class="fas fa-info-circle"></i> This field will NOT appear in the document</small>
                     </div>
                     
                     <!-- Shipment Details -->
@@ -342,12 +316,13 @@
                     <div class="mb-3" id="field_pol" data-field-name="POL (Port of Loading)">
                         <label class="form-label">
                             POL (Port of Loading)
-                            <button type="button" class="field-toggle-btn active" onclick="toggleFieldForDocument('field_pol', this)">
-                                <i class="fas fa-check"></i> <span class="btn-text">Include in Document</span>
-                            </button>
+                            <span class="include-radio-group">
+                                <span style="font-size: 0.7rem; color: #999;">Include in document:</span>
+                                <label><input type="radio" name="include_pol" value="yes" checked onchange="toggleFieldInclude('field_pol', this)"> Yes</label>
+                                <label><input type="radio" name="include_pol" value="no" onchange="toggleFieldInclude('field_pol', this)"> No</label>
+                            </span>
                         </label>
                         <input type="text" class="form-control" name="pol" placeholder="e.g., Nhava Sheva">
-                        <small class="document-note" style="display:none;"><i class="fas fa-info-circle"></i> This field will NOT appear in the document</small>
                     </div>
                     
                     <div class="mb-3">
@@ -358,12 +333,13 @@
                     <div class="mb-3" id="field_commodity" data-field-name="Commodity">
                         <label class="form-label">
                             Commodity
-                            <button type="button" class="field-toggle-btn active" onclick="toggleFieldForDocument('field_commodity', this)">
-                                <i class="fas fa-check"></i> <span class="btn-text">Include in Document</span>
-                            </button>
+                            <span class="include-radio-group">
+                                <span style="font-size: 0.7rem; color: #999;">Include in document:</span>
+                                <label><input type="radio" name="include_commodity" value="yes" checked onchange="toggleFieldInclude('field_commodity', this)"> Yes</label>
+                                <label><input type="radio" name="include_commodity" value="no" onchange="toggleFieldInclude('field_commodity', this)"> No</label>
+                            </span>
                         </label>
                         <input type="text" class="form-control" name="commodity" placeholder="e.g., Spares">
-                        <small class="document-note" style="display:none;"><i class="fas fa-info-circle"></i> This field will NOT appear in the document</small>
                     </div>
                     
                     <div class="mb-3">
@@ -374,23 +350,25 @@
                     <div class="mb-3" id="field_port_of_origin" data-field-name="Port of Origin">
                         <label class="form-label">
                             Port of Origin
-                            <button type="button" class="field-toggle-btn active" onclick="toggleFieldForDocument('field_port_of_origin', this)">
-                                <i class="fas fa-check"></i> <span class="btn-text">Include in Document</span>
-                            </button>
+                            <span class="include-radio-group">
+                                <span style="font-size: 0.7rem; color: #999;">Include in document:</span>
+                                <label><input type="radio" name="include_port_of_origin" value="yes" checked onchange="toggleFieldInclude('field_port_of_origin', this)"> Yes</label>
+                                <label><input type="radio" name="include_port_of_origin" value="no" onchange="toggleFieldInclude('field_port_of_origin', this)"> No</label>
+                            </span>
                         </label>
                         <input type="text" class="form-control" name="port_of_origin" placeholder="e.g., JNPT, Mumbai Port">
-                        <small class="document-note" style="display:none;"><i class="fas fa-info-circle"></i> This field will NOT appear in the document</small>
                     </div>
                     
                     <div class="mb-3" id="field_destination" data-field-name="Destination">
                         <label class="form-label">
                             Destination (Optional - for reference)
-                            <button type="button" class="field-toggle-btn active" onclick="toggleFieldForDocument('field_destination', this)">
-                                <i class="fas fa-check"></i> <span class="btn-text">Include in Document</span>
-                            </button>
+                            <span class="include-radio-group">
+                                <span style="font-size: 0.7rem; color: #999;">Include in document:</span>
+                                <label><input type="radio" name="include_destination" value="yes" checked onchange="toggleFieldInclude('field_destination', this)"> Yes</label>
+                                <label><input type="radio" name="include_destination" value="no" onchange="toggleFieldInclude('field_destination', this)"> No</label>
+                            </span>
                         </label>
                         <input type="text" class="form-control" name="destination" placeholder="e.g., Singapore Port">
-                        <small class="document-note" style="display:none;"><i class="fas fa-info-circle"></i> This field will NOT appear in the document</small>
                     </div>
                     
                     <div class="mb-3">
@@ -454,23 +432,16 @@
                         </select>
                     </div>
                     
-                    <div class="mb-3">
-                        <label class="form-label">Validity (Days)</label>
-                        <div class="input-group">
-                            <input type="number" class="form-control" name="validity_days" value="15" min="1" placeholder="Days">
-                            <span class="input-group-text">days</span>
-                        </div>
-                    </div>
-                    
                     <div class="mb-3" id="field_validity_date" data-field-name="Validity Date">
                         <label class="form-label">
                             Validity Date (Calendar)
-                            <button type="button" class="field-toggle-btn active" onclick="toggleFieldForDocument('field_validity_date', this)">
-                                <i class="fas fa-check"></i> <span class="btn-text">Include in Document</span>
-                            </button>
+                            <span class="include-radio-group">
+                                <span style="font-size: 0.7rem; color: #999;">Include in document:</span>
+                                <label><input type="radio" name="include_validity_date" value="yes" checked onchange="toggleFieldInclude('field_validity_date', this)"> Yes</label>
+                                <label><input type="radio" name="include_validity_date" value="no" onchange="toggleFieldInclude('field_validity_date', this)"> No</label>
+                            </span>
                         </label>
                         <input type="date" class="form-control" name="validity_date" placeholder="Select valid until date">
-                        <small class="document-note" style="display:none;"><i class="fas fa-info-circle"></i> This field will NOT appear in the document</small>
                     </div>
                     
                     <hr style="margin: 20px 0;">
@@ -611,38 +582,20 @@
         // Track which fields are excluded from document
         const excludedFields = new Set();
         
-        // Toggle field inclusion in document
-        function toggleFieldForDocument(fieldId, button) {
+        // Toggle field inclusion in document based on radio button
+        function toggleFieldInclude(fieldId, radio) {
             const field = document.getElementById(fieldId);
-            const note = field.querySelector('.document-note');
-            const fieldName = field.getAttribute('data-field-name');
-            const btnText = button.querySelector('.btn-text');
-            const btnIcon = button.querySelector('i');
+            const isIncluded = radio.value === 'yes';
             
-            if (excludedFields.has(fieldId)) {
-                // Field is currently excluded, include it
+            if (isIncluded) {
+                // Include field in document
                 excludedFields.delete(fieldId);
                 field.classList.remove('field-excluded');
-                button.classList.remove('inactive');
-                button.classList.add('active');
-                btnText.textContent = 'Include in Document';
-                btnIcon.className = 'fas fa-check';
-                if (note) note.style.display = 'none';
             } else {
-                // Field is currently included, exclude it
+                // Exclude field from document
                 excludedFields.add(fieldId);
                 field.classList.add('field-excluded');
-                button.classList.remove('active');
-                button.classList.add('inactive');
-                btnText.textContent = 'Excluded from Document';
-                btnIcon.className = 'fas fa-times';
-                if (note) note.style.display = 'block';
             }
-        }
-        
-        // Check if a field should be included in document
-        function isFieldIncluded(fieldId) {
-            return !excludedFields.has(fieldId);
         }
         
         // Add pricing item dynamically
