@@ -25,7 +25,9 @@ def generate_individual_quotation(data):
     
     # Extract data
     quote_number = data.get('quote_number', 'IND-' + datetime.now().strftime('%Y%m%d-%H%M'))
-    quote_date = data.get('quote_date', datetime.now().strftime('%Y-%m-%d'))
+    quote_date_raw = data.get('quote_date', datetime.now().strftime('%Y-%m-%d'))
+    # Format quote date to DD-MON-YYYY
+    quote_date = format_indian_date(quote_date_raw)
     client_name = data.get('ind_client_name', '')
     pol = data.get('ind_pol', '')
     pod = data.get('ind_pod', '')
@@ -37,12 +39,13 @@ def generate_individual_quotation(data):
     validity = data.get('ind_validity', '')
     gst_type = data.get('ind_gst_type', 'inclusive')
     gst_value = data.get('ind_gst_value', '')
+    signatory_name = data.get('signatory_name', '')
     
     # Format validity to Indian date format if it looks like a date
     if validity and '-' in validity and len(validity) == 10:
         validity_formatted = format_indian_date(validity)
     else:
-        validity_formatted = validity
+        validity_formatted = validity.upper() if validity else ''
     
     # Extract pricing items (support multiple)
     pricing_items = []
@@ -291,6 +294,26 @@ def generate_individual_quotation(data):
             color: #2c3e50;
         }}
         
+        .signature-text {{
+            font-family: 'Brush Script MT', 'Lucida Handwriting', cursive;
+            font-size: 24pt;
+            color: #4a5568;
+            margin: 15px 0;
+            font-weight: 300;
+            opacity: 0.85;
+            font-style: italic;
+        }}
+        
+        .signature-text {{
+            font-family: 'Brush Script MT', 'Lucida Handwriting', cursive;
+            font-size: 24pt;
+            color: #4a5568;
+            margin: 15px 0;
+            font-weight: 300;
+            opacity: 0.85;
+            font-style: italic;
+        }}
+        
         /* Footer */
         .footer {{
             margin-top: 50px;
@@ -414,7 +437,7 @@ def generate_individual_quotation(data):
         <h2>Terms & Conditions</h2>
         <ul>
             <li><strong>NOTE:</strong></li>
-            <li>ABOVE RATES ARE VALID till {f"'{validity_formatted}'" if validity_formatted else 'AS PER AGREEMENT'}</li>
+            <li>ABOVE RATES ARE VALID till {validity_formatted if validity_formatted else 'AS PER AGREEMENT'}</li>
             <li>ABOVE RATES ARE NON RECEIPTED CHARGES</li>
         </ul>
         
@@ -427,15 +450,10 @@ def generate_individual_quotation(data):
     
     <!-- Signature -->
     <div class="signature">
-        <div style="margin-bottom: 50px;">
-            <strong>For Marineco Private Limited</strong>
-        </div>
-        <div style="border-top: 1px solid #000; width: 200px; display: inline-block; padding-top: 5px;">
-            Authorized Signatory
-        </div>
-        <div style="font-size: 9pt; color: #666; margin-top: 5px;">
-            Logistics Operations
-        </div>
+        <div class="signature-line"><span class="signature-title">For Marineco Private Limited</span></div>
+        {f'<div class="signature-text">{signatory_name}</div>' if signatory_name else '<div style="margin-top: 40px; margin-bottom: 5px;">_______________________</div>'}
+        <div class="signature-line">Authorized Signatory</div>
+        <div class="signature-line" style="color: #666;">Logistics Operations</div>
     </div>
     
     <!-- Footer -->

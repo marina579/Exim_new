@@ -139,6 +139,17 @@ def register_quotation_routes(app):
 # HELPER FUNCTIONS
 # ============================================
 
+def format_indian_date(date_str):
+    """Convert date to Indian format: DD-MON-YYYY (e.g., 06-JAN-2026)"""
+    try:
+        # Parse the date string (assumes YYYY-MM-DD format from form)
+        if date_str and date_str.strip():
+            date_obj = datetime.strptime(date_str, '%Y-%m-%d')
+            return date_obj.strftime('%d-%b-%Y').upper()
+    except:
+        pass
+    return date_str
+
 def generate_quote_number():
     """Generate unique quote number: MAR-YYYY-MMDD-XXXX"""
     now = datetime.now()
@@ -161,7 +172,9 @@ def generate_quotation_document(data):
     
     # Extract data with defaults
     quote_number = data.get('quote_number', 'N/A')
-    quote_date = data.get('quote_date', datetime.now().strftime('%Y-%m-%d'))
+    quote_date_raw = data.get('quote_date', datetime.now().strftime('%Y-%m-%d'))
+    # Format quote date to DD-MON-YYYY
+    quote_date = format_indian_date(quote_date_raw)
     client_company = data.get('client_company', 'N/A')
     client_contact = data.get('client_contact', '')
     origin = data.get('origin', 'N/A')
@@ -179,10 +192,16 @@ def generate_quotation_document(data):
         # Fallback: calculate from validity_days if provided
         validity_days = data.get('validity_days', '15')
         try:
-            validity_date = (datetime.strptime(quote_date, '%Y-%m-%d') + 
+            validity_date = (datetime.strptime(quote_date_raw, '%Y-%m-%d') + 
                             timedelta(days=int(validity_days))).strftime('%Y-%m-%d')
         except:
             validity_date = 'As specified'
+    
+    # Format validity date to Indian format (DD-MON-YYYY)
+    if validity_date and validity_date != 'As specified':
+        validity_date_formatted = format_indian_date(validity_date)
+    else:
+        validity_date_formatted = validity_date
     
     # Pricing fields (optional)
     freight_charges = data.get('freight_charges', 'As per applicable carrier rates')
@@ -597,7 +616,7 @@ def generate_quotation_document(data):
     
     <h2>Validity & Transit Information</h2>
     <div style="margin: 15px 0; font-size: 14px;">
-        <p><strong>Quotation Validity:</strong> This quotation is valid until {validity_date}.</p>
+        <p><strong>Quotation Validity:</strong> This quotation is valid until {validity_date_formatted}.</p>
         <p><strong>Transit Time:</strong> Transit time is subject to carrier schedules, routing, and operational conditions. Estimated transit time will be provided upon booking confirmation.</p>
         <p><strong>Rate Disclaimer:</strong> Rates are subject to change based on fuel surcharges, carrier tariff revisions, currency fluctuations, and regulatory changes. Final rates will be confirmed at the time of booking.</p>
     </div>
