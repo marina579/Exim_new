@@ -494,10 +494,6 @@ def generate_quotation_document(data):
             <div class="website">www.marineco.co</div>
         </div>
     </div>
-        <div class="company-name">Marineco Private Limited</div>
-        <div class="tagline">Global Logistics & Freight Forwarding</div>
-        <div class="website">www.marineco.co</div>
-    </div>
     
     <div style="text-align: center; margin-bottom: 30px;">
         <h1 style="color: #2c3e50; margin: 0; font-size: 24px;">FREIGHT QUOTATION</h1>
