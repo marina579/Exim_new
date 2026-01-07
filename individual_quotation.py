@@ -2,6 +2,18 @@
 Individual Quotation Generator - Simplified format matching company style
 """
 
+def format_indian_date(date_str):
+    """Convert date to Indian format: DD-MON-YYYY (e.g., 06-JAN-2026)"""
+    from datetime import datetime
+    try:
+        # Parse the date string (assumes YYYY-MM-DD format from form)
+        if date_str and date_str.strip():
+            date_obj = datetime.strptime(date_str, '%Y-%m-%d')
+            return date_obj.strftime('%d-%b-%Y').upper()
+    except:
+        pass
+    return date_str
+
 def generate_individual_quotation(data):
     """
     Generate simplified individual quotation document.
@@ -25,6 +37,12 @@ def generate_individual_quotation(data):
     validity = data.get('ind_validity', '')
     gst_type = data.get('ind_gst_type', 'inclusive')
     gst_value = data.get('ind_gst_value', '')
+    
+    # Format validity to Indian date format if it looks like a date
+    if validity and '-' in validity and len(validity) == 10:
+        validity_formatted = format_indian_date(validity)
+    else:
+        validity_formatted = validity
     
     # Extract pricing items (support multiple)
     pricing_items = []
@@ -396,7 +414,7 @@ def generate_individual_quotation(data):
         <h2>Terms & Conditions</h2>
         <ul>
             <li><strong>NOTE:</strong></li>
-            <li>ABOVE RATES ARE VALID {validity if validity else 'AS PER AGREEMENT'}</li>
+            <li>ABOVE RATES ARE VALID till {f"'{validity_formatted}'" if validity_formatted else 'AS PER AGREEMENT'}</li>
             <li>ABOVE RATES ARE NON RECEIPTED CHARGES</li>
         </ul>
         

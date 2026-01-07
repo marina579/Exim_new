@@ -587,7 +587,7 @@ def generate_quotation_document(data):
             <td><strong>Local Transportation</strong></td>
             <td>{local_transport_charges}</td>
         </tr>
-        {''.join([f'<tr><td><strong>{item.get("name", "Additional Service")}</strong></td><td>{item.get("price", "On request")}</td></tr>' for item in additional_items])}
+        {"".join([f"<tr><td><strong>{item.get('name', 'Additional Service')}</strong></td><td>{item.get('price', 'On request')}</td></tr>" for item in additional_items])}
         <tr>
             <td><strong>Documentation Charges</strong></td>
             <td>Standard documentation fees applicable</td>
