@@ -334,8 +334,8 @@
                     
                     <!-- Shipment Details -->
                     <div class="mb-3">
-                        <label class="form-label">POR (Port of Receipt) <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" name="por" placeholder="e.g., Hyderabad" required>
+                        <label class="form-label">POR (Port of Receipt)</label>
+                        <input type="text" class="form-control" name="por" placeholder="e.g., Hyderabad">
                     </div>
                     
                     <div class="mb-3" id="field_pol" data-field-name="POL (Port of Loading)">
@@ -351,8 +351,8 @@
                     </div>
                     
                     <div class="mb-3">
-                        <label class="form-label">POD (Port of Discharge) <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" name="pod" placeholder="e.g., Montreal, Canada" required>
+                        <label class="form-label">POD (Port of Discharge)</label>
+                        <input type="text" class="form-control" name="pod" placeholder="e.g., Montreal, Canada">
                     </div>
                     
                     <div class="mb-3" id="field_commodity" data-field-name="Commodity">
@@ -663,8 +663,9 @@
                         </div>
 
                         <div class="mb-3">
-                            <label class="form-label">Validity Date</label>
-                            <input type="text" class="form-control" name="ind_validity" placeholder="e.g., UPTO FEB END">
+                            <label class="form-label">Validity Date (Calendar)</label>
+                            <input type="date" class="form-control" name="ind_validity" placeholder="Select validity date">
+                            <small class="text-muted">Will display as DD-MON-YYYY in document (e.g., 28-FEB-2026)</small>
                         </div>
 
                         <div class="mb-3 mt-4" style="border-top: 1px solid #ddd; padding-top: 20px;">
