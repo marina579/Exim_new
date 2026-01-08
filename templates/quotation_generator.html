@@ -744,11 +744,37 @@
             const individualFields = document.getElementById('individualFields');
             
             if (isCompany) {
+                // Show company, hide individual
                 companyFields.style.display = 'block';
                 individualFields.style.display = 'none';
+                
+                // Disable required validation on individual fields
+                individualFields.querySelectorAll('input[required], select[required], textarea[required]').forEach(field => {
+                    field.removeAttribute('required');
+                    field.setAttribute('data-was-required', 'true');
+                });
+                
+                // Re-enable required validation on company fields
+                companyFields.querySelectorAll('[data-was-required="true"]').forEach(field => {
+                    field.setAttribute('required', 'required');
+                    field.removeAttribute('data-was-required');
+                });
             } else {
+                // Show individual, hide company
                 companyFields.style.display = 'none';
                 individualFields.style.display = 'block';
+                
+                // Disable required validation on company fields
+                companyFields.querySelectorAll('input[required], select[required], textarea[required]').forEach(field => {
+                    field.removeAttribute('required');
+                    field.setAttribute('data-was-required', 'true');
+                });
+                
+                // Re-enable required validation on individual fields
+                individualFields.querySelectorAll('[data-was-required="true"]').forEach(field => {
+                    field.setAttribute('required', 'required');
+                    field.removeAttribute('data-was-required');
+                });
             }
         }
 
@@ -875,6 +901,11 @@
             
             return items;
         }
+        
+        // Initialize form state on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            toggleQuotationType(); // Set initial state (company is checked by default)
+        });
         
         // Form submission
         document.getElementById('quotationForm').addEventListener('submit', async function(e) {
