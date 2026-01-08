@@ -71,7 +71,7 @@ def register_quotation_routes(app):
             if not has_pricing:
                 missing_fields.append('ind_rate (at least one pricing item required)')
         else:
-            required_fields = ['quote_number', 'client_company', 'origin', 'destination', 'transport_mode']
+            required_fields = ['quote_number', 'client_company', 'origin', 'transport_mode']
             missing_fields = [f for f in required_fields if not data.get(f)]
         
         if missing_fields:
