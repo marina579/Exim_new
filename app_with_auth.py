@@ -16,6 +16,10 @@ from functools import wraps
 import pandas as pd
 import requests
 from dotenv import load_dotenv
+
+# Load environment variables FIRST before any other imports that need them
+load_dotenv()
+
 from hybrid_enricher import HybridEnricher
 from database import db
 from zoho_crm_service import ZohoCRMService
@@ -30,12 +34,6 @@ logger = logging.getLogger(__name__)
 # Auto-push to Zoho configuration
 AUTO_PUSH_TO_ZOHO = os.getenv('AUTO_PUSH_TO_ZOHO', 'true').lower() == 'true'
 from automated_processor import process_file_automated
-
-# Load environment variables from .env file
-load_dotenv()
-
-# IMPORTANT: Load .env BEFORE importing whatsapp_routes
-# This ensures DATABASE_URL is available for the adapter
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'marineco_exim_contact_finder_secure_2024_auth_key')  # Change in production!
 app.config['UPLOAD_FOLDER'] = 'uploads'
@@ -133,6 +131,36 @@ def logout():
     session.clear()
     flash('You have been logged out successfully', 'success')
     return redirect(url_for('login'))
+
+
+# ==================== TEST ROUTES FOR DEBUGGING ====================
+
+@app.route('/test_api')
+@login_required
+def test_api_page():
+    """Test page for debugging WhatsApp API"""
+    return render_template('test_api.html')
+
+@app.route('/test_whatsapp_db')
+@login_required
+def test_whatsapp_db():
+    """Direct database test"""
+    try:
+        from whatsapp_db import WhatsAppDatabase
+        db_wa = WhatsAppDatabase()
+        conversations = db_wa.get_active_conversations(filters={}, limit=50)
+        return jsonify({
+            'success': True,
+            'count': len(conversations),
+            'conversations': conversations
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
 
 
 # ==================== USER MANAGEMENT ====================

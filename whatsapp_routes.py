@@ -22,6 +22,7 @@ except ImportError:
 
 # N8N webhook URL for sending messages (set in Railway env vars)
 N8N_SEND_WEBHOOK = os.getenv('N8N_WEBHOOK_URL', '')
+logger.info(f"🔧 N8N Webhook configured: {N8N_SEND_WEBHOOK if N8N_SEND_WEBHOOK else '❌ NOT SET'}")
 
 
 def login_required(f):
