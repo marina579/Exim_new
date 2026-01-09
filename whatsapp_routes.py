@@ -21,7 +21,7 @@ except ImportError:
     logger.info("⚠️  Using standard WhatsApp DB")
 
 # N8N webhook URL for sending messages (set in Railway env vars)
-N8N_SEND_WEBHOOK = os.getenv('N8N_SEND_WEBHOOK_URL', 'https://your-n8n-instance.com/webhook/send-whatsapp')
+N8N_SEND_WEBHOOK = os.getenv('N8N_WEBHOOK_URL', '')
 
 
 def login_required(f):
@@ -136,7 +136,7 @@ def register_whatsapp_routes(app):
             logger.info(f"Sending WhatsApp message via n8n: {phone}")
             
             # Check if n8n webhook is configured
-            if N8N_SEND_WEBHOOK and N8N_SEND_WEBHOOK != 'https://your-n8n-instance.com/webhook/send-whatsapp':
+            if N8N_SEND_WEBHOOK:
                 try:
                     response = requests.post(
                         N8N_SEND_WEBHOOK,
@@ -144,15 +144,19 @@ def register_whatsapp_routes(app):
                         timeout=10
                     )
                     
-                    if response.status_code != 200:
+                    if response.status_code == 200:
+                        logger.info(f"✅ Message sent via n8n webhook to {phone}")
+                    else:
                         logger.error(f"n8n webhook error: {response.status_code} - {response.text}")
                         # Fall through to demo mode
                 except Exception as e:
                     logger.error(f"n8n webhook request failed: {str(e)}")
                     # Fall through to demo mode
+            else:
+                logger.info(f"Demo mode: n8n webhook not configured")
             
-            # Demo mode: Save message to database without actually sending via WhatsApp
-            logger.info(f"Demo mode: Saving agent message to database (n8n not configured)")
+            # Always save message to database
+            logger.info(f"Saving agent message to database")
             
             # Insert message into database as outbound from agent
             whatsapp_db.insert_message(
@@ -170,9 +174,15 @@ def register_whatsapp_routes(app):
                 {'message': message[:100]}
             )
             
+            # Determine success message based on whether webhook was called
+            if N8N_SEND_WEBHOOK:
+                success_msg = 'Message sent successfully via WhatsApp'
+            else:
+                success_msg = 'Message saved (Demo mode - n8n webhook not configured)'
+            
             return jsonify({
                 'success': True,
-                'message': 'Message sent successfully (Demo mode - saved to database)'
+                'message': success_msg
             })
         
         except Exception as e:
