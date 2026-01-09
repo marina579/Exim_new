@@ -212,6 +212,16 @@
             background: #1a252f;
         }
         
+        .btn-export-whatsapp {
+            background: #25D366;
+            border: none;
+            color: white;
+        }
+        
+        .btn-export-whatsapp:hover {
+            background: #1EBE57;
+        }
+        
         .preview-empty {
             display: flex;
             flex-direction: column;
@@ -683,6 +693,9 @@
                 
                 <!-- Export Buttons (hidden initially) -->
                 <div class="export-buttons" id="exportButtons" style="display: none;">
+                    <button class="btn btn-export btn-export-whatsapp" onclick="sendToWhatsApp()">
+                        <i class="fab fa-whatsapp"></i> Send to WhatsApp
+                    </button>
                     <button class="btn btn-export" style="background: #2ecc71; color: white;" onclick="printDocument()">
                         <i class="fas fa-print"></i> Print / Save PDF
                     </button>
@@ -1032,6 +1045,90 @@
                 </div>
             `;
             document.getElementById('exportButtons').style.display = 'none';
+        }
+        
+        // Send to WhatsApp functionality with PDF generation
+        async function sendToWhatsApp() {
+            if (!currentDocument) {
+                alert('No document to send');
+                return;
+            }
+            
+            // Show loading state
+            const btn = event.target;
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating PDF...';
+            
+            try {
+                // Get client info from form
+                const quotationType = document.querySelector('input[name="quotation_type"]:checked').value;
+                let clientInfo = '';
+                
+                if (quotationType === 'company') {
+                    clientInfo = document.querySelector('input[name="client_company"]').value;
+                } else {
+                    clientInfo = document.querySelector('input[name="ind_client_name"]').value;
+                }
+                
+                // Generate PDF and upload to GCS
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading to Cloud...';
+                
+                const response = await fetch('/quotations/generate-pdf-gcs', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        document_html: currentDocument,
+                        quote_number: currentQuoteNumber,
+                        client_name: clientInfo
+                    })
+                });
+                
+                // Check if response is OK before parsing JSON
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Server error (${response.status}): ${errorText.substring(0, 200)}`);
+                }
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Store quotation data with PDF URL in sessionStorage
+                    sessionStorage.setItem('quotation_pdf_url', result.pdf_url);
+                    sessionStorage.setItem('quotation_number', result.quote_number);
+                    sessionStorage.setItem('quotation_client', result.client_name);
+                    sessionStorage.setItem('quotation_action', 'send_pdf_to_whatsapp');
+                    sessionStorage.setItem('quotation_size', result.size);
+                    sessionStorage.setItem('quotation_expires_at', result.expires_at);
+                    
+                    // Redirect to WhatsApp inbox
+                    window.location.href = '/whatsapp/inbox?action=send_quotation';
+                } else {
+                    alert('Error generating PDF: ' + result.error);
+                    btn.disabled = false;
+                    btn.innerHTML = originalText;
+                }
+                
+            } catch (error) {
+                console.error('Error:', error);
+                let errorMsg = error.message || 'Unknown error';
+                
+                // Provide helpful error messages
+                if (errorMsg.includes('500')) {
+                    errorMsg += '\n\nPossible causes:\n' +
+                                '1. GCS bucket not created yet\n' +
+                                '2. Authentication not configured\n' +
+                                '3. Check browser console for details';
+                } else if (errorMsg.includes('404')) {
+                    errorMsg += '\n\nRoute not found - check server is running';
+                }
+                
+                alert('Error generating PDF:\n\n' + errorMsg);
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
         }
         
         // Print functionality - opens browser print dialog

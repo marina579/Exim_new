@@ -14,6 +14,18 @@ from individual_quotation import generate_individual_quotation
 
 logger = logging.getLogger(__name__)
 
+# Try to import pdf_generator, but make it optional (needs Pango on macOS)
+try:
+    from pdf_generator import generate_pdf_from_html, get_pdf_url, PDF_STORAGE_DIR
+    PDF_GENERATOR_AVAILABLE = True
+except (ImportError, OSError) as e:
+    logger.warning(f"⚠️  PDF generator not available (missing system libraries): {str(e)[:100]}")
+    logger.warning("⚠️  PDF export via old method disabled. GCS PDF generation will still work.")
+    PDF_GENERATOR_AVAILABLE = False
+    PDF_STORAGE_DIR = None
+    generate_pdf_from_html = None
+    get_pdf_url = None
+
 
 def register_quotation_routes(app):
     """
@@ -130,6 +142,58 @@ def register_quotation_routes(app):
         
         except Exception as e:
             logger.error(f"Error exporting quotation: {str(e)}", exc_info=True)
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    @app.route('/quotations/generate-pdf-gcs', methods=['POST'])
+    @login_required
+    def quotations_generate_pdf_gcs():
+        """
+        Generate PDF from HTML and upload to Google Cloud Storage.
+        Returns public URL for WhatsApp sharing.
+        """
+        data = request.json
+        document_html = data.get('document_html')
+        quote_number = data.get('quote_number', 'QUOTE')
+        client_name = data.get('client_name', 'Customer')
+        
+        if not document_html:
+            return jsonify({'success': False, 'error': 'No document to generate'}), 400
+        
+        try:
+            # Import GCS handler
+            from gcs_pdf_handler import generate_and_upload_quotation_pdf
+            
+            # Generate PDF and upload to GCS
+            logger.info(f"Generating PDF and uploading to GCS for quote {quote_number}")
+            result = generate_and_upload_quotation_pdf(document_html, quote_number)
+            
+            if result['success']:
+                logger.info(f"PDF uploaded successfully: {result['url']}")
+                return jsonify({
+                    'success': True,
+                    'pdf_url': result['url'],
+                    'blob_name': result['blob_name'],
+                    'size': result['size'],
+                    'expires_at': result['expires_at'],
+                    'quote_number': quote_number,
+                    'client_name': client_name
+                })
+            else:
+                logger.error(f"PDF generation failed: {result.get('error')}")
+                return jsonify({
+                    'success': False,
+                    'error': result.get('error', 'Unknown error')
+                }), 500
+        
+        except ImportError as e:
+            logger.error(f"GCS handler not available: {str(e)}")
+            return jsonify({
+                'success': False,
+                'error': 'Google Cloud Storage not configured. Please set up GCS credentials.'
+            }), 500
+        
+        except Exception as e:
+            logger.error(f"Error generating PDF for GCS: {str(e)}", exc_info=True)
             return jsonify({'success': False, 'error': str(e)}), 500
     
     logger.info("✅ Quotation generator routes registered")
@@ -758,9 +822,9 @@ def export_to_pdf(html_content, quote_number):
         
         return pdf_bytes, mimetype, filename
     
-    except ImportError:
+    except (ImportError, OSError) as e:
         # Fallback: Return HTML that can be printed as PDF from browser
-        logger.warning("WeasyPrint not installed - using browser print fallback")
+        logger.warning(f"WeasyPrint not available (missing system libraries) - using browser print fallback")
         html_bytes = html_content.encode('utf-8')
         filename = f"Quotation_{quote_number}.html"
         mimetype = 'text/html'

@@ -502,6 +502,156 @@
         const notesArea = document.getElementById('notesArea');
         const saveNotesBtn = document.getElementById('saveNotesBtn');
         
+        // Check if quotation needs to be sent
+        document.addEventListener('DOMContentLoaded', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            
+            if (urlParams.get('send_quotation') === 'true') {
+                const quotationHtml = sessionStorage.getItem('quotation_html');
+                const quotationPdfUrl = sessionStorage.getItem('quotation_pdf_url');
+                const quotationNumber = sessionStorage.getItem('quotation_number');
+                const quotationClient = sessionStorage.getItem('quotation_client');
+                
+                if ((quotationHtml || quotationPdfUrl) && quotationNumber) {
+                    showQuotationAttachment(quotationHtml, quotationPdfUrl, quotationNumber, quotationClient);
+                }
+            }
+        });
+        
+        function showQuotationAttachment(quotationHtml, quotationPdfUrl, quotationNumber, clientName) {
+            // Determine if it's PDF or HTML
+            const isPDF = !!quotationPdfUrl;
+            const fileSize = sessionStorage.getItem('quotation_size');
+            const fileSizeKB = fileSize ? Math.round(fileSize / 1024) : '';
+            
+            // Create attachment preview above input area
+            const attachmentDiv = document.createElement('div');
+            attachmentDiv.id = 'quotationAttachment';
+            attachmentDiv.style.cssText = `
+                background: #FFF9E6;
+                border: 2px solid #FFC107;
+                border-radius: 8px;
+                padding: 15px;
+                margin: 10px 20px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            `;
+            
+            const formatIcon = isPDF ? 
+                `<i class="fas fa-file-pdf" style="color: #d32f2f;"></i>` : 
+                `<i class="fas fa-file-invoice"></i>`;
+            
+            const formatText = isPDF ? `PDF Document (${fileSizeKB} KB)` : 'Text Message';
+            
+            attachmentDiv.innerHTML = `
+                <div style="flex: 1;">
+                    <div style="font-weight: 600; color: #F57C00; margin-bottom: 5px;">
+                        ${formatIcon} Quotation Ready to Send
+                    </div>
+                    <div style="font-size: 14px; color: #666;">
+                        ${quotationNumber} - ${clientName}
+                    </div>
+                    <div style="font-size: 12px; color: #999; margin-top: 3px;">
+                        ${formatText}
+                    </div>
+                    <div style="margin-top: 8px;">
+                        <button onclick="previewQuotation()" class="btn btn-sm btn-outline-primary" style="margin-right: 8px;">
+                            <i class="fas fa-eye"></i> Preview
+                        </button>
+                        <button onclick="sendQuotationMessage()" class="btn btn-sm btn-success">
+                            <i class="fas fa-paper-plane"></i> Send Now
+                        </button>
+                        <button onclick="removeQuotationAttachment()" class="btn btn-sm btn-outline-danger">
+                            <i class="fas fa-times"></i> Remove
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            const inputArea = document.querySelector('.input-area');
+            inputArea.parentNode.insertBefore(attachmentDiv, inputArea);
+            
+            // Pre-fill message with PDF link if available
+            const quotationPdfUrlValue = sessionStorage.getItem('quotation_pdf_url');
+            if (quotationPdfUrlValue) {
+                messageInput.value = `Hi! Please find the quotation ${quotationNumber} attached.\n\nQuotation for: ${clientName}\n\n📄 Download PDF: ${quotationPdfUrlValue}\n\nPlease review and let me know if you have any questions.`;
+            } else {
+                messageInput.value = `Hi! Please find the quotation ${quotationNumber} attached.\n\nQuotation for: ${clientName}\n\nPlease review and let me know if you have any questions.`;
+            }
+        }
+        
+        function previewQuotation() {
+            const quotationPdfUrl = sessionStorage.getItem('quotation_pdf_url');
+            const quotationHtml = sessionStorage.getItem('quotation_html');
+            
+            if (quotationPdfUrl) {
+                // Open PDF in new tab
+                window.open(quotationPdfUrl, '_blank');
+            } else if (quotationHtml) {
+                // Open HTML in new tab
+                const printWindow = window.open('', '_blank');
+                printWindow.document.write(quotationHtml);
+                printWindow.document.close();
+            }
+        }
+        
+        async function sendQuotationMessage() {
+            const quotationNumber = sessionStorage.getItem('quotation_number');
+            const quotationClient = sessionStorage.getItem('quotation_client');
+            const quotationPdfUrl = sessionStorage.getItem('quotation_pdf_url');
+            
+            // Use the pre-filled message or create one
+            let message = messageInput.value.trim();
+            if (!message) {
+                if (quotationPdfUrl) {
+                    message = `Hi! Please find the quotation ${quotationNumber} attached.\n\nQuotation for: ${quotationClient}\n\n📄 Download PDF: ${quotationPdfUrl}\n\nPlease review and let me know if you have any questions.`;
+                } else {
+                    message = `Hi! Please find the quotation ${quotationNumber} attached.\n\nQuotation for: ${quotationClient}\n\nPlease review and let me know if you have any questions.`;
+                }
+            }
+            
+            messageInput.value = message;
+            
+            // Send the message
+            await sendMessage();
+            
+            // Clear quotation data and remove attachment
+            setTimeout(() => {
+                removeQuotationAttachment();
+                sessionStorage.removeItem('quotation_html');
+                sessionStorage.removeItem('quotation_pdf_url');
+                sessionStorage.removeItem('quotation_number');
+                sessionStorage.removeItem('quotation_client');
+                sessionStorage.removeItem('quotation_action');
+                sessionStorage.removeItem('quotation_target_conversation');
+                sessionStorage.removeItem('quotation_size');
+                sessionStorage.removeItem('quotation_expires_at');
+                
+                // Remove URL parameter
+                window.history.replaceState({}, '', window.location.pathname);
+            }, 1000);
+        }
+        
+        function removeQuotationAttachment() {
+            const attachment = document.getElementById('quotationAttachment');
+            if (attachment) {
+                attachment.remove();
+            }
+            
+            // Clear sessionStorage
+            sessionStorage.removeItem('quotation_html');
+            sessionStorage.removeItem('quotation_number');
+            sessionStorage.removeItem('quotation_client');
+            sessionStorage.removeItem('quotation_action');
+            
+            // Clear message input
+            messageInput.value = '';
+            
+            // Remove URL parameter
+            window.history.replaceState({}, '', window.location.pathname);
+        }
+        
         // Auto-scroll to bottom
         function scrollToBottom() {
             messagesArea.scrollTop = messagesArea.scrollHeight;

@@ -3487,6 +3487,16 @@ def railway_deployment_webhook():
 #     logger.warning(f"⚠️  Could not start Zoho token refresh service: {str(e)}")
 logger.info("ℹ️  Zoho token refresh service disabled on startup (will start on first token use)")
 
+# Test route for GCS bucket verification
+@app.route('/test_bucket_web.html')
+def test_bucket():
+    """Serve the GCS bucket test page"""
+    try:
+        with open('test_bucket_web.html', 'r') as f:
+            return f.read()
+    except FileNotFoundError:
+        return "Test page not found", 404
+
 if __name__ == '__main__':
     print("\n" + "="*70)
     print("🚢 MARINECO AI LABS - SECURE VERSION")

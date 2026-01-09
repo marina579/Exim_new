@@ -416,6 +416,134 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        // Check if coming from quotation generator
+        document.addEventListener('DOMContentLoaded', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            
+            if (urlParams.get('action') === 'send_quotation') {
+                // Get quotation data from sessionStorage
+                const quotationHtml = sessionStorage.getItem('quotation_html');
+                const quotationPdfUrl = sessionStorage.getItem('quotation_pdf_url');
+                const quotationNumber = sessionStorage.getItem('quotation_number');
+                const quotationClient = sessionStorage.getItem('quotation_client');
+                
+                if (quotationHtml || quotationPdfUrl) {
+                    // Show modal to select contact
+                    showQuotationSendModal(quotationHtml, quotationPdfUrl, quotationNumber, quotationClient);
+                }
+            }
+        });
+        
+        function showQuotationSendModal(quotationHtml, quotationPdfUrl, quotationNumber, clientName) {
+            // Create modal dynamically
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0,0,0,0.7);
+                z-index: 10000;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            `;
+            
+            // Get file size if available
+            const fileSize = sessionStorage.getItem('quotation_size');
+            const fileSizeKB = fileSize ? Math.round(fileSize / 1024) : 'Unknown';
+            
+            // Check if it's PDF or HTML
+            const isPDF = !!quotationPdfUrl;
+            const formatInfo = isPDF ? 
+                `<p style="margin-bottom: 15px;"><strong>Format:</strong> <i class="fas fa-file-pdf" style="color: #d32f2f;"></i> PDF (${fileSizeKB} KB)</p>` :
+                `<p style="margin-bottom: 15px;"><strong>Format:</strong> <i class="fas fa-file-alt"></i> Text Message</p>`;
+            
+            modal.innerHTML = `
+                <div style="background: white; padding: 30px; border-radius: 12px; max-width: 600px; width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
+                    <h4 style="margin-bottom: 20px; color: #25D366;">
+                        <i class="fab fa-whatsapp"></i> Send Quotation to WhatsApp
+                    </h4>
+                    <p style="margin-bottom: 15px;">
+                        <strong>Quotation:</strong> ${quotationNumber}<br>
+                        <strong>Client:</strong> ${clientName}
+                    </p>
+                    ${formatInfo}
+                    <p style="color: #666; margin-bottom: 20px;">
+                        Click on any conversation below to send this quotation:
+                    </p>
+                    <div style="text-align: right; margin-top: 20px;">
+                        <button onclick="closeQuotationModal()" class="btn btn-secondary" style="margin-right: 10px;">
+                            <i class="fas fa-times"></i> Cancel
+                        </button>
+                        <button onclick="saveQuotationForLater()" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Save for Later
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            window.quotationModal = modal;
+            
+            // Add click handlers to conversation cards
+            const conversationCards = document.querySelectorAll('.conversation-card');
+            conversationCards.forEach(card => {
+                card.style.cursor = 'pointer';
+                card.style.border = '2px solid #25D366';
+                card.style.transition = 'all 0.3s';
+                
+                card.addEventListener('mouseenter', function() {
+                    this.style.transform = 'scale(1.02)';
+                    this.style.boxShadow = '0 4px 12px rgba(37, 211, 102, 0.3)';
+                });
+                
+                card.addEventListener('mouseleave', function() {
+                    this.style.transform = 'scale(1)';
+                    this.style.boxShadow = '';
+                });
+                
+                const originalOnclick = card.getAttribute('onclick');
+                card.setAttribute('onclick', `sendQuotationToConversation(this, '${originalOnclick}')`);
+            });
+        }
+        
+        function sendQuotationToConversation(element, originalOnclick) {
+            // Extract conversation ID from onclick
+            const match = originalOnclick.match(/conversation\\/([^']+)/);
+            if (match) {
+                const conversationId = match[1];
+                
+                // Store conversation ID
+                sessionStorage.setItem('quotation_target_conversation', conversationId);
+                
+                // Navigate to conversation
+                window.location.href = `/whatsapp/conversation/${conversationId}?send_quotation=true`;
+            }
+        }
+        
+        function closeQuotationModal() {
+            if (window.quotationModal) {
+                window.quotationModal.remove();
+                // Clear sessionStorage
+                sessionStorage.removeItem('quotation_html');
+                sessionStorage.removeItem('quotation_pdf_url');
+                sessionStorage.removeItem('quotation_number');
+                sessionStorage.removeItem('quotation_size');
+                sessionStorage.removeItem('quotation_expires_at');
+                sessionStorage.removeItem('quotation_client');
+                sessionStorage.removeItem('quotation_action');
+                // Remove action parameter from URL
+                window.history.replaceState({}, '', '/whatsapp/inbox');
+            }
+        }
+        
+        function saveQuotationForLater() {
+            alert('Quotation saved! You can send it from any conversation later.');
+            closeQuotationModal();
+        }
+        
         // Real-time updates via Server-Sent Events
         const eventSource = new EventSource('/whatsapp/stream');
         
