@@ -45,26 +45,15 @@ def get_gcs_client():
     Get Google Cloud Storage client
     
     Priority order (tries in sequence):
-    1. Application Default Credentials (ADC) - for local development with gcloud
-    2. Environment variable JSON (GCS_CREDENTIALS_JSON) - for Railway/Heroku deployment  
-    3. Service account key file - fallback
+    1. Environment variable JSON (GCS_CREDENTIALS_JSON) - for Railway/Heroku deployment
+    2. Application Default Credentials (ADC) - for local development with gcloud
+    3. Service account key file - fallback (if file exists)
     
     Returns:
         storage.Client: GCS client instance
     """
     try:
-        # Option 1: Try Application Default Credentials (local development)
-        # Works when user has run: gcloud auth application-default login
-        try:
-            client = storage.Client(project=GCS_PROJECT_ID)
-            # Test if we can access the client
-            _ = client.project
-            print(f"✅ Using Application Default Credentials (ADC)")
-            return client
-        except Exception as adc_error:
-            pass  # Try next option
-            
-        # Option 2: Try environment variable JSON (Railway/Heroku deployment)
+        # Option 1: Try environment variable JSON (Railway/Heroku deployment)
         # Set GCS_CREDENTIALS_JSON as environment variable with full JSON string
         if GCS_CREDENTIALS_JSON:
             try:
@@ -95,6 +84,17 @@ def get_gcs_client():
                 print(f"⚠️  Invalid JSON in GCS_CREDENTIALS_JSON: {str(e)}")
             except Exception as e:
                 print(f"⚠️  Could not use GCS_CREDENTIALS_JSON: {str(e)}")
+        
+        # Option 2: Try Application Default Credentials (local development)
+        # Works when user has run: gcloud auth application-default login
+        try:
+            client = storage.Client(project=GCS_PROJECT_ID)
+            # Test if we can access the client
+            _ = client.project
+            print(f"✅ Using Application Default Credentials (ADC)")
+            return client
+        except Exception as adc_error:
+            pass  # Try next option
             
         # Option 3: Try service account key file (traditional approach)
         if os.path.exists(GCS_CREDENTIALS_PATH):
