@@ -195,7 +195,7 @@ def register_whatsapp_routes(app):
             return jsonify({'success': False, 'message': 'Stage is required'}), 400
         
         try:
-            whatsapp_db.update_funnel_stage(conversation_id, new_stage)
+            whatsapp_db.update_conversation_funnel(conversation_id, new_stage)
             whatsapp_db.log_agent_action(
                 conversation_id,
                 session.get('username', 'Agent'),
