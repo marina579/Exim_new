@@ -1,0 +1,35 @@
+================================================================================
+DEPLOYMENT STATUS - Exim Application
+================================================================================
+
+Last Updated: January 9, 2026
+
+RECENT CHANGES:
+---------------
+✅ Fixed quotation generation (removed duplicate Marineco title)
+✅ Fixed date formatting to DD-MON-YYYY (Indian format)
+✅ Added pen-style signature for individual quotes
+✅ Fixed Generate Quote button dependency issue
+✅ Added "Send to WhatsApp" feature for quotations
+✅ Implemented PDF generation with WeasyPrint
+✅ Integrated Google Cloud Storage for PDF hosting
+✅ Set up 30-day auto-deletion for PDFs (cost optimization)
+✅ Cleaned up repository (removed 50K+ unnecessary files)
+✅ Added requirements.txt for Railway deployment
+
+DEPLOYMENT TARGETS:
+-------------------
+- Railway: Ready to deploy
+- GCP: Using Cloud Storage for PDFs
+- Local: Requires Pango installation (brew install pango)
+
+ENVIRONMENT VARIABLES NEEDED:
+-----------------------------
+- GCS_BUCKET_NAME=marineco-quotations
+- GCS_PROJECT_ID=wise-hub-483204-p4
+- GCS_CREDENTIALS_JSON=[service account key for Railway]
+
+STATUS: ✅ Ready for Production Deployment
+
+================================================================================
+
