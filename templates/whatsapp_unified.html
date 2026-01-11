@@ -545,6 +545,43 @@
             document.getElementById('searchInput').addEventListener('input', function() {
                 loadConversations(null, this.value);
             });
+            
+            // ========================================
+            // AUTO-REFRESH: Refresh conversations every 2 minutes
+            // ========================================
+            setInterval(function() {
+                // Get current filter
+                const activeTab = document.querySelector('.filter-tab.active');
+                const filter = activeTab ? activeTab.dataset.filter : 'all';
+                const search = document.getElementById('searchInput').value;
+                
+                // Reload conversations silently
+                loadConversations(filter, search);
+                
+                console.log('🔄 Auto-refreshed conversations');
+            }, 120000); // 2 minutes (120000 ms)
+            
+            // ========================================
+            // AUTO-REFRESH: Refresh current chat every 30 seconds
+            // ========================================
+            setInterval(function() {
+                if (currentConversationId) {
+                    // Reload current conversation to get new messages
+                    fetch(`/whatsapp/api/conversation/${currentConversationId}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            // Only update if we got new messages
+                            const currentMessageCount = document.querySelectorAll('.message-bubble').length;
+                            const newMessageCount = data.messages ? data.messages.length : 0;
+                            
+                            if (newMessageCount > currentMessageCount) {
+                                renderChat(data);
+                                console.log('🔄 Auto-refreshed chat - new messages found');
+                            }
+                        })
+                        .catch(error => console.error('Error auto-refreshing chat:', error));
+                }
+            }, 30000); // 30 seconds
         });
         
         // Load conversations from API
