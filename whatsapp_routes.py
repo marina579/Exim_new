@@ -24,6 +24,62 @@ except ImportError:
 N8N_SEND_WEBHOOK = os.getenv('N8N_WEBHOOK_URL', '')
 logger.info(f"🔧 N8N Webhook configured: {N8N_SEND_WEBHOOK if N8N_SEND_WEBHOOK else '❌ NOT SET'}")
 
+# Try to import GCS handler for file attachments
+try:
+    from gcs_pdf_handler import get_gcs_client, GCS_BUCKET_NAME
+    GCS_AVAILABLE = True
+    logger.info("✅ GCS file attachment support enabled")
+except ImportError:
+    GCS_AVAILABLE = False
+    logger.warning("⚠️  GCS not available - file attachments disabled")
+
+
+def upload_file_to_gcs(file, conversation_id):
+    """
+    Upload file to Google Cloud Storage.
+    
+    Args:
+        file: FileStorage object from Flask request.files
+        conversation_id: ID of the conversation
+        
+    Returns:
+        str: Public URL of uploaded file
+    """
+    if not GCS_AVAILABLE:
+        raise Exception("GCS not configured - file uploads disabled")
+    
+    try:
+        # Generate unique filename
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        # Sanitize original filename
+        safe_filename = "".join(c for c in file.filename if c.isalnum() or c in ".-_ ")
+        blob_name = f"whatsapp_attachments/{conversation_id}/{timestamp}_{safe_filename}"
+        
+        # Get GCS client and upload
+        client = get_gcs_client()
+        bucket = client.bucket(GCS_BUCKET_NAME)
+        blob = bucket.blob(blob_name)
+        
+        # Set content type
+        blob.content_type = file.content_type or 'application/octet-stream'
+        
+        # Upload file
+        file.seek(0)  # Reset file pointer
+        blob.upload_from_file(file, content_type=blob.content_type)
+        
+        # Make blob publicly accessible
+        blob.make_public()
+        
+        # Get public URL
+        public_url = blob.public_url
+        
+        logger.info(f"✅ Uploaded file to GCS: {blob_name}")
+        return public_url
+    
+    except Exception as e:
+        logger.error(f"GCS upload error: {str(e)}", exc_info=True)
+        raise
+
 
 def login_required(f):
     """
@@ -513,6 +569,98 @@ def register_whatsapp_routes(app):
                 'X-Accel-Buffering': 'no'
             }
         )
+    
+    # ============================================
+    # FILE ATTACHMENT ROUTES
+    # ============================================
+    
+    @app.route('/whatsapp/api/send_with_attachment', methods=['POST'])
+    @login_required
+    def send_with_attachment():
+        """
+        Handle file uploads and send message with attachment.
+        Files are stored in GCS (NOT PostgreSQL) to avoid storage costs.
+        """
+        try:
+            # Get uploaded file
+            if 'file' not in request.files:
+                return jsonify({'success': False, 'message': 'No file provided'}), 400
+            
+            file = request.files['file']
+            
+            if file.filename == '':
+                return jsonify({'success': False, 'message': 'No file selected'}), 400
+            
+            # Get other form data
+            conversation_id = request.form.get('conversation_id')
+            message_text = request.form.get('message', '')
+            
+            if not conversation_id:
+                return jsonify({'success': False, 'message': 'Conversation ID required'}), 400
+            
+            # Upload file to GCS
+            try:
+                file_url = upload_file_to_gcs(file, conversation_id)
+            except Exception as e:
+                logger.error(f"GCS upload error: {str(e)}")
+                return jsonify({
+                    'success': False,
+                    'message': f'File upload failed: {str(e)}'
+                }), 500
+            
+            # Prepare message with file link
+            full_message = message_text
+            if message_text:
+                full_message += f"\n\n📎 Attachment: {file_url}"
+            else:
+                full_message = f"📎 Attachment: {file_url}"
+            
+            # Save message to database
+            conversation = whatsapp_db.get_conversation_by_id(conversation_id)
+            if not conversation:
+                return jsonify({'success': False, 'message': 'Conversation not found'}), 404
+            
+            # Insert message
+            whatsapp_db.insert_message(
+                conversation_id=conversation_id,
+                sender='agent',
+                message=full_message
+            )
+            
+            # Send via N8N webhook (if configured)
+            if N8N_SEND_WEBHOOK:
+                try:
+                    webhook_payload = {
+                        'to': conversation['phone'],
+                        'message': full_message,
+                        'conversation_id': conversation_id,
+                        'agent': session.get('username', 'System')
+                    }
+                    
+                    response = requests.post(
+                        N8N_SEND_WEBHOOK,
+                        json=webhook_payload,
+                        timeout=5
+                    )
+                    
+                    if response.status_code != 200:
+                        logger.warning(f"N8N webhook returned status {response.status_code}")
+                
+                except Exception as e:
+                    logger.error(f"N8N webhook error: {str(e)}")
+            
+            return jsonify({
+                'success': True,
+                'message': 'File sent successfully',
+                'file_url': file_url
+            })
+        
+        except Exception as e:
+            logger.error(f"Error sending attachment: {str(e)}", exc_info=True)
+            return jsonify({
+                'success': False,
+                'message': f'Error: {str(e)}'
+            }), 500
     
     logger.info("✅ WhatsApp inbox routes registered")
 

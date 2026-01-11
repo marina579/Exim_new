@@ -384,30 +384,6 @@
                         <input type="text" class="form-control" name="origin" placeholder="e.g., Mumbai, India" required>
                     </div>
                     
-                    <div class="mb-3" id="field_port_of_origin" data-field-name="Port of Origin">
-                        <label class="form-label">
-                            Port of Origin
-                            <span class="include-radio-group">
-                                <span style="font-size: 0.7rem; color: #999;">Include in document:</span>
-                                <label><input type="radio" name="include_port_of_origin" value="yes" checked onchange="toggleFieldInclude('field_port_of_origin', this)"> Yes</label>
-                                <label><input type="radio" name="include_port_of_origin" value="no" onchange="toggleFieldInclude('field_port_of_origin', this)"> No</label>
-                            </span>
-                        </label>
-                        <input type="text" class="form-control" name="port_of_origin" placeholder="e.g., JNPT, Mumbai Port">
-                    </div>
-                    
-                    <div class="mb-3" id="field_destination" data-field-name="Destination">
-                        <label class="form-label">
-                            Destination (Optional - for reference)
-                            <span class="include-radio-group">
-                                <span style="font-size: 0.7rem; color: #999;">Include in document:</span>
-                                <label><input type="radio" name="include_destination" value="yes" checked onchange="toggleFieldInclude('field_destination', this)"> Yes</label>
-                                <label><input type="radio" name="include_destination" value="no" onchange="toggleFieldInclude('field_destination', this)"> No</label>
-                            </span>
-                        </label>
-                        <input type="text" class="form-control" name="destination" placeholder="e.g., Singapore Port">
-                    </div>
-                    
                     <div class="mb-3">
                         <label class="form-label">Transport Mode <span class="text-danger">*</span></label>
                         <select class="form-select" name="transport_mode" required>

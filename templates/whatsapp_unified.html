@@ -344,6 +344,25 @@
             background: white;
         }
         
+        .input-action-button {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: transparent;
+            color: #667781;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.2s;
+            font-size: 1.3rem;
+        }
+        
+        .input-action-button:hover {
+            background: #d1d7db;
+        }
+        
         .send-button {
             width: 45px;
             height: 45px;
@@ -360,6 +379,100 @@
         
         .send-button:hover {
             background: #06cf9c;
+        }
+        
+        /* File attachment preview */
+        .attachment-preview {
+            background: #dcf8c6;
+            padding: 10px 15px;
+            margin: 5px 20px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .attachment-preview-icon {
+            font-size: 1.5rem;
+            color: #008069;
+        }
+        
+        .attachment-preview-info {
+            flex: 1;
+        }
+        
+        .attachment-preview-name {
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+        
+        .attachment-preview-size {
+            font-size: 0.75rem;
+            color: #667781;
+        }
+        
+        .attachment-preview-remove {
+            background: transparent;
+            border: none;
+            color: #667781;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 50%;
+        }
+        
+        .attachment-preview-remove:hover {
+            background: rgba(0,0,0,0.1);
+        }
+        
+        /* Emoji Picker */
+        .emoji-picker {
+            position: absolute;
+            bottom: 70px;
+            right: 20px;
+            background: white;
+            border: 1px solid #d1d7db;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            padding: 15px;
+            width: 320px;
+            max-height: 300px;
+            overflow-y: auto;
+            display: none;
+            z-index: 1000;
+        }
+        
+        .emoji-picker.show {
+            display: block;
+        }
+        
+        .emoji-picker-header {
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #111;
+        }
+        
+        .emoji-grid {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 5px;
+        }
+        
+        .emoji-item {
+            font-size: 1.5rem;
+            padding: 8px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: background 0.2s;
+        }
+        
+        .emoji-item:hover {
+            background: #f0f2f5;
+        }
+        
+        input[type="file"] {
+            display: none;
         }
         
         /* RIGHT SIDEBAR - Contact Details */
@@ -520,6 +633,7 @@
         
         // Load conversations on page load
         document.addEventListener('DOMContentLoaded', function() {
+            initEmojiPicker();
             loadConversations();
             
             // Also load stats immediately
@@ -686,12 +800,26 @@
                 </div>
                 
                 <!-- Chat Input -->
-                <div class="chat-input-container">
+                <div id="attachmentPreviewContainer"></div>
+                <div class="chat-input-container" style="position: relative;">
+                    <input type="file" id="fileInput" accept="*/*" onchange="handleFileSelect(event)">
+                    <button class="input-action-button" onclick="document.getElementById('fileInput').click()" title="Attach file">
+                        <i class="fas fa-paperclip"></i>
+                    </button>
                     <input type="text" placeholder="Type a message..." id="messageInput" 
                            onkeypress="if(event.key==='Enter') sendMessage()">
+                    <button class="input-action-button" onclick="toggleEmojiPicker()" title="Emoji">
+                        😊
+                    </button>
                     <button class="send-button" onclick="sendMessage()">
                         <i class="fas fa-paper-plane"></i>
                     </button>
+                    
+                    <!-- Emoji Picker -->
+                    <div id="emojiPicker" class="emoji-picker">
+                        <div class="emoji-picker-header">Emojis</div>
+                        <div class="emoji-grid" id="emojiGrid"></div>
+                    </div>
                 </div>
             `;
             
@@ -787,30 +915,192 @@
         }
         
         // Send message
+        let attachedFile = null;
+        
         function sendMessage() {
             const input = document.getElementById('messageInput');
             const message = input.value.trim();
             
-            if (!message || !currentConversationId) return;
+            if ((!message && !attachedFile) || !currentConversationId) return;
             
-            fetch('/whatsapp/api/send', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    conversation_id: currentConversationId,
-                    message: message
+            // If there's a file, upload it first
+            if (attachedFile) {
+                sendMessageWithAttachment(message);
+            } else {
+                // Send text-only message
+                fetch('/whatsapp/api/send', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        conversation_id: currentConversationId,
+                        message: message
+                    })
                 })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        input.value = '';
+                        openConversation(currentConversationId); // Reload chat
+                    } else {
+                        alert('Error sending message: ' + data.message);
+                    }
+                });
+            }
+        }
+        
+        // Send message with attachment
+        function sendMessageWithAttachment(message) {
+            const formData = new FormData();
+            formData.append('file', attachedFile);
+            formData.append('conversation_id', currentConversationId);
+            if (message) formData.append('message', message);
+            
+            // Show uploading state
+            const input = document.getElementById('messageInput');
+            input.disabled = true;
+            input.placeholder = 'Uploading file...';
+            
+            fetch('/whatsapp/api/send_with_attachment', {
+                method: 'POST',
+                body: formData
             })
             .then(response => response.json())
             .then(data => {
+                input.disabled = false;
+                input.placeholder = 'Type a message...';
+                
                 if (data.success) {
                     input.value = '';
+                    clearAttachment();
                     openConversation(currentConversationId); // Reload chat
                 } else {
-                    alert('Error sending message: ' + data.message);
+                    alert('Error sending file: ' + data.message);
                 }
+            })
+            .catch(error => {
+                input.disabled = false;
+                input.placeholder = 'Type a message...';
+                alert('Error uploading file: ' + error);
             });
         }
+        
+        // Handle file selection
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            // Check file size (max 10MB)
+            if (file.size > 10 * 1024 * 1024) {
+                alert('File too large. Maximum size is 10MB.');
+                return;
+            }
+            
+            attachedFile = file;
+            showAttachmentPreview(file);
+        }
+        
+        // Show attachment preview
+        function showAttachmentPreview(file) {
+            const container = document.getElementById('attachmentPreviewContainer');
+            const sizeInKB = (file.size / 1024).toFixed(1);
+            const sizeInMB = (file.size / (1024 * 1024)).toFixed(1);
+            const sizeText = file.size > 1024 * 1024 ? `${sizeInMB} MB` : `${sizeInKB} KB`;
+            
+            // Determine icon based on file type
+            let icon = 'fa-file';
+            if (file.type.startsWith('image/')) icon = 'fa-image';
+            else if (file.type.startsWith('video/')) icon = 'fa-video';
+            else if (file.type.startsWith('audio/')) icon = 'fa-music';
+            else if (file.type.includes('pdf')) icon = 'fa-file-pdf';
+            else if (file.type.includes('word')) icon = 'fa-file-word';
+            else if (file.type.includes('excel') || file.type.includes('spreadsheet')) icon = 'fa-file-excel';
+            
+            container.innerHTML = `
+                <div class="attachment-preview">
+                    <i class="fas ${icon} attachment-preview-icon"></i>
+                    <div class="attachment-preview-info">
+                        <div class="attachment-preview-name">${file.name}</div>
+                        <div class="attachment-preview-size">${sizeText}</div>
+                    </div>
+                    <button class="attachment-preview-remove" onclick="clearAttachment()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `;
+        }
+        
+        // Clear attachment
+        function clearAttachment() {
+            attachedFile = null;
+            document.getElementById('fileInput').value = '';
+            document.getElementById('attachmentPreviewContainer').innerHTML = '';
+        }
+        
+        // ========================================
+        // EMOJI PICKER
+        // ========================================
+        
+        const emojis = [
+            '😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂',
+            '🙂', '🙃', '😉', '😊', '😇', '🥰', '😍', '🤩',
+            '😘', '😗', '😚', '😙', '😋', '😛', '😜', '🤪',
+            '😝', '🤑', '🤗', '🤭', '🤫', '🤔', '🤐', '🤨',
+            '😐', '😑', '😶', '😏', '😒', '🙄', '😬', '🤥',
+            '😌', '😔', '😪', '🤤', '😴', '😷', '🤒', '🤕',
+            '🤢', '🤮', '🤧', '🥵', '🥶', '😶‍🌫️', '😵', '🤯',
+            '🤠', '🥳', '😎', '🤓', '🧐', '😕', '😟', '🙁',
+            '☹️', '😮', '😯', '😲', '😳', '🥺', '😦', '😧',
+            '😨', '😰', '😥', '😢', '😭', '😱', '😖', '😣',
+            '😞', '😓', '😩', '😫', '🥱', '😤', '😡', '😠',
+            '👍', '👎', '👌', '✌️', '🤞', '🤟', '🤘', '🤙',
+            '👈', '👉', '👆', '👇', '☝️', '👋', '🤚', '🖐',
+            '✋', '🖖', '👏', '🙌', '👐', '🤲', '🤝', '🙏',
+            '💪', '🦾', '🦿', '🦵', '🦶', '👂', '🦻', '👃',
+            '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍',
+            '💔', '❣️', '💕', '💞', '💓', '💗', '💖', '💘',
+            '💝', '💟', '☮️', '✝️', '☪️', '🕉', '☸️', '✡️',
+            '🔯', '🕎', '☯️', '☦️', '🛐', '⛎', '♈', '♉',
+            '🎉', '🎊', '🎈', '🎁', '🏆', '🥇', '🥈', '🥉',
+            '⚽', '🏀', '🏈', '⚾', '🥎', '🎾', '🏐', '🏉',
+            '🔥', '💧', '🌊', '🎄', '✨', '🎆', '🎇', '🌟',
+            '⭐', '🌈', '☀️', '🌙', '⚡', '☁️', '🌤', '⛅'
+        ];
+        
+        // Initialize emoji picker
+        function initEmojiPicker() {
+            const grid = document.getElementById('emojiGrid');
+            if (!grid) return;
+            
+            grid.innerHTML = emojis.map(emoji => 
+                `<button class="emoji-item" onclick="insertEmoji('${emoji}')">${emoji}</button>`
+            ).join('');
+        }
+        
+        // Toggle emoji picker
+        function toggleEmojiPicker() {
+            const picker = document.getElementById('emojiPicker');
+            picker.classList.toggle('show');
+        }
+        
+        // Insert emoji
+        function insertEmoji(emoji) {
+            const input = document.getElementById('messageInput');
+            input.value += emoji;
+            input.focus();
+            toggleEmojiPicker();
+        }
+        
+        // Close emoji picker when clicking outside
+        document.addEventListener('click', function(event) {
+            const picker = document.getElementById('emojiPicker');
+            const emojiButton = event.target.closest('[onclick="toggleEmojiPicker()"]');
+            
+            if (!picker) return;
+            
+            if (!picker.contains(event.target) && !emojiButton) {
+                picker.classList.remove('show');
+            }
+        });
         
         // Update funnel stage
         function updateFunnelStage(newStage) {
