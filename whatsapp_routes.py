@@ -29,9 +29,9 @@ try:
     from gcs_pdf_handler import get_gcs_client, GCS_BUCKET_NAME
     GCS_AVAILABLE = True
     logger.info("✅ GCS file attachment support enabled")
-except ImportError:
+except (ImportError, OSError, Exception) as e:
     GCS_AVAILABLE = False
-    logger.warning("⚠️  GCS not available - file attachments disabled")
+    logger.warning(f"⚠️  GCS not available - file attachments disabled: {str(e)}")
 
 
 def upload_file_to_gcs(file, conversation_id):

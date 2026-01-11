@@ -8,7 +8,17 @@ import os
 import json
 import tempfile
 from datetime import datetime, timedelta
-from weasyprint import HTML
+
+# Lazy import for WeasyPrint - only import when actually needed
+# This allows the app to start even if Pango dependencies are missing
+try:
+    from weasyprint import HTML
+    WEASYPRINT_AVAILABLE = True
+except (ImportError, OSError) as e:
+    WEASYPRINT_AVAILABLE = False
+    HTML = None
+    print(f"⚠️  WeasyPrint not available: {str(e)}")
+
 from google.cloud import storage
 
 # GCS Configuration
@@ -31,6 +41,9 @@ def generate_pdf_from_html(html_content):
     Returns:
         bytes: PDF file as bytes
     """
+    if not WEASYPRINT_AVAILABLE:
+        raise Exception("WeasyPrint not available - PDF generation disabled. Install system dependencies (Pango, etc.)")
+    
     try:
         # Convert HTML to PDF in memory
         pdf_bytes = HTML(string=html_content).write_pdf()
